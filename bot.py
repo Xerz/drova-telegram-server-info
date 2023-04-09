@@ -5,10 +5,12 @@ import requests
 import json
 import datetime
 import time
+import geoip2.database
 
 # Dictionary to store X-Auth-Token for each chat ID
 auth_tokens = {}
 messages = []
+ip_reader = geoip2.database.Reader("GeoLite2-City.mmdb")
 # Dictionary to store server IDs for each chat ID
 server_ids = {}
 # Set up the Telegram bot
@@ -48,6 +50,13 @@ def send_sessions(update, context, edit_message=False):
             if game_name == 'Unknown game':
                 products_data_update(update, context)
                 game_name = products_data.get(product_id, 'Unknown game')
+            
+            creator_ip = session.get('creator_ip', 'N/A')
+            creator_city = "X"
+            try:
+                creator_city = ip_reader.city(creator_ip).city.name
+            except:
+                pass
 
             created_on = datetime.datetime.fromtimestamp(session['created_on']/1000.0).strftime('%Y-%m-%d')
             start_time = datetime.datetime.fromtimestamp(session['created_on']/1000.0).strftime('%H:%M:%S')
@@ -66,7 +75,7 @@ def send_sessions(update, context, edit_message=False):
                 message += f"<strong>{created_on}</strong>:\n"
                 created_on_past = created_on
 
-            message += f"{limit-i+1}. <strong>{game_name}</strong>\n<code>{session.get('creator_ip', 'N/A')}</code>\n{start_time}-{finish_time} ({duration_str})\n"
+            message += f"{limit-i+1}. <strong>{game_name}</strong>\n<code>{creator_ip} {creator_city}</code>\n{start_time}-{finish_time} ({duration_str})\n"
             
 
             message += f"Feedback: {score_text}\n" if not score_text == None else ""
