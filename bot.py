@@ -98,11 +98,15 @@ def send_sessions(update, context, edit_message=False, short_mode=False):
 
         update_text = f"Update ({current_time})"
 
+        update_callback_data = "update_sessions"
+        if short_mode:
+            update_callback_data += "_short"
+
         reply_markup = telegram.InlineKeyboardMarkup(
             [
                 [
                     telegram.InlineKeyboardButton(
-                        text=update_text, callback_data="update_sessions"
+                        text=update_text, callback_data=update_callback_data
                     )
                 ]
             ]
@@ -138,10 +142,12 @@ def update_sessions_callback(update, context):
     query = update.callback_query
     chat_id = query.message.chat_id
     message_id = query.message.message_id
+    last_argument = query.data.split("_")[-1]
+    short_mode = last_argument == "short"
 
     if query.data == "update_sessions":
         # Modify the original message with the updated session list
-        send_sessions(query, context, edit_message=True)
+        send_sessions(query, context, edit_message=True, short_mode=short_mode)
         query.answer()
     else:
         bot.send_message(
@@ -281,7 +287,10 @@ def handle_command(update, context):
     command = update.message.text
 
     if command == "/sessions":
-        send_sessions(update, context)
+        if "--short" in command:
+            send_sessions(update, context, short_mode=True)
+        else:
+            send_sessions(update, context)
     elif command.startswith("/token"):
         set_auth_token(update, context)
     else:
@@ -319,10 +328,11 @@ def main():
     dispatcher.add_handler(token_handler)
 
     # Set up the callback query handlers
-    callback_query_handler = telegram.ext.CallbackQueryHandler(
+    update_sessions_handler = telegram.ext.CallbackQueryHandler(
         update_sessions_callback, pattern="^update_sessions$"
     )
-    dispatcher.add_handler(callback_query_handler)
+    dispatcher.add_handler(update_sessions_handler)
+
     set_server_id_handler = telegram.ext.CallbackQueryHandler(
         set_server_id_callback, pattern="^set_server_id_"
     )
