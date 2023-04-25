@@ -40,7 +40,8 @@ def send_sessions(update, context, edit_message=False, short_mode=False):
     if response.status_code == 200:
         sessions = response.json()["sessions"]
         limit = int(params["limit"])
-        message = f"Last {limit} sessions:\n\n"
+        message_long_text = " (excluding those shorter than 5 minutes)" if short_mode==True else ""
+        message = f"Last {limit} sessions{message_long_text}:\n\n"
 
         created_on_past = ""
 
@@ -69,11 +70,9 @@ def send_sessions(update, context, edit_message=False, short_mode=False):
                 finish_time = datetime.datetime.fromtimestamp(
                     finish_time / 1000.0
                 ).strftime("%H:%M:%S")
-                duration = str(
-                    datetime.timedelta(
+                duration = datetime.timedelta(
                         seconds=(session["finished_on"] - session["created_on"]) / 1000
                     )
-                )
                 duration_str = str(duration).split(".")[0]
             else:
                 finish_time = "Now"
@@ -145,7 +144,7 @@ def update_sessions_callback(update, context):
     last_argument = query.data.split("_")[-1]
     short_mode = last_argument == "short"
 
-    if query.data == "update_sessions":
+    if "update_sessions" in query.data:
         # Modify the original message with the updated session list
         send_sessions(query, context, edit_message=True, short_mode=short_mode)
         query.answer()
@@ -286,8 +285,8 @@ def set_server_id_callback(update, context):
 def handle_command(update, context):
     command = update.message.text
 
-    if command == "/sessions":
-        if "--short" in command:
+    if "/sessions" in command:
+        if len(context.args) > 0 and context.args[0] == "short":
             send_sessions(update, context, short_mode=True)
         else:
             send_sessions(update, context)
@@ -329,7 +328,7 @@ def main():
 
     # Set up the callback query handlers
     update_sessions_handler = telegram.ext.CallbackQueryHandler(
-        update_sessions_callback, pattern="^update_sessions$"
+        update_sessions_callback, pattern="^update_sessions"
     )
     dispatcher.add_handler(update_sessions_handler)
 
