@@ -418,7 +418,7 @@ def main():
     dispatcher.add_handler(limit_handler)
 
     # Set up the command handler for the '/dumpall' command
-    dump_handler = telegram.ext.CommandHandler("limit", handle_dump)
+    dump_handler = telegram.ext.CommandHandler("dumpall", handle_dump)
     dispatcher.add_handler(dump_handler)
 
     updater.start_polling()
