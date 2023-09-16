@@ -1,5 +1,6 @@
 # GeoLite2 IP Database
 GeoLite2-City.mmdb
+GeoLite2-ASN.mmdb
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

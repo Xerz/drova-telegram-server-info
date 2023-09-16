@@ -11,6 +11,7 @@ import geoip2.database
 auth_tokens = {}
 messages = []
 ip_reader = geoip2.database.Reader("GeoLite2-City.mmdb")
+ip_isp_reader = geoip2.database.Reader("GeoLite2-ASN.mmdb")
 # Dictionary to store server IDs for each chat ID
 server_ids = {}
 # Set up the Telegram bot
@@ -58,6 +59,11 @@ def send_sessions(update, context, edit_message=False, short_mode=False):
                 creator_city = ip_reader.city(creator_ip).city.name
             except:
                 pass
+            creator_org = "X"
+            try:
+                creator_org = ip_isp_reader.asn(creator_ip).autonomous_system_organization
+            except:
+                pass
 
             created_on = datetime.datetime.fromtimestamp(
                 session["created_on"] / 1000.0
@@ -73,10 +79,12 @@ def send_sessions(update, context, edit_message=False, short_mode=False):
                 duration = datetime.timedelta(
                         seconds=(session["finished_on"] - session["created_on"]) / 1000
                     )
-                duration_str = str(duration).split(".")[0]
             else:
                 finish_time = "Now"
-                duration_str = "N/A"
+                duration = datetime.timedelta(
+                        seconds=(datetime.now(datetime.UTC).timestamp() - session["created_on"]) / 1000
+                    )
+            duration_str = str(duration).split(".")[0]
 
             score_text = session.get("score_text", "N/A")
 
@@ -85,7 +93,9 @@ def send_sessions(update, context, edit_message=False, short_mode=False):
                 created_on_past = created_on
 
             if (not short_mode) or (short_mode and duration > datetime.timedelta(minutes=5)):
-                message += f"{limit-i+1}. <strong>{game_name}</strong>\n<code>{creator_ip}</code> {creator_city}\n{start_time}-{finish_time} ({duration_str})\n"
+                message += f"{limit-i+1}. <strong>{game_name}</strong>\n<code>{creator_ip}</code> \n"
+                
+                message += f"{creator_city} {creator_org}\n{start_time}-{finish_time} ({duration_str})\n"
 
                 message += f"Feedback: {score_text}\n" if not score_text == None else ""
 
