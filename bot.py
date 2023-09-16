@@ -3,6 +3,7 @@ import telegram
 import telegram.ext
 import requests
 import json
+import csv
 import datetime
 import time
 import geoip2.database
@@ -243,6 +244,63 @@ def handle_limit(update, context):
         # Send a message to the user confirming the update
         bot.send_message(chat_id=chat_id, text=f"Limit updated to {limit}.")
 
+def handle_dump(update, context):
+    chat_id = update.message.chat_id
+    # Retrieve user-specific params dictionary
+    params = context.user_data.get("params", {})
+
+    # Set up the endpoint URL and request parameters
+    url = "https://services.drova.io/session-manager/sessions"
+
+
+    if len(context.args) == 0:
+        params["limit"] = ""
+
+        # Get the X-Auth-Token for this chat ID, or use the default value
+        auth_token = auth_tokens.get(chat_id, "")
+
+        response = requests.get(url, params=params, headers={"X-Auth-Token": auth_token})
+        if response.status_code == 200:
+            sessions = response.json()["sessions"]
+            for item in sessions:
+                product_id = item.get("product_id")
+                creator_ip = item.get("creator_ip")
+                creator_city = "X"
+                try:
+                    creator_city = ip_reader.city(creator_ip).city.name
+                except:
+                    pass
+                creator_org = "X"
+                try:
+                    creator_org = ip_isp_reader.asn(creator_ip).autonomous_system_organization
+                except:
+                    pass
+
+                game_name = products_data.get(product_id, "Unknown game")
+
+                item["Game name"] = game_name
+                item["City"] = creator_city
+                item["ASN"] = creator_org
+
+                fieldnames = ['id', 'uuid', 'client_id', 'server_id', 'merchant_id', 'product_id', 'created_on', 'finished_on', 'status', 'creator_ip', 'abort_comment', 'score', 'score_reason', 'score_text', 'billing_type','parent', 'sched_hints']
+
+
+                csv_file = "sessions-" + str(chat_id) + ".csv"
+
+                # Write session data to CSV
+                with open(csv_file, 'w', newline='') as file:
+                    writer = csv.DictWriter(file, fieldnames=fieldnames)
+                    writer.writeheader()
+                    writer.writerows(sessions)
+                
+                bot.send_document(chat_id=chat_id, filename=csv_file)
+
+        else:
+            bot.send_message(chat_id=chat_id, text=f"Error: {response.status_code}")
+
+    
+
+
 
 def products_data_update(update, context):
     chat_id = update.message.chat_id
@@ -358,6 +416,10 @@ def main():
     # Set up the command handler for the '/limit' command
     limit_handler = telegram.ext.CommandHandler("limit", handle_limit)
     dispatcher.add_handler(limit_handler)
+
+    # Set up the command handler for the '/dumpall' command
+    dump_handler = telegram.ext.CommandHandler("limit", handle_dump)
+    dispatcher.add_handler(dump_handler)
 
     updater.start_polling()
     updater.idle()
