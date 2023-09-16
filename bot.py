@@ -282,7 +282,7 @@ def handle_dump(update, context):
                 item["City"] = creator_city
                 item["ASN"] = creator_org
 
-                fieldnames = ['id', 'uuid', 'client_id', 'server_id', 'merchant_id', 'product_id', 'created_on', 'finished_on', 'status', 'creator_ip', 'abort_comment', 'score', 'score_reason', 'score_text', 'billing_type','parent', 'sched_hints']
+                fieldnames = ['id', 'uuid', 'client_id', 'server_id', 'merchant_id', 'product_id', 'created_on', 'finished_on', 'status', 'creator_ip', 'abort_comment', 'score', 'score_reason', 'score_text', 'billing_type','parent', 'sched_hints','Game name','City','ASN']
 
 
                 csv_file = "sessions-" + str(chat_id) + ".csv"
