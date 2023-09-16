@@ -257,67 +257,83 @@ def handle_dump(update, context):
         # Get the X-Auth-Token for this chat ID, or use the default value
         auth_token = auth_tokens.get(chat_id, "")
 
-        response = requests.get(url, params={"server_id": "9c53a696-219-42df-aea-7820950840e"}, headers={"X-Auth-Token": auth_token})
-        if response.status_code == 200:
-            sessions = response.json()["sessions"]
-            for item in sessions:
-                product_id = item.get("product_id")
-                creator_ip = item.get("creator_ip")
-                creator_city = "X"
-                try:
-                    creator_city = ip_reader.city(creator_ip).city.name
-                except:
-                    pass
-                creator_org = "X"
-                try:
-                    creator_org = ip_isp_reader.asn(creator_ip).autonomous_system_organization
-                except:
-                    pass
+        user_id = requests.get(
+            "https://services.drova.io/accounting/myaccount",
+            headers={"X-Auth-Token": auth_tokens.get(chat_id, "")},
+        ).json()["uuid"]
 
-                game_name = products_data.get(product_id, "Unknown game")
+        # Retrieve a list of available server IDs from the API
+        servers_response = requests.get(
+            "https://services.drova.io/server-manager/servers",
+            params={"user_id": user_id},
+            headers={"X-Auth-Token": auth_tokens.get(chat_id, "")},
+        )
 
+        if servers_response.status_code == 200:
+            servers = servers_response.json()
 
-                created_on = datetime.datetime.fromtimestamp(
-                    item["created_on"] / 1000.0
-                ).strftime("%Y-%m-%d")
-                start_time = datetime.datetime.fromtimestamp(
-                    item["created_on"] / 1000.0
-                ).strftime("%H:%M:%S")
-                finish_time = item["finished_on"]
-                if finish_time:
-                    finish_time = datetime.datetime.fromtimestamp(
-                        finish_time / 1000.0
-                    ).strftime("%H:%M:%S")
-                    duration = datetime.timedelta(
-                            seconds=(item["finished_on"] - item["created_on"]) / 1000
-                        )
-                else:
-                    finish_time = "Now"
-                    duration = datetime.timedelta(
-                            seconds=(datetime.now(datetime.UTC).timestamp() - item["created_on"]) / 1000
-                        )
-                duration_str = str(duration).split(".")[0]
+            for s in servers:
+                response = requests.get(url, params={"server_id": s["uuid"]}, headers={"X-Auth-Token": auth_token})
+                if response.status_code == 200:
+                    sessions = response.json()["sessions"]
+                    for item in sessions:
+                        product_id = item.get("product_id")
+                        creator_ip = item.get("creator_ip")
+                        creator_city = "X"
+                        try:
+                            creator_city = ip_reader.city(creator_ip).city.name
+                        except:
+                            pass
+                        creator_org = "X"
+                        try:
+                            creator_org = ip_isp_reader.asn(creator_ip).autonomous_system_organization
+                        except:
+                            pass
 
-                item["Game name"] = game_name
-                item["City"] = creator_city
-                item["ASN"] = creator_org
-                item["Duration"] = duration_str
-                item["Start time"] = start_time
-                item["Finish time"] = finish_time
-                item["Date"] = created_on
-
-            fieldnames = ['Game name','creator_ip','City','ASN','Date','Duration','Start time','Finish time', 'billing_type','status',  'abort_comment', 'client_id','id','uuid',  'server_id', 'merchant_id', 'product_id', 'created_on', 'finished_on', 'score', 'score_reason', 'score_text', 'parent', 'sched_hints']
+                        game_name = products_data.get(product_id, "Unknown game")
 
 
-            csv_file = "sessions-" + str(chat_id) + ".csv"
+                        created_on = datetime.datetime.fromtimestamp(
+                            item["created_on"] / 1000.0
+                        ).strftime("%Y-%m-%d")
+                        start_time = datetime.datetime.fromtimestamp(
+                            item["created_on"] / 1000.0
+                        ).strftime("%H:%M:%S")
+                        finish_time = item["finished_on"]
+                        if finish_time:
+                            finish_time = datetime.datetime.fromtimestamp(
+                                finish_time / 1000.0
+                            ).strftime("%H:%M:%S")
+                            duration = datetime.timedelta(
+                                    seconds=(item["finished_on"] - item["created_on"]) / 1000
+                                )
+                        else:
+                            finish_time = "Now"
+                            duration = datetime.timedelta(
+                                    seconds=(datetime.now(datetime.UTC).timestamp() - item["created_on"]) / 1000
+                                )
+                        duration_str = str(duration).split(".")[0]
 
-            # Write session data to CSV
-            with open(csv_file, 'w', newline='') as file:
-                writer = csv.DictWriter(file, fieldnames=fieldnames)
-                writer.writeheader()
-                writer.writerows(sessions)
-            
-            bot.send_document(chat_id=chat_id, document=open(csv_file, "rb"))
+                        item["Game name"] = game_name
+                        item["City"] = creator_city
+                        item["ASN"] = creator_org
+                        item["Duration"] = duration_str
+                        item["Start time"] = start_time
+                        item["Finish time"] = finish_time
+                        item["Date"] = created_on
+
+                    fieldnames = ['Game name','creator_ip','City','ASN','Date','Duration','Start time','Finish time', 'billing_type','status',  'abort_comment', 'client_id','id','uuid',  'server_id', 'merchant_id', 'product_id', 'created_on', 'finished_on', 'score', 'score_reason', 'score_text', 'parent', 'sched_hints']
+
+
+                    csv_file = "sessions-" + s["name"] + ".csv"
+
+                    # Write session data to CSV
+                    with open(csv_file, 'w', newline='') as file:
+                        writer = csv.DictWriter(file, fieldnames=fieldnames)
+                        writer.writeheader()
+                        writer.writerows(sessions)
+                    
+                    bot.send_document(chat_id=chat_id, document=open(csv_file, "rb"))
 
         else:
             bot.send_message(chat_id=chat_id, text=f"Error: {response.status_code}")
