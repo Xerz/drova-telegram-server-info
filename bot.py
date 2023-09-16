@@ -65,6 +65,8 @@ def send_sessions(update, context, edit_message=False, short_mode=False):
             except:
                 pass
 
+            client_id = session.get("client_id", "xxxxxx")[-6:]
+
             created_on = datetime.datetime.fromtimestamp(
                 session["created_on"] / 1000.0
             ).strftime("%Y-%m-%d")
@@ -93,7 +95,9 @@ def send_sessions(update, context, edit_message=False, short_mode=False):
                 created_on_past = created_on
 
             if (not short_mode) or (short_mode and duration > datetime.timedelta(minutes=5)):
-                message += f"{limit-i+1}. <strong>{game_name}</strong>\n<code>{creator_ip}</code> \n"
+                message += f"{limit-i+1}. <strong>{game_name}</strong>\n"
+                
+                message += f"<code>{creator_ip}</code> <code>{client_id}</code>\n"
                 
                 message += f"{creator_city} {creator_org}\n{start_time}-{finish_time} ({duration_str})\n"
 
