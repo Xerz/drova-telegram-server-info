@@ -278,11 +278,37 @@ def handle_dump(update, context):
 
                 game_name = products_data.get(product_id, "Unknown game")
 
+
+                created_on = datetime.datetime.fromtimestamp(
+                    item["created_on"] / 1000.0
+                ).strftime("%Y-%m-%d")
+                start_time = datetime.datetime.fromtimestamp(
+                    item["created_on"] / 1000.0
+                ).strftime("%H:%M:%S")
+                finish_time = item["finished_on"]
+                if finish_time:
+                    finish_time = datetime.datetime.fromtimestamp(
+                        finish_time / 1000.0
+                    ).strftime("%H:%M:%S")
+                    duration = datetime.timedelta(
+                            seconds=(item["finished_on"] - item["created_on"]) / 1000
+                        )
+                else:
+                    finish_time = "Now"
+                    duration = datetime.timedelta(
+                            seconds=(datetime.now(datetime.UTC).timestamp() - item["created_on"]) / 1000
+                        )
+                duration_str = str(duration).split(".")[0]
+
                 item["Game name"] = game_name
                 item["City"] = creator_city
                 item["ASN"] = creator_org
+                item["Duration"] = duration_str
+                item["Start time"] = start_time
+                item["Finish time"] = finish_time
+                item["Date"] = created_on
 
-            fieldnames = ['id', 'uuid', 'client_id', 'server_id', 'merchant_id', 'product_id', 'created_on', 'finished_on', 'status', 'creator_ip', 'abort_comment', 'score', 'score_reason', 'score_text', 'billing_type','parent', 'sched_hints','Game name','City','ASN']
+            fieldnames = ['Game name','City','ASN','Date','Duration','client_id','id','Start time','Finish time', 'uuid',  'server_id', 'merchant_id', 'product_id', 'created_on', 'finished_on', 'status', 'creator_ip', 'abort_comment', 'score', 'score_reason', 'score_text', 'billing_type','parent', 'sched_hints']
 
 
             csv_file = "sessions-" + str(chat_id) + ".csv"
