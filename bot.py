@@ -308,7 +308,7 @@ def handle_dump(update, context):
                 item["Finish time"] = finish_time
                 item["Date"] = created_on
 
-            fieldnames = ['Game name','City','ASN','Date','Duration','client_id','id','Start time','Finish time', 'uuid',  'server_id', 'merchant_id', 'product_id', 'created_on', 'finished_on', 'status', 'creator_ip', 'abort_comment', 'score', 'score_reason', 'score_text', 'billing_type','parent', 'sched_hints']
+            fieldnames = ['Game name','creator_ip','City','ASN','Date','Duration','Start time','Finish time', 'billing_type','status',  'abort_comment', 'client_id','id','uuid',  'server_id', 'merchant_id', 'product_id', 'created_on', 'finished_on', 'score', 'score_reason', 'score_text', 'parent', 'sched_hints']
 
 
             csv_file = "sessions-" + str(chat_id) + ".csv"
