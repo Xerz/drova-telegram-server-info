@@ -257,7 +257,7 @@ def handle_dump(update, context):
         # Get the X-Auth-Token for this chat ID, or use the default value
         auth_token = auth_tokens.get(chat_id, "")
 
-        response = requests.get(url, params={"limit": "5000"}, headers={"X-Auth-Token": auth_token})
+        response = requests.get(url, params={"limit": "500"}, headers={"X-Auth-Token": auth_token})
         if response.status_code == 200:
             sessions = response.json()["sessions"]
             for item in sessions:
