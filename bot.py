@@ -293,8 +293,7 @@ def handle_dump(update, context):
                     writer.writeheader()
                     writer.writerows(sessions)
                 
-                with open(csv_file, "rb") as file:
-                    bot.send_document(chat_id=chat_id, document=file)
+                bot.send_document(chat_id=chat_id, document=open(csv_file, "rb"))
 
         else:
             bot.send_message(chat_id=chat_id, text=f"Error: {response.status_code}")
