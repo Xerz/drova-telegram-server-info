@@ -282,18 +282,18 @@ def handle_dump(update, context):
                 item["City"] = creator_city
                 item["ASN"] = creator_org
 
-                fieldnames = ['id', 'uuid', 'client_id', 'server_id', 'merchant_id', 'product_id', 'created_on', 'finished_on', 'status', 'creator_ip', 'abort_comment', 'score', 'score_reason', 'score_text', 'billing_type','parent', 'sched_hints','Game name','City','ASN']
+            fieldnames = ['id', 'uuid', 'client_id', 'server_id', 'merchant_id', 'product_id', 'created_on', 'finished_on', 'status', 'creator_ip', 'abort_comment', 'score', 'score_reason', 'score_text', 'billing_type','parent', 'sched_hints','Game name','City','ASN']
 
 
-                csv_file = "sessions-" + str(chat_id) + ".csv"
+            csv_file = "sessions-" + str(chat_id) + ".csv"
 
-                # Write session data to CSV
-                with open(csv_file, 'w', newline='') as file:
-                    writer = csv.DictWriter(file, fieldnames=fieldnames)
-                    writer.writeheader()
-                    writer.writerows(sessions)
-                
-                bot.send_document(chat_id=chat_id, document=open(csv_file, "rb"))
+            # Write session data to CSV
+            with open(csv_file, 'w', newline='') as file:
+                writer = csv.DictWriter(file, fieldnames=fieldnames)
+                writer.writeheader()
+                writer.writerows(sessions)
+            
+            bot.send_document(chat_id=chat_id, document=open(csv_file, "rb"))
 
         else:
             bot.send_message(chat_id=chat_id, text=f"Error: {response.status_code}")
