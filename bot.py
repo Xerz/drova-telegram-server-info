@@ -85,7 +85,7 @@ def send_sessions(update, context, edit_message=False, short_mode=False):
             else:
                 finish_time = "Now"
                 duration = datetime.timedelta(
-                        seconds=(datetime.datetime.now(datetime.UTC).timestamp() - session["created_on"]) / 1000
+                        seconds=(datetime.datetime.now(datetime.datetime.UTC).timestamp() - session["created_on"]) / 1000
                     )
             duration_str = str(duration).split(".")[0]
 
@@ -310,7 +310,7 @@ def handle_dump(update, context):
                         else:
                             finish_time = "Now"
                             duration = datetime.timedelta(
-                                    seconds=(datetime.datetime.now(datetime.UTC).timestamp() - item["created_on"]) / 1000
+                                    seconds=(datetime.datetime.now(datetime.datetime.UTC).timestamp() - item["created_on"]) / 1000
                                 )
                         duration_str = str(duration).split(".")[0]
 
