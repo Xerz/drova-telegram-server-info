@@ -310,7 +310,7 @@ def handle_dump(update, context):
                         else:
                             finish_time = "Now"
                             duration = datetime.timedelta(
-                                    seconds=(datetime.now(datetime.UTC).timestamp() - item["created_on"]) / 1000
+                                    seconds=(datetime.datetime.now(datetime.UTC).timestamp() - item["created_on"]) / 1000
                                 )
                         duration_str = str(duration).split(".")[0]
 
