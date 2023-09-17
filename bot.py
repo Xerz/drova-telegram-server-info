@@ -85,7 +85,7 @@ def send_sessions(update, context, edit_message=False, short_mode=False):
             else:
                 finish_time = "Now"
                 duration = datetime.timedelta(
-                        seconds=(datetime.datetime.utcnow()).timestamp() - session["created_on"]) / 1000
+                        seconds=(datetime.datetime.utcnow().timestamp() - session["created_on"]) / 1000
                     )
             duration_str = str(duration).split(".")[0]
 
