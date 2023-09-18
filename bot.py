@@ -25,6 +25,15 @@ with open("products.json", "r") as f:
     products_data = json.load(f)
 
 
+def getCityByIP(creator_ip,defValue=""):
+    try:
+        creator_city = ip_reader.city(creator_ip).city.name
+    except:
+        pass
+    if creator_city=="" or creator_city is None:
+        creator_city = defValue
+    return creator_city
+
 def send_sessions(update, context, edit_message=False, short_mode=False):
     chat_id = update.message.chat_id
 
@@ -55,11 +64,8 @@ def send_sessions(update, context, edit_message=False, short_mode=False):
                 game_name = products_data.get(product_id, "Unknown game")
 
             creator_ip = session.get("creator_ip", "N/A")
-            creator_city = "X"
-            try:
-                creator_city = ip_reader.city(creator_ip).city.name
-            except:
-                pass
+            creator_city= getCityByIP(creator_ip,"X")
+
             creator_org = "X"
             try:
                 creator_org = ip_isp_reader.asn(creator_ip).autonomous_system_organization
@@ -184,6 +190,62 @@ def set_auth_token(update, context):
     context.user_data["params"] = params_defaults
 
     bot.send_message(chat_id=chat_id, text="X-Auth-Token has been set.")
+
+
+# Set up the command handler for the '/station' command
+def handle_current(update, context):
+    chat_id = update.message.chat_id
+
+    # Retrieve user-specific params dictionary
+    params = context.user_data.get("params", {})
+
+    user_id = requests.get(
+        "https://services.drova.io/accounting/myaccount",
+        headers={"X-Auth-Token": auth_tokens.get(chat_id, "")},
+    ).json()["uuid"]
+    # Retrieve a list of available server IDs from the API
+    response = requests.get(
+        "https://services.drova.io/server-manager/servers",
+        params={"user_id": user_id},
+        headers={"X-Auth-Token": auth_tokens.get(chat_id, "")},
+    )
+    if response.status_code == 200:
+        servers = response.json()
+        
+        currentSessions=""
+
+        for s in servers:
+            sessionResponse=requests.get(
+                "https://services.drova.io/session-manager/sessions",
+                params={"server_id": s["uuid"],"limit":1},
+                headers={"X-Auth-Token": auth_tokens.get(chat_id, "")},
+            )         
+
+            if sessionResponse.status_code == 200:
+                sessions = sessionResponse.json()
+                if len(sessions["sessions"])>0:
+                    for session in sessions["sessions"]:
+                        game_name = products_data.get(session["product_id"], "Unknown game")
+                        station_name=s["name"]
+                        if s["state"]!="LISTEN"and s["state"]!= "HANDSHAKE" and s["state"]!="BUSY" :
+                            station_name=f"<em>{s['name']}</em>"
+                        elif session["status"]=="ACTIVE" :
+                            station_name=f"<strong>{s['name']}</strong>"
+                        currentSessions += station_name +" "+game_name+" "+getCityByIP(session["creator_ip"])+"\r\n"
+                else:
+                    station_name=s["name"]
+                    if s["state"]!="LISTEN" and s["state"]!= "HANDSHAKE"and s["state"]!="BUSY":
+                        station_name=f"<em>{s['name']}</em>"
+                    currentSessions += station_name +" no sessions\r\n"
+        if currentSessions!="":
+            bot.send_message(chat_id=chat_id, 
+                text=currentSessions,
+                parse_mode=telegram.ParseMode.HTML,
+            )
+    else:
+        bot.send_message(chat_id=chat_id, text=f"Error: {response.status_code}")
+
+
 
 
 # Set up the command handler for the '/station' command
@@ -448,6 +510,10 @@ def main():
         set_server_id_callback, pattern="^set_server_id_"
     )
     dispatcher.add_handler(set_server_id_handler)
+
+    # Set up the command handler for the '/current' command
+    current_handler = telegram.ext.CommandHandler("current", handle_current)
+    dispatcher.add_handler(current_handler)
 
     # Set up the command handler for the '/station' command
     station_handler = telegram.ext.CommandHandler("station", handle_station)
