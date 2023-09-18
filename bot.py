@@ -25,6 +25,28 @@ with open("products.json", "r") as f:
     products_data = json.load(f)
 
 
+def formatDuration(elapsed_time):
+    if elapsed_time < 3600:
+        minutes, seconds = divmod(elapsed_time, 60)
+        return "{:.0f}m:{:.0f}s ".format(minutes,seconds)
+    elif elapsed_time < 86400:
+        hours, remainder = divmod(elapsed_time, 3600)
+        minutes, seconds = divmod(remainder, 60)
+        return "{:.0f}h {:.0f}m".format(hours, minutes)
+    else:
+        days, remainder = divmod(elapsed_time, 86400)
+        hours, remainder = divmod(remainder, 3600)
+        minutes, seconds = divmod(remainder, 60)
+        return "{:.0f}d {:.0f}h {:.0f}m".format(days, hours, minutes)
+
+
+def getSessionDuration(session):
+    if session['finished_on'] is None:
+        duration=(datetime.datetime.now().timestamp()-session['created_on']/1000)
+    else:
+        duration=(session['finished_on']-session['created_on'])/1000
+    return duration
+
 def getCityByIP(creator_ip,defValue=""):
     try:
         creator_city = ip_reader.city(creator_ip).city.name
@@ -229,9 +251,9 @@ def handle_current(update, context):
                         station_name=s["name"]
                         if s["state"]!="LISTEN"and s["state"]!= "HANDSHAKE" and s["state"]!="BUSY" :
                             station_name=f"<em>{s['name']}</em>"
-                        elif session["status"]=="ACTIVE" :
+                        elif session["status"]=="ACTIVE" or  s["state"]== "HANDSHAKE":
                             station_name=f"<strong>{s['name']}</strong>"
-                        currentSessions += station_name +" "+game_name+" "+getCityByIP(session["creator_ip"])+"\r\n"
+                        currentSessions += station_name +" "+game_name+" "+getCityByIP(session["creator_ip"])+" "+formatDuration(getSessionDuration(session))+"\r\n"
                 else:
                     station_name=s["name"]
                     if s["state"]!="LISTEN" and s["state"]!= "HANDSHAKE"and s["state"]!="BUSY":
