@@ -19,6 +19,7 @@ persistentData= {
     "userIDs":{},
     "limits":{},
     "selectedStations": {},
+    "stationNames":{},
 }
 
 # Load the products data from a JSON file
@@ -62,6 +63,12 @@ def setLimit(chatID,limit):
        persistentData['limits'] = {}
     persistentData['limits'][str(chatID)]=int(limit)
     storePersistentData()
+
+def storeStationNames(chatID,stations):
+    if 'stationNames'not in persistentData:
+       persistentData['stationNames'] = {}
+    persistentData['stationNames'][str(chatID)]=stations
+    storePersistentData()    
 
 def formatDuration(elapsed_time):
     if elapsed_time < 3600:
@@ -182,7 +189,11 @@ def send_sessions(update, context, edit_message=False, short_mode=False):
 
         current_time = datetime.datetime.now().strftime("%H:%M:%S")
 
-        update_text = f"Update ({current_time})"
+        currentStations=persistentData['stationNames'].get(str(chat_id),None)
+        if not currentStations is None:
+            currentStationName=persistentData['stationNames'][str(chat_id)].get(server_id,None)
+        
+        update_text = f"Update {currentStationName} ({current_time})"
 
         update_callback_data = "update_sessions"
         if short_mode:
@@ -343,8 +354,15 @@ def handle_station(update, context):
             params={"user_id": user_id},
             headers={"X-Auth-Token": authToken},
         )
+
         if response.status_code == 200:
             servers = response.json()
+
+            stationNames={}
+            for s in servers:
+                stationNames[s['uuid']]=s['name']
+            storeStationNames(chat_id,stationNames)
+
             # Create inline keyboard buttons for each available server ID
             keyboard = [
                 [
