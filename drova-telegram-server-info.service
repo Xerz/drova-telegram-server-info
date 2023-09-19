@@ -1,0 +1,15 @@
+[Unit]
+Description=drova-telegram-server-info
+After=multi-user.target
+ 
+[Service]
+User=user
+Group=user
+Type=simple
+Restart=always
+WorkingDirectory=/home/user/drova-telegram-server-info/
+EnvironmentFile=/home/user/drova-telegram-server-info/.envvars
+ExecStart=/usr/bin/python3 -u /home/user/drova-telegram-server-info/bot.py
+ 
+[Install]
+WantedBy=multi-user.target
