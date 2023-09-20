@@ -365,22 +365,27 @@ def handle_current(update, context, edit_message=False):
 
             if sessionResponse.status_code == 200:
                 sessions = sessionResponse.json()
+
+                station_name=s["name"]
+                if s["state"]!="LISTEN"and s["state"]!= "HANDSHAKE" and s["state"]!="BUSY" :
+                    station_name=f"<s>{station_name}</s>"
+                
+                if not s['published']:
+                    station_name=f"<em>{station_name}</em>"
+
                 if len(sessions["sessions"])>0:
+                    
                     for session in sessions["sessions"]:
+
+                        if session["status"]=="ACTIVE" or  s["state"]== "HANDSHAKE":
+                            station_name=f"<strong>{station_name}</strong>"
+
                         game_name = products_data.get(session["product_id"], "Unknown")
                         if game_name == "Unknown game":
                             products_data_update(update, context)
                             game_name = products_data.get(session["product_id"], "Unknown")                        
-                        station_name=s["name"]
-                        if s["state"]!="LISTEN"and s["state"]!= "HANDSHAKE" and s["state"]!="BUSY" :
-                            station_name=f"<em>{s['name']}</em>"
-                        elif session["status"]=="ACTIVE" or  s["state"]== "HANDSHAKE":
-                            station_name=f"<strong>{s['name']}</strong>"
                         currentSessions += station_name +" "+game_name+" "+getCityByIP(session["creator_ip"])+" "+formatDuration(getSessionDuration(session))+"\r\n"
                 else:
-                    station_name=s["name"]
-                    if s["state"]!="LISTEN" and s["state"]!= "HANDSHAKE"and s["state"]!="BUSY":
-                        station_name=f"<em>{s['name']}</em>"
                     currentSessions += station_name +" no sessions\r\n"
 
         if currentSessions!="":
