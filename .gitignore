@@ -5,6 +5,9 @@ persistentData.json
 GeoLite2-City.mmdb
 GeoLite2-ASN.mmdb
 
+# sessions export
+*.csv
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
