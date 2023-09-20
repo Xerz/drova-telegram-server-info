@@ -1,3 +1,6 @@
+# Bot local store with auth tokens and other
+persistentData.json
+
 # GeoLite2 IP Database
 GeoLite2-City.mmdb
 GeoLite2-ASN.mmdb

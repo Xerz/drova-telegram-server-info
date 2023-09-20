@@ -8,22 +8,75 @@ import datetime
 import time
 import geoip2.database
 
-# Dictionary to store X-Auth-Token for each chat ID
-auth_tokens = {}
-messages = []
 ip_reader = geoip2.database.Reader("GeoLite2-City.mmdb")
 ip_isp_reader = geoip2.database.Reader("GeoLite2-ASN.mmdb")
-# Dictionary to store server IDs for each chat ID
-server_ids = {}
-# Set up the Telegram bot
+
 bot = telegram.Bot(token=os.environ["TELEGRAM_BOT_TOKEN"])
 
 products_data = {}
+persistentData= {
+    "authTokens": {},
+    "userIDs":{},
+    "limits":{},
+    "selectedStations": {},
+    "stationNames":{},
+}
 
 # Load the products data from a JSON file
 with open("products.json", "r") as f:
     products_data = json.load(f)
 
+# Load the auth tokens from a JSON file
+try:
+    with open("persistentData.json", 'r') as f:
+        persistentData = json.load(f)
+except:
+    pass
+
+def storePersistentData():
+    try:
+        with open("persistentData.json", 'w') as f:
+            json.dump(persistentData, f, indent=4)
+    except:
+        pass
+
+def setUserID(chatID,userID):
+    if 'userIDs'not in persistentData:
+       persistentData['userIDs'] = {}
+    persistentData['userIDs'][str(chatID)]=userID
+    storePersistentData()
+
+def setAuthToken(chatID,authToken):
+    if 'authTokens'not in persistentData:
+       persistentData['authTokens'] = {}
+    if authToken=="-" and str(chatID) in persistentData['authTokens']:
+        del persistentData['authTokens'][str(chatID)]
+        storePersistentData()
+        return True
+    else:
+        persistentData['authTokens'][str(chatID)]=authToken
+    storePersistentData()
+
+def setSelectedStationID(chatID,stationID):
+    if 'selectedStations'not in persistentData:
+       persistentData['selectedStations'] = {}
+    if stationID=="-" and str(chatID) in persistentData['selectedStations']:
+        del persistentData['selectedStations'][str(chatID)]
+    else:
+        persistentData['selectedStations'][str(chatID)]=stationID
+    storePersistentData()
+
+def setLimit(chatID,limit):
+    if 'limits'not in persistentData:
+       persistentData['limits'] = {}
+    persistentData['limits'][str(chatID)]=int(limit)
+    storePersistentData()
+
+def storeStationNames(chatID,stations):
+    if 'stationNames'not in persistentData:
+       persistentData['stationNames'] = {}
+    persistentData['stationNames'][str(chatID)]=stations
+    storePersistentData()    
 
 def formatDuration(elapsed_time):
     if elapsed_time < 3600:
@@ -48,31 +101,41 @@ def getSessionDuration(session):
     return duration
 
 def getCityByIP(creator_ip,defValue=""):
+    creator_city=defValue
     try:
         creator_city = ip_reader.city(creator_ip).city.name
     except:
         pass
-    if creator_city=="" or creator_city is None:
+    if creator_city is None:
         creator_city = defValue
     return creator_city
 
 def send_sessions(update, context, edit_message=False, short_mode=False):
     chat_id = update.message.chat_id
 
+    authToken=persistentData['authTokens'].get(str(chat_id), None)
+    if authToken is None:
+        bot.send_message(chat_id=chat_id, text=f"setup me first")
+        return
+    
+    server_id=persistentData['selectedStations'].get(str(chat_id), None)
+
     # Set up the endpoint URL and request parameters
     url = "https://services.drova.io/session-manager/sessions"
 
-    # Retrieve user-specific params dictionary
-    params = context.user_data.get("params", {})
+    limit =persistentData['limits'].get(str(chat_id), 5)
+    params={ "limit":limit}
+    currentStationName=""
+    if not server_id is None:
+        params['server_id']=server_id
+        currentStations=persistentData['stationNames'].get(str(chat_id),None)
+        if not currentStations is None:
+            currentStationName=persistentData['stationNames'][str(chat_id)].get(server_id,None)
 
-    # Get the X-Auth-Token for this chat ID, or use the default value
-    auth_token = auth_tokens.get(chat_id, "")
-
-    response = requests.get(url, params=params, headers={"X-Auth-Token": auth_token})
+    response = requests.get(url, params=params, headers={"X-Auth-Token": authToken})
 
     if response.status_code == 200:
         sessions = response.json()["sessions"]
-        limit = int(params["limit"])
         message_long_text = " (excluding those shorter than 5 minutes)" if short_mode==True else ""
         message = f"Last {limit} sessions{message_long_text}:\n\n"
 
@@ -138,7 +201,7 @@ def send_sessions(update, context, edit_message=False, short_mode=False):
 
         current_time = datetime.datetime.now().strftime("%H:%M:%S")
 
-        update_text = f"Update ({current_time})"
+        update_text = f"Update {currentStationName} ({current_time})"
 
         update_callback_data = "update_sessions"
         if short_mode:
@@ -202,34 +265,47 @@ def update_sessions_callback(update, context):
 def set_auth_token(update, context):
     chat_id = update.message.chat_id
     token = context.args[0]
-    print(context)
 
-    # Store the X-Auth-Token for this chat ID
-    auth_tokens[chat_id] = token
-
-    params_defaults = {"server_id": "", "limit": "5"}
-
-    context.user_data["params"] = params_defaults
-
-    bot.send_message(chat_id=chat_id, text="X-Auth-Token has been set.")
+    accountResp = requests.get(
+        "https://services.drova.io/accounting/myaccount",
+        headers={"X-Auth-Token": token},
+    )
+    
+    if accountResp.status_code == 200:
+        accountInfo = accountResp.json()
+        if('uuid' in accountInfo):
+            # Store the X-Auth-Token for this chat ID
+            setAuthToken(chat_id,token)
+            setUserID(chat_id,accountInfo['uuid'])
+            bot.send_message(chat_id=chat_id, text=f"X-Auth-Token has been set.\r\nПривет {accountInfo['name']}")
+        else:
+            bot.send_message(chat_id=chat_id, text=f"Token error, not set.")
+    else:
+        bot.send_message(chat_id=chat_id, text=f"Token error, not set.")
+    
+def removeAuthToken(update, context):
+    chat_id = update.message.chat_id
+    result=setAuthToken(chat_id,"-")
+    if result:
+        bot.send_message(chat_id=chat_id, text=f"Token removed.")
 
 
 # Set up the command handler for the '/station' command
 def handle_current(update, context):
     chat_id = update.message.chat_id
 
-    # Retrieve user-specific params dictionary
-    params = context.user_data.get("params", {})
+    authToken=persistentData['authTokens'].get(str(chat_id), None)
+    if authToken is None:
+        bot.send_message(chat_id=chat_id, text=f"setup me first")
+        return
 
-    user_id = requests.get(
-        "https://services.drova.io/accounting/myaccount",
-        headers={"X-Auth-Token": auth_tokens.get(chat_id, "")},
-    ).json()["uuid"]
+    user_id = persistentData['userIDs'].get(str(chat_id), None)
+
     # Retrieve a list of available server IDs from the API
     response = requests.get(
         "https://services.drova.io/server-manager/servers",
         params={"user_id": user_id},
-        headers={"X-Auth-Token": auth_tokens.get(chat_id, "")},
+        headers={"X-Auth-Token": authToken},
     )
     if response.status_code == 200:
         servers = response.json()
@@ -240,7 +316,7 @@ def handle_current(update, context):
             sessionResponse=requests.get(
                 "https://services.drova.io/session-manager/sessions",
                 params={"server_id": s["uuid"],"limit":1},
-                headers={"X-Auth-Token": auth_tokens.get(chat_id, "")},
+                headers={"X-Auth-Token": authToken},
             )         
 
             if sessionResponse.status_code == 200:
@@ -248,6 +324,9 @@ def handle_current(update, context):
                 if len(sessions["sessions"])>0:
                     for session in sessions["sessions"]:
                         game_name = products_data.get(session["product_id"], "Unknown game")
+                        if game_name == "Unknown game":
+                            products_data_update(update, context)
+                            game_name = products_data.get(session["product_id"], "Unknown game")                        
                         station_name=s["name"]
                         if s["state"]!="LISTEN"and s["state"]!= "HANDSHAKE" and s["state"]!="BUSY" :
                             station_name=f"<em>{s['name']}</em>"
@@ -273,29 +352,38 @@ def handle_current(update, context):
 # Set up the command handler for the '/station' command
 def handle_station(update, context):
     chat_id = update.message.chat_id
-
-    # Retrieve user-specific params dictionary
-    params = context.user_data.get("params", {})
+    
+    authToken=persistentData['authTokens'].get(str(chat_id), None)
+    if authToken is None:
+        bot.send_message(chat_id=chat_id, text=f"setup me first")
+        return
 
     # If the user provided an ID, update the params with the new station ID
     if len(context.args) > 0:
         station_id = context.args[0]
-        params["server_id"] = station_id
+        setSelectedStationID(chat_id,station_id)
         # Send a message to the user confirming the update
         bot.send_message(chat_id=chat_id, text=f"Station ID updated to {station_id}.")
     else:
-        user_id = requests.get(
-            "https://services.drova.io/accounting/myaccount",
-            headers={"X-Auth-Token": auth_tokens.get(chat_id, "")},
-        ).json()["uuid"]
+        user_id = persistentData['userIDs'].get(str(chat_id), None)
+
         # Retrieve a list of available server IDs from the API
         response = requests.get(
             "https://services.drova.io/server-manager/servers",
             params={"user_id": user_id},
-            headers={"X-Auth-Token": auth_tokens.get(chat_id, "")},
+            headers={"X-Auth-Token": authToken},
         )
+
         if response.status_code == 200:
             servers = response.json()
+
+            stationNames={}
+            for s in servers:
+                stationNames[s['uuid']]=s['name']
+            storeStationNames(chat_id,stationNames)
+
+            servers.append({'uuid':"-","name":"all"})
+
             # Create inline keyboard buttons for each available server ID
             keyboard = [
                 [
@@ -313,51 +401,43 @@ def handle_station(update, context):
         else:
             bot.send_message(chat_id=chat_id, text=f"Error: {response.status_code}")
 
-    # Store the updated params dictionary back in the user's context
-    context.user_data["params"] = params
-
-
 def handle_limit(update, context):
     chat_id = update.message.chat_id
-    # Retrieve user-specific params dictionary
-    params = context.user_data.get("params", {})
 
     if len(context.args) > 0:
         limit = context.args[0]
-        params["limit"] = limit
+        setLimit(chat_id,limit)
         # Send a message to the user confirming the update
         bot.send_message(chat_id=chat_id, text=f"Limit updated to {limit}.")
 
 def handle_dump(update, context):
     chat_id = update.message.chat_id
-    # Retrieve user-specific params dictionary
-    params = context.user_data.get("params", {})
+
+    authToken=persistentData['authTokens'].get(str(chat_id), None)
+    if authToken is None:
+        bot.send_message(chat_id=chat_id, text=f"setup me first")
+        return
 
     # Set up the endpoint URL and request parameters
     url = "https://services.drova.io/session-manager/sessions"
 
 
     if len(context.args) == 0:
-        # Get the X-Auth-Token for this chat ID, or use the default value
-        auth_token = auth_tokens.get(chat_id, "")
 
-        user_id = requests.get(
-            "https://services.drova.io/accounting/myaccount",
-            headers={"X-Auth-Token": auth_tokens.get(chat_id, "")},
-        ).json()["uuid"]
+        user_id = user_id = persistentData['userIDs'].get(str(chat_id), None)
 
         # Retrieve a list of available server IDs from the API
         servers_response = requests.get(
             "https://services.drova.io/server-manager/servers",
             params={"user_id": user_id},
-            headers={"X-Auth-Token": auth_tokens.get(chat_id, "")},
+            headers={"X-Auth-Token": authToken},
         )
 
         if servers_response.status_code == 200:
             servers = servers_response.json()
 
             for s in servers:
-                response = requests.get(url, params={"server_id": s["uuid"]}, headers={"X-Auth-Token": auth_token})
+                response = requests.get(url, params={"server_id": s["uuid"]}, headers={"X-Auth-Token": authToken})
                 if response.status_code == 200:
                     sessions = response.json()["sessions"]
                     for item in sessions:
@@ -428,8 +508,6 @@ def handle_dump(update, context):
 
 def products_data_update(update, context):
     chat_id = update.message.chat_id
-    # Retrieve user-specific params dictionary
-    params = context.user_data.get("params", {})
 
     global products_data
 
@@ -470,10 +548,15 @@ def set_server_id_callback(update, context):
     server_id = query.data.split("_")[-1]
 
     # Store the server ID for this chat ID
-    context.user_data["params"]["server_id"] = server_id
+    setSelectedStationID(chat_id,server_id)
+
+    if server_id=="-":
+        message=f"Selected all stations."
+    else:
+        message=f"Station ID updated to {server_id}."
 
     bot.answer_callback_query(
-        callback_query_id=query.id, text=f"Station ID updated to {server_id}."
+        callback_query_id=query.id, text=message
     )
 
 
@@ -521,6 +604,10 @@ def main():
     # Add a handler for the '/token' command
     token_handler = telegram.ext.CommandHandler("token", set_auth_token)
     dispatcher.add_handler(token_handler)
+
+    # Add a handler for the '/removeToken' command
+    remove_token_handler = telegram.ext.CommandHandler("removeToken", removeAuthToken)
+    dispatcher.add_handler(remove_token_handler)
 
     # Set up the callback query handlers
     update_sessions_handler = telegram.ext.CallbackQueryHandler(
