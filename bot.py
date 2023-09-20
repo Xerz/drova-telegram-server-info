@@ -49,13 +49,21 @@ def setUserID(chatID,userID):
 def setAuthToken(chatID,authToken):
     if 'authTokens'not in persistentData:
        persistentData['authTokens'] = {}
-    persistentData['authTokens'][str(chatID)]=authToken
+    if authToken=="-" and str(chatID) in persistentData['authTokens']:
+        del persistentData['authTokens'][str(chatID)]
+        storePersistentData()
+        return True
+    else:
+        persistentData['authTokens'][str(chatID)]=authToken
     storePersistentData()
 
 def setSelectedStationID(chatID,stationID):
     if 'selectedStations'not in persistentData:
        persistentData['selectedStations'] = {}
-    persistentData['selectedStations'][str(chatID)]=stationID
+    if stationID=="-" and str(chatID) in persistentData['selectedStations']:
+        del persistentData['selectedStations'][str(chatID)]
+    else:
+        persistentData['selectedStations'][str(chatID)]=stationID
     storePersistentData()
 
 def setLimit(chatID,limit):
@@ -111,16 +119,20 @@ def send_sessions(update, context, edit_message=False, short_mode=False):
         return
     
     server_id=persistentData['selectedStations'].get(str(chat_id), None)
-    if server_id is None:
-        bot.send_message(chat_id=chat_id, text=f"select station")
-        return
 
     # Set up the endpoint URL and request parameters
     url = "https://services.drova.io/session-manager/sessions"
 
     limit =persistentData['limits'].get(str(chat_id), 5)
+    params={ "limit":limit}
+    currentStationName=""
+    if not server_id is None:
+        params['server_id']=server_id
+        currentStations=persistentData['stationNames'].get(str(chat_id),None)
+        if not currentStations is None:
+            currentStationName=persistentData['stationNames'][str(chat_id)].get(server_id,None)
 
-    response = requests.get(url, params={ "server_id":server_id, "limit":limit}, headers={"X-Auth-Token": authToken})
+    response = requests.get(url, params=params, headers={"X-Auth-Token": authToken})
 
     if response.status_code == 200:
         sessions = response.json()["sessions"]
@@ -189,10 +201,6 @@ def send_sessions(update, context, edit_message=False, short_mode=False):
 
         current_time = datetime.datetime.now().strftime("%H:%M:%S")
 
-        currentStations=persistentData['stationNames'].get(str(chat_id),None)
-        if not currentStations is None:
-            currentStationName=persistentData['stationNames'][str(chat_id)].get(server_id,None)
-        
         update_text = f"Update {currentStationName} ({current_time})"
 
         update_callback_data = "update_sessions"
@@ -269,7 +277,18 @@ def set_auth_token(update, context):
             # Store the X-Auth-Token for this chat ID
             setAuthToken(chat_id,token)
             setUserID(chat_id,accountInfo['uuid'])
-            bot.send_message(chat_id=chat_id, text="X-Auth-Token has been set.")
+            bot.send_message(chat_id=chat_id, text=f"X-Auth-Token has been set.\r\nПривет {accountInfo['name']}")
+        else:
+            bot.send_message(chat_id=chat_id, text=f"Token error, not set.")
+    else:
+        bot.send_message(chat_id=chat_id, text=f"Token error, not set.")
+    
+def removeAuthToken(update, context):
+    chat_id = update.message.chat_id
+    result=setAuthToken(chat_id,"-")
+    if result:
+        bot.send_message(chat_id=chat_id, text=f"Token removed.")
+
 
 # Set up the command handler for the '/station' command
 def handle_current(update, context):
@@ -362,6 +381,8 @@ def handle_station(update, context):
             for s in servers:
                 stationNames[s['uuid']]=s['name']
             storeStationNames(chat_id,stationNames)
+
+            servers.append({'uuid':"-","name":"all"})
 
             # Create inline keyboard buttons for each available server ID
             keyboard = [
@@ -529,8 +550,13 @@ def set_server_id_callback(update, context):
     # Store the server ID for this chat ID
     setSelectedStationID(chat_id,server_id)
 
+    if server_id=="-":
+        message=f"Selected all stations."
+    else:
+        message=f"Station ID updated to {server_id}."
+
     bot.answer_callback_query(
-        callback_query_id=query.id, text=f"Station ID updated to {server_id}."
+        callback_query_id=query.id, text=message
     )
 
 
@@ -578,6 +604,10 @@ def main():
     # Add a handler for the '/token' command
     token_handler = telegram.ext.CommandHandler("token", set_auth_token)
     dispatcher.add_handler(token_handler)
+
+    # Add a handler for the '/removeToken' command
+    remove_token_handler = telegram.ext.CommandHandler("removeToken", removeAuthToken)
+    dispatcher.add_handler(remove_token_handler)
 
     # Set up the callback query handlers
     update_sessions_handler = telegram.ext.CallbackQueryHandler(
