@@ -5,6 +5,9 @@ persistentData.json
 GeoLite2-City.mmdb
 GeoLite2-ASN.mmdb
 
+# products list
+products.json
+
 # sessions export
 *.csv
 
