@@ -153,7 +153,7 @@ def send_sessions(update, context, edit_message=False, short_mode=False):
             if server_id is None:
                 serverName=persistentData['stationNames'][str(chat_id)].get(session['server_id'],"")
                 if serverName!="":
-                    serverName+=serverName+"\r\n"
+                    serverName+="\r\n"
 
 
             creator_ip = session.get("creator_ip", "N/A")
