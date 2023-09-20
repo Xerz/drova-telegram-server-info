@@ -149,6 +149,13 @@ def send_sessions(update, context, edit_message=False, short_mode=False):
                 products_data_update(update, context)
                 game_name = products_data.get(product_id, "Unknown game")
 
+            serverName=""
+            if server_id is None:
+                serverName=persistentData['stationNames'][str(chat_id)].get(session['server_id'],"")
+                if serverName!="":
+                    serverName+=serverName+"\r\n"
+
+
             creator_ip = session.get("creator_ip", "N/A")
             creator_city= getCityByIP(creator_ip,"X")
 
@@ -189,7 +196,7 @@ def send_sessions(update, context, edit_message=False, short_mode=False):
 
             if (not short_mode) or (short_mode and duration > datetime.timedelta(minutes=5)):
                 message += f"{limit-i+1}. <strong>{game_name}</strong>\n"
-                
+                message += serverName
                 message += f"<code>{creator_ip}</code> <code>{client_id}</code>\n"
                 
                 message += f"{creator_city} {creator_org}\n{start_time}-{finish_time} ({duration_str})\n"
@@ -299,19 +306,36 @@ def handle_start(update, context):
     chat_id = update.message.chat_id
 
     helpText="""Команды:
-/token TOKEN - токен из qr кода личного кабинета мерчанта
+/token TOKEN - установить токен из qr кода личного кабинета мерчанта
 /removeToken - удалить токен пользователя из бота
 /current - Краткий список последних сессий по всем станциям
 /station [id станции] - выбор станции из списка или ручным вводом её id
 /limit N - смена ограничения на вывод сессий
-/sessions [short]
+/sessions [short] - просмотр сессий со всех или с выбранной станции
 /dumpall
 """
 
     bot.send_message(chat_id=chat_id, text=helpText)
 
+
+
+# Define the callback function for the update sessions button
+def update_current_callback(update, context):
+    query = update.callback_query
+    chat_id = query.message.chat_id
+
+    if "update_current" in query.data:
+        # Modify the original message with the updated session list
+        handle_current(query, context, edit_message=True)
+        query.answer()
+    else:
+        bot.send_message(
+            chat_id=chat_id, text="Sorry, I don't understand that command."
+        )
+        query.answer()
+
 # Set up the command handler for the '/station' command
-def handle_current(update, context):
+def handle_current(update, context, edit_message=False):
     chat_id = update.message.chat_id
 
     authToken=persistentData['authTokens'].get(str(chat_id), None)
@@ -343,10 +367,10 @@ def handle_current(update, context):
                 sessions = sessionResponse.json()
                 if len(sessions["sessions"])>0:
                     for session in sessions["sessions"]:
-                        game_name = products_data.get(session["product_id"], "Unknown game")
+                        game_name = products_data.get(session["product_id"], "Unknown")
                         if game_name == "Unknown game":
                             products_data_update(update, context)
-                            game_name = products_data.get(session["product_id"], "Unknown game")                        
+                            game_name = products_data.get(session["product_id"], "Unknown")                        
                         station_name=s["name"]
                         if s["state"]!="LISTEN"and s["state"]!= "HANDSHAKE" and s["state"]!="BUSY" :
                             station_name=f"<em>{s['name']}</em>"
@@ -358,11 +382,40 @@ def handle_current(update, context):
                     if s["state"]!="LISTEN" and s["state"]!= "HANDSHAKE"and s["state"]!="BUSY":
                         station_name=f"<em>{s['name']}</em>"
                     currentSessions += station_name +" no sessions\r\n"
+
         if currentSessions!="":
-            bot.send_message(chat_id=chat_id, 
-                text=currentSessions,
-                parse_mode=telegram.ParseMode.HTML,
+            current_time = datetime.datetime.now().strftime("%H:%M:%S")
+            update_text = f"Update ({current_time})"
+            update_callback_data = "update_current"
+
+            reply_markup = telegram.InlineKeyboardMarkup(
+                [
+                    [
+                        telegram.InlineKeyboardButton(
+                            text=update_text, callback_data=update_callback_data
+                        )
+                    ]
+                ]
             )
+            if edit_message:
+                # Modify the original message with the updated session list
+                try:
+                    bot.edit_message_text(
+                        chat_id=chat_id,
+                        message_id=update.message.message_id,
+                        text=currentSessions,
+                        reply_markup=reply_markup,
+                        parse_mode=telegram.ParseMode.HTML,
+                    )
+                except telegram.TelegramError as e:
+                    pass
+
+            else:
+                bot.send_message(chat_id=chat_id, 
+                    text=currentSessions,
+                        reply_markup=reply_markup,
+                    parse_mode=telegram.ParseMode.HTML,
+                )
     else:
         bot.send_message(chat_id=chat_id, text=f"Error: {response.status_code}")
 
@@ -646,6 +699,12 @@ def main():
         set_server_id_callback, pattern="^set_server_id_"
     )
     dispatcher.add_handler(set_server_id_handler)
+
+    # Set up the callback query handlers
+    update_current_handler = telegram.ext.CallbackQueryHandler(
+        update_current_callback, pattern="^update_current"
+    )
+    dispatcher.add_handler(update_current_handler)
 
     # Set up the command handler for the '/current' command
     current_handler = telegram.ext.CommandHandler("current", handle_current)
