@@ -49,20 +49,21 @@ def setUserID(chatID,userID):
 def setAuthToken(chatID,authToken):
     if 'authTokens'not in persistentData:
        persistentData['authTokens'] = {}
+    
     if authToken=="-" and str(chatID) in persistentData['authTokens']:
         del persistentData['authTokens'][str(chatID)]
         storePersistentData()
         return True
-    else:
+    elif authToken!="-":
         persistentData['authTokens'][str(chatID)]=authToken
-    storePersistentData()
+        storePersistentData()
 
 def setSelectedStationID(chatID,stationID):
     if 'selectedStations'not in persistentData:
        persistentData['selectedStations'] = {}
     if stationID=="-" and str(chatID) in persistentData['selectedStations']:
         del persistentData['selectedStations'][str(chatID)]
-    else:
+    elif stationID!="-":
         persistentData['selectedStations'][str(chatID)]=stationID
     storePersistentData()
 
@@ -264,6 +265,11 @@ def update_sessions_callback(update, context):
 # Set the X-Auth-Token for this chat ID
 def set_auth_token(update, context):
     chat_id = update.message.chat_id
+    
+    if len(context.args)==0:
+        bot.send_message(chat_id=chat_id, text=f"add token to command")
+        return
+    
     token = context.args[0]
 
     accountResp = requests.get(
@@ -289,6 +295,20 @@ def removeAuthToken(update, context):
     if result:
         bot.send_message(chat_id=chat_id, text=f"Token removed.")
 
+def handle_start(update, context):
+    chat_id = update.message.chat_id
+
+    helpText="""Команды:
+/token TOKEN - токен из qr кода личного кабинета мерчанта
+/removeToken - удалить токен пользователя из бота
+/current - Краткий список последних сессий по всем станциям
+/station [id станции] - выбор станции из списка или ручным вводом её id
+/limit N - смена ограничения на вывод сессий
+/sessions [short]
+/dumpall
+"""
+
+    bot.send_message(chat_id=chat_id, text=helpText)
 
 # Set up the command handler for the '/station' command
 def handle_current(update, context):
@@ -404,11 +424,18 @@ def handle_station(update, context):
 def handle_limit(update, context):
     chat_id = update.message.chat_id
 
+    authToken=persistentData['authTokens'].get(str(chat_id), None)
+    if authToken is None:
+        bot.send_message(chat_id=chat_id, text=f"setup me first")
+        return
+    
     if len(context.args) > 0:
         limit = context.args[0]
         setLimit(chat_id,limit)
         # Send a message to the user confirming the update
         bot.send_message(chat_id=chat_id, text=f"Limit updated to {limit}.")
+    else:
+        bot.send_message(chat_id=chat_id, text=f"add limit number to command")
 
 def handle_dump(update, context):
     chat_id = update.message.chat_id
@@ -623,6 +650,10 @@ def main():
     # Set up the command handler for the '/current' command
     current_handler = telegram.ext.CommandHandler("current", handle_current)
     dispatcher.add_handler(current_handler)
+
+    # Set up the command handler for the '/start' command
+    start_handler = telegram.ext.CommandHandler("start", handle_start)
+    dispatcher.add_handler(start_handler)
 
     # Set up the command handler for the '/station' command
     station_handler = telegram.ext.CommandHandler("station", handle_station)
