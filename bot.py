@@ -23,8 +23,11 @@ persistentData= {
 }
 
 # Load the products data from a JSON file
-with open("products.json", "r") as f:
-    products_data = json.load(f)
+try:
+    with open("products.json", "r") as f:
+        products_data = json.load(f)
+except:
+    pass
 
 # Load the auth tokens from a JSON file
 try:
@@ -150,7 +153,7 @@ def send_sessions(update, context, edit_message=False, short_mode=False):
                 game_name = products_data.get(product_id, "Unknown game")
 
             serverName=""
-            if server_id is None:
+            if server_id is None and str(chat_id) in persistentData['stationNames']:
                 serverName=persistentData['stationNames'][str(chat_id)].get(session['server_id'],"")
                 if serverName!="":
                     serverName+="\r\n"
