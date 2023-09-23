@@ -535,7 +535,7 @@ def handle_dump(update, context):
         return
     
     dumpOnefile=False
-    if(update['message']['text'])=="/dumpOnefile":
+    if(update['message']['text']).lower()=="/dumponefile":
         dumpOnefile=True
 
 
@@ -615,9 +615,11 @@ def handle_dump(update, context):
                         item["Finish time"] = finish_time
                         item["Date"] = created_on
 
-                        item['Station Name']=s['name']
-                        item['created_on']= datetime.datetime.fromtimestamp(item["created_on"] / 1000.0   ).strftime("%Y-%m-%d %H:%M:%S")
-                        item['finished_on']=datetime.datetime.fromtimestamp(item["finished_on"] / 1000.0   ).strftime("%Y-%m-%d %H:%M:%S")
+
+                        if dumpOnefile:
+                            item['Station Name']=s['name']
+                            item['created_on']= datetime.datetime.fromtimestamp(item["created_on"] / 1000.0   ).strftime("%Y-%m-%d %H:%M:%S")
+                            item['finished_on']=datetime.datetime.fromtimestamp(item["finished_on"] / 1000.0   ).strftime("%Y-%m-%d %H:%M:%S")
 
                     csv_file = "sessions-" + s["name"] + ".csv"
 
