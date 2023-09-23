@@ -279,7 +279,7 @@ def set_auth_token(update, context):
     chat_id = update.message.chat_id
     
     if len(context.args)==0:
-        bot.send_message(chat_id=chat_id, text=f"add token to command")
+        bot.send_message(chat_id=chat_id, text=f"add token to command like /token 123-456-789")
         return
     
     token = context.args[0]
