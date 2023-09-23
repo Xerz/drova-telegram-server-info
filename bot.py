@@ -7,6 +7,8 @@ import csv
 import datetime
 import time
 import geoip2.database
+from openpyxl import Workbook
+
 
 ip_reader = geoip2.database.Reader("GeoLite2-City.mmdb")
 ip_isp_reader = geoip2.database.Reader("GeoLite2-ASN.mmdb")
@@ -315,7 +317,8 @@ def handle_start(update, context):
 /station [id станции] - выбор станции из списка или ручным вводом её id
 /limit N - смена ограничения на вывод сессий
 /sessions [short] - просмотр сессий со всех или с выбранной станции
-/dumpall
+/dumpall - экспорт сессий по серверам
+/dumpOnefile - экспорт сессий одним файлом
 """
 
     bot.send_message(chat_id=chat_id, text=helpText)
@@ -505,6 +508,11 @@ def handle_dump(update, context):
     if authToken is None:
         bot.send_message(chat_id=chat_id, text=f"setup me first")
         return
+    
+    dumpOnefile=False
+    if(update['message']['text'])=="/dumpOnefile":
+        dumpOnefile=True
+
 
     # Set up the endpoint URL and request parameters
     url = "https://services.drova.io/session-manager/sessions"
@@ -523,6 +531,14 @@ def handle_dump(update, context):
 
         if servers_response.status_code == 200:
             servers = servers_response.json()
+
+
+            fieldnames = ['Game name','creator_ip','City','ASN','Date','Duration','Start time','Finish time', 'billing_type','status',  'abort_comment', 'client_id','id','uuid',  'server_id', 'merchant_id', 'product_id', 'created_on', 'finished_on', 'score', 'score_reason', 'score_text', 'parent', 'sched_hints']
+
+            if dumpOnefile:
+                wb = Workbook()
+                ws = wb.active
+                #ws.append(fieldnames)
 
             for s in servers:
                 response = requests.get(url, params={"server_id": s["uuid"]}, headers={"X-Auth-Token": authToken})
@@ -574,18 +590,45 @@ def handle_dump(update, context):
                         item["Finish time"] = finish_time
                         item["Date"] = created_on
 
-                    fieldnames = ['Game name','creator_ip','City','ASN','Date','Duration','Start time','Finish time', 'billing_type','status',  'abort_comment', 'client_id','id','uuid',  'server_id', 'merchant_id', 'product_id', 'created_on', 'finished_on', 'score', 'score_reason', 'score_text', 'parent', 'sched_hints']
-
+                        item['Station Name']=s['name']
+                        item['created_on']= datetime.datetime.fromtimestamp(item["created_on"] / 1000.0   ).strftime("%Y-%m-%d %H:%M:%S")
+                        item['finished_on']=datetime.datetime.fromtimestamp(item["finished_on"] / 1000.0   ).strftime("%Y-%m-%d %H:%M:%S")
 
                     csv_file = "sessions-" + s["name"] + ".csv"
 
-                    # Write session data to CSV
-                    with open(csv_file, 'w', newline='') as file:
-                        writer = csv.DictWriter(file, fieldnames=fieldnames)
-                        writer.writeheader()
-                        writer.writerows(sessions)
-                    
-                    bot.send_document(chat_id=chat_id, document=open(csv_file, "rb"))
+
+                    if not dumpOnefile:
+                        # Write session data to CSV
+                        with open(csv_file, 'w', newline='') as file:
+                            writer = csv.DictWriter(file, fieldnames=fieldnames)
+                            writer.writeheader()
+                            writer.writerows(sessions)
+                        
+                        bot.send_document(chat_id=chat_id, document=open(csv_file, "rb"))
+                    else:
+                        for row in sessions:
+                            if ws.max_row==1:
+                                ws.append(list(row.keys()))
+                            if 'parent' in row:
+                                del row['parent']
+                            if 'sched_hints' in row:
+                                del row['sched_hints']
+                            ws.append(list(row.values()))
+
+            if dumpOnefile:
+                # подбираем ширину колонок
+                if ws.max_row>1:
+                    dims = {}
+                    for row in ws.rows:
+                        for cell in row:
+                            if cell.value:
+                                dims[cell.column_letter] = max((dims.get(cell.column_letter, 0), len(str(cell.value))))
+                    for col, value in dims.items():
+                        ws.column_dimensions[col].width = value*1.1
+                    wb.save(f"data{user_id}.xlsx")
+
+                    bot.send_document(chat_id=chat_id, document=open(f"data{user_id}.xlsx", "rb"))
+
 
         else:
             bot.send_message(chat_id=chat_id, text=f"Error: {response.status_code}")
@@ -733,6 +776,9 @@ def main():
     # Set up the command handler for the '/dumpall' command
     dump_handler = telegram.ext.CommandHandler("dumpall", handle_dump)
     dispatcher.add_handler(dump_handler)
+
+    dump_handler2 = telegram.ext.CommandHandler("dumpOnefile", handle_dump)
+    dispatcher.add_handler(dump_handler2)
 
     updater.start_polling()
     updater.idle()
