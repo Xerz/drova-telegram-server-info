@@ -296,6 +296,8 @@ def set_auth_token(update, context):
             setAuthToken(chat_id,token)
             setUserID(chat_id,accountInfo['uuid'])
             bot.send_message(chat_id=chat_id, text=f"X-Auth-Token has been set.\r\nПривет {accountInfo['name']}")
+            products_data_update(update, context)
+            updateStationNames(chat_id)
         else:
             bot.send_message(chat_id=chat_id, text=f"Token error, not set.")
     else:
@@ -306,6 +308,29 @@ def removeAuthToken(update, context):
     result=setAuthToken(chat_id,"-")
     if result:
         bot.send_message(chat_id=chat_id, text=f"Token removed.")
+
+
+def updateStationNames(chat_id):
+    authToken=persistentData['authTokens'].get(str(chat_id), None)
+    if authToken is None:
+        bot.send_message(chat_id=chat_id, text=f"setup me first")
+        return
+
+    user_id = persistentData['userIDs'].get(str(chat_id), None)
+
+    response = requests.get(
+    "https://services.drova.io/server-manager/servers",
+    params={"user_id": user_id},
+    headers={"X-Auth-Token": authToken},
+    )
+    if response.status_code == 200:
+        servers = response.json()
+        if len(servers)>0:
+            stationNames={}
+            for s in servers:
+                stationNames[s['uuid']]=s['name']
+            storeStationNames(chat_id,stationNames)
+
 
 def handle_start(update, context):
     chat_id = update.message.chat_id
@@ -642,34 +667,33 @@ def products_data_update(update, context):
 
     global products_data
 
-    if len(context.args) == 0:
-        products_data_len_old = len(products_data)
+    products_data_len_old = len(products_data)
 
-        response = requests.get(
-            "https://services.drova.io/product-manager/product/listfull2",
-            params={},
-            headers={},
+    response = requests.get(
+        "https://services.drova.io/product-manager/product/listfull2",
+        params={},
+        headers={},
+    )
+    if response.status_code == 200:
+        games = response.json()
+
+        products_data_new = {}
+        for game in games:
+            products_data_new[game["productId"]] = game["title"]
+
+        products_data = products_data_new
+
+        products_data_len_new = len(products_data)
+
+        with open("products.json", "w") as f:
+            f.write(json.dumps(products_data))
+
+        bot.send_message(
+            chat_id=chat_id,
+            text=f"Game database has been updated from {products_data_len_old} games to {products_data_len_new}",
         )
-        if response.status_code == 200:
-            games = response.json()
-
-            products_data_new = {}
-            for game in games:
-                products_data_new[game["productId"]] = game["title"]
-
-            products_data = products_data_new
-
-            products_data_len_new = len(products_data)
-
-            with open("products.json", "w") as f:
-                f.write(json.dumps(products_data))
-
-            bot.send_message(
-                chat_id=chat_id,
-                text=f"Game database has been updated from {products_data_len_old} games to {products_data_len_new}",
-            )
-        else:
-            bot.send_message(chat_id=chat_id, text=f"Error: {response.status_code}")
+    else:
+        bot.send_message(chat_id=chat_id, text=f"Error: {response.status_code}")
 
 
 # Define the callback function for the set server ID buttons
