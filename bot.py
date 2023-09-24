@@ -414,8 +414,11 @@ def handle_current(update, context, edit_message=False):
                         game_name = products_data.get(session["product_id"], "Unknown")
                         if game_name == "Unknown game":
                             products_data_update(update, context)
-                            game_name = products_data.get(session["product_id"], "Unknown")                        
-                        currentSessions += station_name +" "+game_name+" "+getCityByIP(session["creator_ip"])+" "+formatDuration(getSessionDuration(session))+"\r\n"
+                            game_name = products_data.get(session["product_id"], "Unknown")       
+
+                        created_on=datetime.datetime.fromtimestamp(session["created_on"] / 1000.0   ).strftime("%d.%m %H:%M")
+
+                        currentSessions += station_name +" | "+game_name+" | "+getCityByIP(session["creator_ip"])+" | "+created_on+" ("+formatDuration(getSessionDuration(session))+")\r\n"
                 else:
                     currentSessions += station_name +" no sessions\r\n"
 
