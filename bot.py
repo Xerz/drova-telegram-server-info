@@ -349,14 +349,118 @@ def handle_start(update, context):
     bot.send_message(chat_id=chat_id, text=helpText)
 
 
+def getServers(authToken,user_id):
+    # Retrieve a list of available server IDs from the API
+    response = requests.get(
+        "https://services.drova.io/server-manager/servers",
+        params={"user_id": user_id},
+        headers={"X-Auth-Token": authToken},
+    )
+    if response.status_code == 200:
+        return response.json()
 
-# Define the callback function for the update sessions button
+def getServerProducts(authToken,user_id,server_id):
+    response = requests.get(
+        "https://services.drova.io/server-manager/serverproduct/list4edit2/"+server_id,
+        params={"user_id": user_id},
+        headers={"X-Auth-Token": authToken},
+    )
+    if response.status_code == 200:
+        return response.json()
+
+
+# Define the callback function for the update button
+def update_disabled_callback(update, context):
+    query = update.callback_query
+    chat_id = query.message.chat_id
+
+    if "update_disabled" in query.data:
+        # Modify the original message 
+        handle_disabled(query, context, edit_message=True)
+        query.answer()
+    else:
+        bot.send_message(
+            chat_id=chat_id, text="Sorry, I don't understand that command."
+        )
+        query.answer()
+
+def handle_disabled(update,context, edit_message=False):
+    chat_id = update.message.chat_id
+
+    authToken=persistentData['authTokens'].get(str(chat_id), None)
+    if authToken is None:
+        bot.send_message(chat_id=chat_id, text=f"setup me first")
+        return
+
+    user_id = persistentData['userIDs'].get(str(chat_id), None)
+
+    servers=getServers(authToken,user_id)
+    if not servers is None:
+
+        currentProducts=""
+
+        for s in servers:
+            products=getServerProducts(authToken,user_id,s['uuid'])
+            if not products is None and len(products)>0:
+                currentServerProducts=""
+                for product in products:
+                    if not product['published'] or not product['enabled'] or not product['available']:
+                        info=""
+                        if not product['enabled']:
+                            info+=" Not enabled"
+                        if not product['published']:
+                            info+=" Not published"
+                        if not product['available']:
+                            info+=" Not available"
+                        currentServerProducts+=product['title']+info+"\r\n"
+                if currentServerProducts!="":
+                    currentProducts+=f"{formatStationName(s,None)}\r\n{currentServerProducts}"
+
+        if currentProducts=="":
+            currentProducts="all products fine"
+
+        current_time = datetime.datetime.now().strftime("%H:%M:%S")
+        update_text = f"Update ({current_time})"
+        update_callback_data = "update_disabled"
+
+        reply_markup = telegram.InlineKeyboardMarkup(
+            [
+                [
+                    telegram.InlineKeyboardButton(
+                        text=update_text, callback_data=update_callback_data
+                    )
+                ]
+            ]
+        )
+        if edit_message:
+            # Modify the original message with the updated session list
+            try:
+                bot.edit_message_text(
+                    chat_id=chat_id,
+                    message_id=update.message.message_id,
+                    text=currentProducts,
+                    reply_markup=reply_markup,
+                    parse_mode=telegram.ParseMode.HTML,
+                )
+            except telegram.TelegramError as e:
+                pass
+
+        else:
+            bot.send_message(chat_id=chat_id, 
+                text=currentProducts,
+                    reply_markup=reply_markup,
+                parse_mode=telegram.ParseMode.HTML,
+            )
+    else:
+        bot.send_message(chat_id=chat_id, text=f"Error")                        
+
+# Define the callback function for the update button
 def update_current_callback(update, context):
     query = update.callback_query
     chat_id = query.message.chat_id
 
     if "update_current" in query.data:
-        # Modify the original message with the updated session list
+        # Modify the original message 
         handle_current(query, context, edit_message=True)
         query.answer()
     else:
@@ -364,6 +468,22 @@ def update_current_callback(update, context):
             chat_id=chat_id, text="Sorry, I don't understand that command."
         )
         query.answer()
+
+
+def formatStationName(station,session):
+    station_name=station["name"]
+    if station["state"]!="LISTEN"and station["state"]!= "HANDSHAKE" and station["state"]!="BUSY" :
+        station_name=f"<s>{station_name}</s>"
+    
+    if not station['published']:
+        station_name=f"<em>{station_name}</em>"
+
+    if not session is None:
+        if session["status"]=="ACTIVE" or  station["state"]== "HANDSHAKE":
+          station_name=f"<strong>{station_name}</strong>"   
+
+    return station_name     
+
 
 # Set up the command handler for the '/station' command
 def handle_current(update, context, edit_message=False):
@@ -376,14 +496,8 @@ def handle_current(update, context, edit_message=False):
 
     user_id = persistentData['userIDs'].get(str(chat_id), None)
 
-    # Retrieve a list of available server IDs from the API
-    response = requests.get(
-        "https://services.drova.io/server-manager/servers",
-        params={"user_id": user_id},
-        headers={"X-Auth-Token": authToken},
-    )
-    if response.status_code == 200:
-        servers = response.json()
+    servers=getServers(authToken,user_id)
+    if not servers is None:
         
         currentSessions=""
 
@@ -397,20 +511,9 @@ def handle_current(update, context, edit_message=False):
             if sessionResponse.status_code == 200:
                 sessions = sessionResponse.json()
 
-                station_name=s["name"]
-                if s["state"]!="LISTEN"and s["state"]!= "HANDSHAKE" and s["state"]!="BUSY" :
-                    station_name=f"<s>{station_name}</s>"
-                
-                if not s['published']:
-                    station_name=f"<em>{station_name}</em>"
-
                 if len(sessions["sessions"])>0:
                     
                     for session in sessions["sessions"]:
-
-                        if session["status"]=="ACTIVE" or  s["state"]== "HANDSHAKE":
-                            station_name=f"<strong>{station_name}</strong>"
-
                         game_name = products_data.get(session["product_id"], "Unknown")
                         if game_name == "Unknown game":
                             products_data_update(update, context)
@@ -418,9 +521,9 @@ def handle_current(update, context, edit_message=False):
 
                         created_on=datetime.datetime.fromtimestamp(session["created_on"] / 1000.0   ).strftime("%d.%m %H:%M")
 
-                        currentSessions += station_name +" | "+game_name+" | "+getCityByIP(session["creator_ip"])+" | "+created_on+" ("+formatDuration(getSessionDuration(session))+")\r\n"
+                        currentSessions += formatStationName( s,session) +" | "+game_name+" | "+getCityByIP(session["creator_ip"])+" | "+created_on+" ("+formatDuration(getSessionDuration(session))+")\r\n"
                 else:
-                    currentSessions += station_name +" no sessions\r\n"
+                    currentSessions += formatStationName(s,None) +" no sessions\r\n"
 
         if currentSessions!="":
             current_time = datetime.datetime.now().strftime("%H:%M:%S")
@@ -456,7 +559,7 @@ def handle_current(update, context, edit_message=False):
                     parse_mode=telegram.ParseMode.HTML,
                 )
     else:
-        bot.send_message(chat_id=chat_id, text=f"Error: {response.status_code}")
+        bot.send_message(chat_id=chat_id, text=f"Error")
 
 
 
@@ -789,6 +892,16 @@ def main():
     # Set up the command handler for the '/current' command
     current_handler = telegram.ext.CommandHandler("current", handle_current)
     dispatcher.add_handler(current_handler)
+
+    # Set up the callback query handlers
+    update_disabled_handler = telegram.ext.CallbackQueryHandler(
+        update_disabled_callback, pattern="^update_disabled"
+    )
+    dispatcher.add_handler(update_disabled_handler)
+
+    # Set up the command handler for the '/disabled' command
+    disabled_handler = telegram.ext.CommandHandler("disabled", handle_disabled)
+    dispatcher.add_handler(disabled_handler)
 
     # Set up the command handler for the '/start' command
     start_handler = telegram.ext.CommandHandler("start", handle_start)
