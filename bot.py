@@ -1,4 +1,5 @@
 import os
+import io
 import telegram
 import telegram.ext
 import requests
@@ -8,7 +9,7 @@ import datetime
 import time
 import geoip2.database
 from openpyxl import Workbook
-
+from openpyxl.styles import PatternFill
 
 ip_reader = geoip2.database.Reader("GeoLite2-City.mmdb")
 ip_isp_reader = geoip2.database.Reader("GeoLite2-ASN.mmdb")
@@ -384,6 +385,20 @@ def update_disabled_callback(update, context):
         )
         query.answer()
 
+def getProductState(product,okState=""):
+    info=""
+    if not product['enabled']:
+        info+=" Not enabled"
+    if not product['published']:
+        info+=" Not published"
+    if not product['available']:
+        info+=" Not available"
+
+    if info=="":
+        return (False,okState)
+    
+    return (True,info)
+
 def handle_disabled(update,context, edit_message=False):
     chat_id = update.message.chat_id
 
@@ -405,16 +420,10 @@ def handle_disabled(update,context, edit_message=False):
                 currentServerProducts=""
                 for product in products:
                     if not product['published'] or not product['enabled'] or not product['available']:
-                        info=""
-                        if not product['enabled']:
-                            info+=" Not enabled"
-                        if not product['published']:
-                            info+=" Not published"
-                        if not product['available']:
-                            info+=" Not available"
+                        _,info=getProductState(product)
                         currentServerProducts+=product['title']+info+"\r\n"
                 if currentServerProducts!="":
-                    currentProducts+=f"{formatStationName(s,None)}\r\n{currentServerProducts}"
+                    currentProducts+=f"{formatStationName(s,None)}:\r\n{currentServerProducts}"
 
         if currentProducts=="":
             currentProducts="all products fine"
@@ -631,6 +640,80 @@ def handle_limit(update, context):
         bot.send_message(chat_id=chat_id, text=f"Limit updated to {limit}.")
     else:
         bot.send_message(chat_id=chat_id, text=f"add limit number to command")
+
+def handle_dumpstantionsproducts(update,context):
+    chat_id = update.message.chat_id
+
+    authToken=persistentData['authTokens'].get(str(chat_id), None)
+    if authToken is None:
+        bot.send_message(chat_id=chat_id, text=f"setup me first")
+
+    user_id = persistentData['userIDs'].get(str(chat_id), None)
+
+    servers=getServers(authToken,user_id)
+    if not servers is None:
+
+        columns={}
+        allProducts={}
+
+        for s in servers:
+            columns[s['name']]=0
+
+            products=getServerProducts(authToken,user_id,s['uuid'])
+            if not products is None and len(products)>0:
+                for product in products:
+                    if not product['title'] in allProducts:
+                        allProducts[product['title']] ={}
+                    allProducts[product['title']][s['name']]=product
+        
+        if len(allProducts.keys())>0:
+
+            colN=2
+           
+            wb = Workbook()
+            ws = wb.active
+
+            for stationName in sorted(columns.keys()):
+                ws.cell(row=1,column=colN).value=stationName
+                columns[stationName]=colN
+                colN+=1
+
+            names=sorted(allProducts.keys())
+            for idx, name in enumerate(names):
+                ws.cell(row=idx+2,column=1).value=name
+                for stationName in allProducts[name].keys():
+                    stateError,state=getProductState( allProducts[name][stationName],"Active")
+                    ws.cell(row=idx+2,column=columns[stationName]).value=state
+                    if stateError:
+                        yellow = "00FFFF00"
+                        ws.cell(row=idx+2,column=columns[stationName]).fill = PatternFill(start_color=yellow, end_color=yellow,fill_type = "solid")
+
+            if ws.max_row>1:
+                dims = {}
+                for row in ws.rows:
+                    for cell in row:
+                        if cell.value:
+                            dims[cell.column_letter] = max((dims.get(cell.column_letter, 0), len(str(cell.value))))
+                for col, value in dims.items():
+                    ws.column_dimensions[col].width = value*1.1
+                
+                filename=f"productStates{user_id}.xlsx"
+                wb.save(filename)
+                #bot.send_document(chat_id=chat_id, document=open(filename, "rb"))
+
+                # testing direct sending
+                buf = io.BytesIO()
+                buf.name = filename
+                wb.save(buf)
+                buf.seek(0)
+                bot.send_document(chat_id=chat_id, document=buf)
+
+        else:
+            bot.send_message(chat_id=chat_id, text=f"Error")
+    else:
+        bot.send_message(chat_id=chat_id, text=f"Error")
+
+
 
 def handle_dump(update, context):
     chat_id = update.message.chat_id
@@ -921,6 +1004,9 @@ def main():
 
     dump_handler2 = telegram.ext.CommandHandler("dumpOnefile", handle_dump)
     dispatcher.add_handler(dump_handler2)
+
+    dump_stantionsproducts = telegram.ext.CommandHandler("dumpStationsProducts", handle_dumpstantionsproducts)
+    dispatcher.add_handler(dump_stantionsproducts)
 
     updater.start_polling()
     updater.idle()
