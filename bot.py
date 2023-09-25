@@ -808,7 +808,8 @@ def handle_dump(update, context):
                         if dumpOnefile:
                             item['Station Name']=s['name']
                             item['created_on']= datetime.datetime.fromtimestamp(item["created_on"] / 1000.0   ).strftime("%Y-%m-%d %H:%M:%S")
-                            item['finished_on']=datetime.datetime.fromtimestamp(item["finished_on"] / 1000.0   ).strftime("%Y-%m-%d %H:%M:%S")
+                            if not item["finished_on"]  is None:
+                                item['finished_on']=datetime.datetime.fromtimestamp(item["finished_on"] / 1000.0   ).strftime("%Y-%m-%d %H:%M:%S")
 
                     csv_file = "sessions-" + s["name"] + ".csv"
 
