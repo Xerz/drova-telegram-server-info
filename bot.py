@@ -9,7 +9,7 @@ import datetime
 import time
 import geoip2.database
 from openpyxl import Workbook
-from openpyxl.styles import PatternFill
+from openpyxl.styles import PatternFill,Alignment
 
 ip_reader = geoip2.database.Reader("GeoLite2-City.mmdb")
 ip_isp_reader = geoip2.database.Reader("GeoLite2-ASN.mmdb")
@@ -672,6 +672,9 @@ def handle_dumpstantionsproducts(update,context):
            
             wb = Workbook()
             ws = wb.active
+
+            ws.cell(row=1,column=1).value=datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            ws.cell(row=1,column=1).alignment = Alignment(horizontal='center')
 
             for stationName in sorted(columns.keys()):
                 ws.cell(row=1,column=colN).value=stationName
