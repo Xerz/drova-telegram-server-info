@@ -815,13 +815,28 @@ def handle_dump(update, context):
 
 
                     if not dumpOnefile:
-                        # Write session data to CSV
-                        with open(csv_file, 'w', newline='') as file:
-                            writer = csv.DictWriter(file, fieldnames=fieldnames)
+                        # direct send testing
+                        try:
+                            s = io.StringIO()
+                            writer = csv.DictWriter(s, fieldnames=fieldnames)
                             writer.writeheader()
                             writer.writerows(sessions)
-                        
-                        bot.send_document(chat_id=chat_id, document=open(csv_file, "rb"))
+                            s.seek(0)
+                            buf = io.BytesIO()  
+                            buf.write(s.getvalue().encode())
+                            buf.seek(0)  
+                            buf.name = csv_file
+                            bot.send_document(chat_id=chat_id, document=buf)
+                        except Exception as e:
+                            bot.send_message(chat_id=chat_id, text=f"Error {e} with station {s['name']}")
+
+                        # old sending via tempfile
+                        # Write session data to CSV
+                        #with open(csv_file, 'w', newline='') as file:
+                        #    writer = csv.DictWriter(file, fieldnames=fieldnames)
+                        #    writer.writeheader()
+                        #    writer.writerows(sessions)
+                        #bot.send_document(chat_id=chat_id, document=open(csv_file, "rb"))
                     else:
                         for row in sessions:
                             if ws.max_row==1:
@@ -843,8 +858,15 @@ def handle_dump(update, context):
                     for col, value in dims.items():
                         ws.column_dimensions[col].width = value*1.1
                     wb.save(f"data{user_id}.xlsx")
+                    #bot.send_document(chat_id=chat_id, document=open(f"data{user_id}.xlsx", "rb"))
 
-                    bot.send_document(chat_id=chat_id, document=open(f"data{user_id}.xlsx", "rb"))
+                    # testing direct sending
+                    buf = io.BytesIO()
+                    buf.name = f"data{user_id}.xlsx"
+                    wb.save(buf)
+                    buf.seek(0)
+                    bot.send_document(chat_id=chat_id, document=buf)
+
 
 
         else:
