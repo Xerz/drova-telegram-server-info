@@ -85,20 +85,32 @@ def storeStationNames(chatID,stations):
     persistentData['stationNames'][str(chatID)]=stations
     storePersistentData()    
 
-def formatDuration(elapsed_time):
-    if elapsed_time < 3600:
+def getStationNamesWithID(chatID):
+    stations={}
+    if 'stationNames'not in persistentData and  str(chatID) in persistentData['stationNames']:
+        for id,name in persistentData['stationNames'][str(chatID)]:
+            stations[name]=id
+    return stations
+
+
+def formatDuration(elapsed_time,shortFormat=True):
+    if elapsed_time < 3600 and  shortFormat:
         minutes, seconds = divmod(elapsed_time, 60)
         return "{:.0f}m:{:.0f}s ".format(minutes,seconds)
-    elif elapsed_time < 86400:
+    elif elapsed_time < 86400 and  shortFormat:
         hours, remainder = divmod(elapsed_time, 3600)
         minutes, seconds = divmod(remainder, 60)
         return "{:.0f}h {:.0f}m".format(hours, minutes)
     else:
         days, remainder = divmod(elapsed_time, 86400)
+        fullhours= elapsed_time/3600
         hours, remainder = divmod(remainder, 3600)
         minutes, seconds = divmod(remainder, 60)
-        return "{:.0f}d {:.0f}h {:.0f}m".format(days, hours, minutes)
-
+        if   shortFormat:
+            return "{:.0f}d {:.0f}h {:.0f}m".format(days, hours, minutes)
+        else:
+            return "{:02.0f}:{:02.0f}:{:02.0f}".format(fullhours, minutes,seconds)
+            #return "{:.0f} {:02.0f}:{:02.0f}:{:02.0f}".format(days, hours, minutes,seconds)
 
 def getSessionDuration(session):
     if session['finished_on'] is None:
@@ -316,21 +328,8 @@ def updateStationNames(chat_id):
     if authToken is None:
         bot.send_message(chat_id=chat_id, text=f"setup me first")
         return
-
     user_id = persistentData['userIDs'].get(str(chat_id), None)
-
-    response = requests.get(
-    "https://services.drova.io/server-manager/servers",
-    params={"user_id": user_id},
-    headers={"X-Auth-Token": authToken},
-    )
-    if response.status_code == 200:
-        servers = response.json()
-        if len(servers)>0:
-            stationNames={}
-            for s in servers:
-                stationNames[s['uuid']]=s['name']
-            storeStationNames(chat_id,stationNames)
+    getServers(authToken,user_id,chat_id)
 
 
 def handle_start(update, context):
@@ -350,7 +349,13 @@ def handle_start(update, context):
     bot.send_message(chat_id=chat_id, text=helpText)
 
 
-def getServers(authToken,user_id):
+def getSessions(authToken,server_id):
+    response = requests.get("https://services.drova.io/session-manager/sessions", params={"server_id": server_id}, headers={"X-Auth-Token": authToken})
+    if response.status_code == 200:
+        return response.json()["sessions"]   
+    return None
+
+def getServers(authToken,user_id,chat_id):
     # Retrieve a list of available server IDs from the API
     response = requests.get(
         "https://services.drova.io/server-manager/servers",
@@ -358,7 +363,14 @@ def getServers(authToken,user_id):
         headers={"X-Auth-Token": authToken},
     )
     if response.status_code == 200:
-        return response.json()
+        servers=response.json()
+        if not servers is None:
+            if len(servers)>0:
+                stationNames={}
+                for s in servers:
+                    stationNames[s['uuid']]=s['name']
+                storeStationNames(chat_id,stationNames)
+        return servers
 
 def getServerProducts(authToken,user_id,server_id):
     response = requests.get(
@@ -409,7 +421,7 @@ def handle_disabled(update,context, edit_message=False):
 
     user_id = persistentData['userIDs'].get(str(chat_id), None)
 
-    servers=getServers(authToken,user_id)
+    servers=getServers(authToken,user_id,chat_id)
     if not servers is None:
 
         currentProducts=""
@@ -494,7 +506,7 @@ def formatStationName(station,session):
     return station_name     
 
 
-# Set up the command handler for the '/station' command
+# Set up the command handler for the '/current' command
 def handle_current(update, context, edit_message=False):
     chat_id = update.message.chat_id
 
@@ -505,7 +517,7 @@ def handle_current(update, context, edit_message=False):
 
     user_id = persistentData['userIDs'].get(str(chat_id), None)
 
-    servers=getServers(authToken,user_id)
+    servers=getServers(authToken,user_id,chat_id)
     if not servers is None:
         
         currentSessions=""
@@ -641,6 +653,20 @@ def handle_limit(update, context):
     else:
         bot.send_message(chat_id=chat_id, text=f"add limit number to command")
 
+def filterProductMonthSessions(stationSessions,productID):
+    monthProductSessions=[]
+    monthBack=datetime.datetime.now()-datetime.timedelta(weeks=4)
+    for session in stationSessions:
+        if session['product_id']==productID and session['created_on']/1000>monthBack.timestamp():
+            monthProductSessions.append(session)
+    return monthProductSessions
+
+def calcSessionsDuration(sessions):
+    duration=0
+    for session in sessions:
+        duration+=getSessionDuration(session)
+    return duration
+
 def handle_dumpstantionsproducts(update,context):
     chat_id = update.message.chat_id
 
@@ -650,7 +676,13 @@ def handle_dumpstantionsproducts(update,context):
 
     user_id = persistentData['userIDs'].get(str(chat_id), None)
 
-    servers=getServers(authToken,user_id)
+    withTime=False
+    if(update['message']['text']).lower()=="/dumpstationsproductswithtime":
+        withTime=True
+        allsessions={}
+
+
+    servers=getServers(authToken,user_id,chat_id)
     if not servers is None:
 
         columns={}
@@ -664,7 +696,14 @@ def handle_dumpstantionsproducts(update,context):
                 for product in products:
                     if not product['title'] in allProducts:
                         allProducts[product['title']] ={}
-                    allProducts[product['title']][s['name']]=product
+                    allProducts[product['title']][s['uuid']]=product
+
+            if withTime:
+                sessions=getSessions(authToken,s['uuid'])
+                if not sessions is None:
+                    allsessions[s['uuid']]=sessions
+                
+
         
         if len(allProducts.keys())>0:
 
@@ -676,21 +715,62 @@ def handle_dumpstantionsproducts(update,context):
             ws.cell(row=1,column=1).value=datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             ws.cell(row=1,column=1).alignment = Alignment(horizontal='center')
 
-            for stationName in sorted(columns.keys()):
-                ws.cell(row=1,column=colN).value=stationName
-                columns[stationName]=colN
+            if  withTime:
+                ws.cell(row=1,column=1).value=ws.cell(row=1,column=1).value+" данные за месяц"
+
+
+            #for stationName in sorted(columns.keys()):
+            for stationID in sorted(persistentData['stationNames'][str(chat_id)].values()):
+                ws.cell(row=1,column=colN).value=stationID
+                columns[stationID]=colN
                 colN+=1
 
+
             names=sorted(allProducts.keys())
-            for idx, name in enumerate(names):
-                ws.cell(row=idx+2,column=1).value=name
-                for stationName in allProducts[name].keys():
-                    stateError,state=getProductState( allProducts[name][stationName],"Active")
-                    ws.cell(row=idx+2,column=columns[stationName]).value=state
+            for idx, productName in enumerate(names):
+                ws.cell(row=idx+2,column=1).value=productName
+                for stationID in allProducts[productName].keys():
+                    stateError,cellValue=getProductState( allProducts[productName][stationID],"Active")
+                    #ws.cell(row=idx+2,column=columns[stationName]).value=state
+                    
+                    if  withTime:
+                        stationSessions=allsessions[stationID]
+                        productID=allProducts[productName][stationID]['productId']
+                        monthSessions=filterProductMonthSessions(stationSessions,productID)
+                        cellValue=formatDuration( calcSessionsDuration(monthSessions),False)
+                        ws.cell(row=idx+2,column=columns[persistentData['stationNames'][str(chat_id)][stationID]]).number_format ="[h]:mm:ss" #'d h:mm:ss'
+
+                    ws.cell(row=idx+2,column=columns[persistentData['stationNames'][str(chat_id)][stationID]]).value=cellValue
+
                     if stateError:
                         yellow = "00FFFF00"
-                        ws.cell(row=idx+2,column=columns[stationName]).fill = PatternFill(start_color=yellow, end_color=yellow,fill_type = "solid")
+                        ws.cell(row=idx+2,column=columns[persistentData['stationNames'][str(chat_id)][stationID]]).fill = PatternFill(start_color=yellow, end_color=yellow,fill_type = "solid")
 
+            # добавляем формулы
+            if ws.max_row>1:
+                lastColumn=ws.max_column+1
+                #lastRow=ws.max_row+1
+
+                for row in ws.rows:
+                    rowNum=0
+                    formula=""
+                    for cell in row:
+                        rowNum=cell.row
+                        if cell.col_idx==2 and rowNum>1:
+                            formula=f"=SUM({cell.coordinate}"
+                        elif cell.col_idx>2 and rowNum>1:
+                            formula+=f"+{cell.coordinate}"
+
+                    if formula!="":
+                        formula+=")"
+                    ws.cell(row=rowNum,column=lastColumn).value=formula
+                    ws.cell(row=rowNum,column=lastColumn).number_format ="[h]:mm:ss" #'d h:mm:ss'
+
+                ws.cell(row=1,column=lastColumn).value="Всего"
+                #ws.cell(row=lastRow,column=lastColumn).value="fff"
+                #ws.cell(row=lastRow,column=lastColumn-1).value="Итого"
+
+            # подбираем ширину колонок
             if ws.max_row>1:
                 dims = {}
                 for row in ws.rows:
@@ -701,6 +781,9 @@ def handle_dumpstantionsproducts(update,context):
                     ws.column_dimensions[col].width = value*1.1
                 
                 filename=f"productStates{user_id}.xlsx"
+                if withTime:
+                    filename=f"productStatesWithTime{user_id}.xlsx"
+
                 wb.save(filename)
                 #bot.send_document(chat_id=chat_id, document=open(filename, "rb"))
 
@@ -1033,6 +1116,9 @@ def main():
 
     dump_stantionsproducts = telegram.ext.CommandHandler("dumpStationsProducts", handle_dumpstantionsproducts)
     dispatcher.add_handler(dump_stantionsproducts)
+
+    dump_stantionsproducts2 = telegram.ext.CommandHandler("dumpStationsProductsWithTime", handle_dumpstantionsproducts)
+    dispatcher.add_handler(dump_stantionsproducts2)
 
     updater.start_polling()
     updater.idle()
