@@ -335,7 +335,8 @@ def updateStationNames(chat_id):
 def handle_start(update, context):
     chat_id = update.message.chat_id
 
-    helpText="""Команды:
+    helpText="""Не добавляйте токены в непроверенных ботов - владелец бота получит информацию из вашего ЛК!
+Команды:
 /token 123-456-789 - установить токен из qr кода личного кабинета мерчанта
 /removeToken - удалить токен пользователя из бота
 /current - Краткий список последних сессий по всем станциям
