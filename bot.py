@@ -537,7 +537,7 @@ def handle_current(update, context, edit_message=False):
                     
                     for session in sessions["sessions"]:
                         game_name = products_data.get(session["product_id"], "Unknown")
-                        if game_name == "Unknown game":
+                        if game_name == "Unknown":
                             products_data_update(update, context)
                             game_name = products_data.get(session["product_id"], "Unknown")       
 
