@@ -262,19 +262,17 @@ def send_sessions(update, context, edit_message=False, short_mode=False):
                 session["created_on"] / 1000.0
             ).strftime("%H:%M:%S")
             finish_time = session["finished_on"]
+            
             if finish_time:
                 finish_time = datetime.datetime.fromtimestamp(
                     finish_time / 1000.0
                 ).strftime("%H:%M:%S")
-                duration = datetime.timedelta(
-                        seconds=(session["finished_on"] - session["created_on"]) / 1000
-                    )
+                duration = datetime.timedelta(seconds=(session["finished_on"] - session["created_on"]) / 1000)
             else:
                 finish_time = "Now"
-                duration = datetime.timedelta(
-                        seconds=datetime.datetime.utcnow().timestamp() - session["created_on"] / 1000
-                    )
-            duration_str = str(duration).split(".")[0]
+                duration = datetime.timedelta(seconds=datetime.datetime.utcnow().timestamp() - session["created_on"] / 1000)
+            #duration_str = str(duration).split(".")[0]
+            duration_str =formatDuration( getSessionDuration(session))
 
             score_text = session.get("score_text", "N/A")
 
@@ -1066,7 +1064,8 @@ def handle_dump(update, context):
                             duration = datetime.timedelta(
                                     seconds=datetime.datetime.utcnow().timestamp() - item["created_on"] / 1000
                                 )
-                        duration_str = str(duration).split(".")[0]
+                        #duration_str = str(duration).split(".")[0]
+                        duration_str =formatDuration( getSessionDuration(item),False)
 
                         item["Game name"] = game_name
                         item["City"] = creator_city
