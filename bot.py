@@ -506,7 +506,7 @@ def handle_stationsinfo(update,context, edit_message=False):
     if not servers is None:
         currentStations=""
 
-        for s in servers:
+        for s in sorted(servers, key=lambda item: item['name']):
             sessionResponse=requests.get(
                 "https://services.drova.io/session-manager/sessions",
                 params={"server_id": s["uuid"],"limit":1},
@@ -542,14 +542,14 @@ def handle_stationsinfo(update,context, edit_message=False):
 
             if len(externalIps)>0:
                 currentStations+="\r\n Внешние адреса:"
-                for ip in externalIps:
+                for ip in sorted(externalIps, key=lambda item: item['ip']) :
                     city=getCityByIP(ip['ip'],"")
                     if city!="":
                         city=f"({city})"
                     currentStations+=f"\r\n <code>{ip['ip']}</code>:{ip['base_port']} {city}"
             if len(internalIps)>0:
                 currentStations+="\r\n Внутренние адреса:"
-                for ip in internalIps:
+                for ip in sorted(internalIps, key=lambda item: item['ip']) :
                     currentStations+=f"\r\n <code>{ip['ip']}</code>:{ip['base_port']}"
         
 
@@ -700,7 +700,7 @@ def handle_current(update, context, edit_message=False):
         
         currentSessions=""
 
-        for s in servers:
+        for s in sorted(servers, key=lambda item: item['name']):
             sessionResponse=requests.get(
                 "https://services.drova.io/session-manager/sessions",
                 params={"server_id": s["uuid"],"limit":1},
