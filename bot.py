@@ -7,6 +7,7 @@ import json
 import csv
 import datetime
 import time
+import ipaddress
 import geoip2.database
 from openpyxl import Workbook
 from openpyxl.styles import PatternFill,Alignment
@@ -38,6 +39,23 @@ try:
         persistentData = json.load(f)
 except:
     pass
+
+
+def isRfc1918Ip(ip):
+    try:
+        ip = ipaddress.ip_address(ip)
+        rfc1918Ranges = [
+            ipaddress.ip_network('10.0.0.0/8'),
+            ipaddress.ip_network('172.16.0.0/12'),
+            ipaddress.ip_network('192.168.0.0/16'),
+        ]
+        for rfcRange in rfc1918Ranges:
+            if ip in rfcRange:
+                return True
+        return False
+    except ValueError:
+        # Invalid IP address format
+        return False
 
 def storePersistentData():
     try:
@@ -398,6 +416,21 @@ def update_disabled_callback(update, context):
         )
         query.answer()
 
+# Define the callback function for the update button
+def update_stationsinfo_callback(update, context):
+    query = update.callback_query
+    chat_id = query.message.chat_id
+
+    if "update_stationsinfo" in query.data:
+        # Modify the original message 
+        handle_stationsinfo(query, context, edit_message=True)
+        query.answer()
+    else:
+        bot.send_message(
+            chat_id=chat_id, text="Sorry, I don't understand that command."
+        )
+        query.answer()
+
 def getProductState(product,okState=""):
     info=""
     if not product['enabled']:
@@ -411,6 +444,103 @@ def getProductState(product,okState=""):
         return (False,okState)
     
     return (True,info)
+
+def handle_stationsinfo(update,context, edit_message=False):
+    chat_id = update.message.chat_id
+
+    authToken=persistentData['authTokens'].get(str(chat_id), None)
+    if authToken is None:
+        bot.send_message(chat_id=chat_id, text=f"setup me first")
+        return
+
+    user_id = persistentData['userIDs'].get(str(chat_id), None)
+
+    servers=getServers(authToken,user_id,chat_id)
+    if not servers is None:
+        currentStations=""
+
+        for s in servers:
+            sessionResponse=requests.get(
+                "https://services.drova.io/session-manager/sessions",
+                params={"server_id": s["uuid"],"limit":1},
+                headers={"X-Auth-Token": authToken},
+            )         
+            session=None
+            if sessionResponse.status_code == 200:
+                sessions = sessionResponse.json()
+                if len(sessions)>0:
+                    #print (sessions)
+                    session=sessions['sessions'][0]
+
+            ipResponse=requests.get(
+                "https://services.drova.io/server-manager/serverendpoint/list/"+s['uuid'],
+                params={"server_id": s["uuid"],"limit":1},
+                headers={"X-Auth-Token": authToken},
+            )         
+            externalIps=[]
+            internalIps=[]
+            if ipResponse.status_code == 200:
+                ips = ipResponse.json()
+                if len(ips)>0:
+                    for ip in ips:
+                        if isRfc1918Ip(ip['ip']):
+                            internalIps.append(ip)
+                        else:
+                            externalIps.append(ip)
+
+            if currentStations!="":
+                currentStations+="\r\n\r\n"
+            currentStations+=formatStationName( s,session) +":"
+            currentStations+=f"\r\n {s['city_name']}"
+
+            if len(externalIps)>0:
+                currentStations+="\r\n Внешние адреса:"
+                for ip in externalIps:
+                    city=getCityByIP(ip['ip'],"")
+                    if city!="":
+                        city=f"({city})"
+                    currentStations+=f"\r\n <code>{ip['ip']}</code>:{ip['base_port']} {city}"
+            if len(internalIps)>0:
+                currentStations+="\r\n Внутренние адреса:"
+                for ip in internalIps:
+                    currentStations+=f"\r\n <code>{ip['ip']}</code>:{ip['base_port']}"
+        
+
+        current_time = datetime.datetime.now().strftime("%H:%M:%S")
+        update_text = f"Update ({current_time})"
+        update_callback_data = "update_stationsinfo"
+
+        reply_markup = telegram.InlineKeyboardMarkup(
+            [
+                [
+                    telegram.InlineKeyboardButton(
+                        text=update_text, callback_data=update_callback_data
+                    )
+                ]
+            ]
+        )
+        if edit_message:
+            # Modify the original message with the updated session list
+            try:
+                bot.edit_message_text(
+                    chat_id=chat_id,
+                    message_id=update.message.message_id,
+                    text=currentStations,
+                    reply_markup=reply_markup,
+                    parse_mode=telegram.ParseMode.HTML,
+                )
+            except telegram.TelegramError as e:
+                pass
+
+        else:
+            bot.send_message(chat_id=chat_id, 
+                text=currentStations,
+                    reply_markup=reply_markup,
+                parse_mode=telegram.ParseMode.HTML,
+            )
+    else:
+        bot.send_message(chat_id=chat_id, text=f"Error")  
+
 
 def handle_disabled(update,context, edit_message=False):
     chat_id = update.message.chat_id
@@ -1095,6 +1225,16 @@ def main():
     # Set up the command handler for the '/disabled' command
     disabled_handler = telegram.ext.CommandHandler("disabled", handle_disabled)
     dispatcher.add_handler(disabled_handler)
+
+    # Set up the callback query handlers
+    update_stationsinfo_handler = telegram.ext.CallbackQueryHandler(
+        update_stationsinfo_callback, pattern="^update_stationsinfo"
+    )
+    dispatcher.add_handler(update_stationsinfo_handler)
+
+    # Set up the command handler for the '/stationsinfo' command
+    stationsinfo_handler = telegram.ext.CommandHandler("stationsInfo", handle_stationsinfo)
+    dispatcher.add_handler(stationsinfo_handler)
 
     # Set up the command handler for the '/start' command
     start_handler = telegram.ext.CommandHandler("start", handle_start)
