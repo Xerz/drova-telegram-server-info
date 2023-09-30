@@ -6,6 +6,7 @@ import requests
 import json
 import csv
 import datetime
+import math
 import time
 import ipaddress
 import geoip2.database
@@ -147,6 +148,52 @@ def getCityByIP(creator_ip,defValue=""):
         creator_city = defValue
     return creator_city
 
+def haversineDistance(lat1, lon1, lat2, lon2):
+    """
+    Calculate the great-circle distance between two points on the Earth's surface
+    specified in decimal degrees of latitude and longitude.
+
+    :param lat1: Latitude of the first point in degrees.
+    :param lon1: Longitude of the first point in degrees.
+    :param lat2: Latitude of the second point in degrees.
+    :param lon2: Longitude of the second point in degrees.
+    :return: The distance in kilometers.
+    """
+    # Convert latitude and longitude from degrees to radians
+    lat1 = math.radians(lat1)
+    lon1 = math.radians(lon1)
+    lat2 = math.radians(lat2)
+    lon2 = math.radians(lon2)
+
+    # Radius of the Earth in kilometers
+    earth_radius = 6371.0
+
+    # Haversine formula
+    dlon = lon2 - lon1
+    dlat = lat2 - lat1
+
+    a = math.sin(dlat / 2)**2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlon / 2)**2
+    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+
+    # Calculate the distance
+    distance = earth_radius * c
+
+    return distance
+
+def calcRangeByIp(station,clientIp):
+    cityInfo=None
+    try:
+        cityInfo = ip_reader.city(clientIp).location
+    except:
+        pass
+
+    if cityInfo!=None:
+        clientLatitude=cityInfo.latitude
+        clientLongitude=cityInfo.longitude
+        return round( haversineDistance(station['latitude'],station['longitude'],clientLatitude,clientLongitude),1)
+
+    return -1
+    
 def send_sessions(update, context, edit_message=False, short_mode=False):
     chat_id = update.message.chat_id
 
@@ -672,8 +719,12 @@ def handle_current(update, context, edit_message=False):
                             game_name = products_data.get(session["product_id"], "Unknown")       
 
                         created_on=datetime.datetime.fromtimestamp(session["created_on"] / 1000.0   ).strftime("%d.%m %H:%M")
-
-                        currentSessions += formatStationName( s,session) +" | "+game_name+" | "+getCityByIP(session["creator_ip"])+" | "+created_on+" ("+formatDuration(getSessionDuration(session))+")\r\n"
+                        clientCityRange=calcRangeByIp(s,session["creator_ip"])
+                        if clientCityRange==-1:
+                            clientCityRange=""
+                        else:
+                            clientCityRange=f" {clientCityRange} км |"
+                        currentSessions += formatStationName( s,session) +" | "+game_name+" | "+getCityByIP(session["creator_ip"])+f" |{clientCityRange} "+created_on+" ("+formatDuration(getSessionDuration(session))+")\r\n"
                 else:
                     currentSessions += formatStationName(s,None) +" no sessions\r\n"
 
@@ -915,7 +966,8 @@ def handle_dumpstantionsproducts(update,context):
                 if withTime:
                     filename=f"productStatesWithTime{user_id}.xlsx"
 
-                wb.save(filename)
+                # old sending via tempfile disabled - check!
+                #wb.save(filename)
                 #bot.send_document(chat_id=chat_id, document=open(filename, "rb"))
 
                 # testing direct sending
@@ -964,7 +1016,7 @@ def handle_dump(update, context):
             servers = servers_response.json()
 
 
-            fieldnames = ['Game name','creator_ip','City','ASN','Date','Duration','Start time','Finish time', 'billing_type','status',  'abort_comment', 'client_id','id','uuid',  'server_id', 'merchant_id', 'product_id', 'created_on', 'finished_on', 'score', 'score_reason', 'score_text', 'parent', 'sched_hints']
+            fieldnames = ['Game name','creator_ip','City','RangeKm','ASN','Date','Duration','Start time','Finish time', 'billing_type','status',  'abort_comment', 'client_id','id','uuid',  'server_id', 'merchant_id', 'product_id', 'created_on', 'finished_on', 'score', 'score_reason', 'score_text', 'parent', 'sched_hints']
 
             if dumpOnefile:
                 wb = Workbook()
@@ -977,12 +1029,11 @@ def handle_dump(update, context):
                     sessions = response.json()["sessions"]
                     for item in sessions:
                         product_id = item.get("product_id")
+
                         creator_ip = item.get("creator_ip")
-                        creator_city = "X"
-                        try:
-                            creator_city = ip_reader.city(creator_ip).city.name
-                        except:
-                            pass
+                        creator_city= getCityByIP(creator_ip,"X")
+                        clientCityRange=calcRangeByIp(s,creator_ip)
+
                         creator_org = "X"
                         try:
                             creator_org = ip_isp_reader.asn(creator_ip).autonomous_system_organization
@@ -1020,6 +1071,7 @@ def handle_dump(update, context):
                         item["Start time"] = start_time
                         item["Finish time"] = finish_time
                         item["Date"] = created_on
+                        item["RangeKm"]=clientCityRange
 
 
                         if dumpOnefile:
@@ -1074,7 +1126,9 @@ def handle_dump(update, context):
                                 dims[cell.column_letter] = max((dims.get(cell.column_letter, 0), len(str(cell.value))))
                     for col, value in dims.items():
                         ws.column_dimensions[col].width = value*1.1
-                    wb.save(f"data{user_id}.xlsx")
+                    
+                    # old sending via tempfile disabled - check!
+                    #wb.save(f"data{user_id}.xlsx")
                     #bot.send_document(chat_id=chat_id, document=open(f"data{user_id}.xlsx", "rb"))
 
                     # testing direct sending
