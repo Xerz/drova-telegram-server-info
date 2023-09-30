@@ -148,6 +148,16 @@ def getCityByIP(creator_ip,defValue=""):
         creator_city = defValue
     return creator_city
 
+def getOrgByIP(creator_ip,defValue=""):
+    creator_org = defValue
+    try:
+        creator_org = ip_isp_reader.asn(creator_ip).autonomous_system_organization
+    except:
+        pass
+    if creator_org is None:
+        creator_org = defValue
+    return creator_org
+
 def haversineDistance(lat1, lon1, lat2, lon2):
     """
     Calculate the great-circle distance between two points on the Earth's surface
@@ -241,12 +251,7 @@ def send_sessions(update, context, edit_message=False, short_mode=False):
 
             creator_ip = session.get("creator_ip", "N/A")
             creator_city= getCityByIP(creator_ip,"X")
-
-            creator_org = "X"
-            try:
-                creator_org = ip_isp_reader.asn(creator_ip).autonomous_system_organization
-            except:
-                pass
+            creator_org= getOrgByIP(creator_ip,"X")
 
             client_id = session.get("client_id", "xxxxxx")[-6:]
 
@@ -544,8 +549,11 @@ def handle_stationsinfo(update,context, edit_message=False):
                 currentStations+="\r\n Внешние адреса:"
                 for ip in sorted(externalIps, key=lambda item: item['ip']) :
                     city=getCityByIP(ip['ip'],"")
+                    org= getOrgByIP(ip['ip'],"")
+                    if len(org)>0:
+                        org=f", {org[0:20]}"
                     if city!="":
-                        city=f"({city})"
+                        city=f"({city[0:15]}{org})"
                     currentStations+=f"\r\n <code>{ip['ip']}</code>:{ip['base_port']} {city}"
             if len(internalIps)>0:
                 currentStations+="\r\n Внутренние адреса:"
@@ -1034,11 +1042,7 @@ def handle_dump(update, context):
                         creator_city= getCityByIP(creator_ip,"X")
                         clientCityRange=calcRangeByIp(s,creator_ip)
 
-                        creator_org = "X"
-                        try:
-                            creator_org = ip_isp_reader.asn(creator_ip).autonomous_system_organization
-                        except:
-                            pass
+                        creator_org= getOrgByIP(creator_ip,"X")
 
                         game_name = products_data.get(product_id, "Unknown game")
 
