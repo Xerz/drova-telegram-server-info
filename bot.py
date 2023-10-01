@@ -538,9 +538,13 @@ def handle_stationsinfo(update,context, edit_message=False):
                         else:
                             externalIps.append(ip)
 
+            trial=""
+            if  'groups_list' in s and "Free trial volunteers" in s['groups_list']:
+                trial=" (Trial)"
+
             if currentStations!="":
                 currentStations+="\r\n\r\n"
-            currentStations+=formatStationName( s,session) +":"
+            currentStations+=formatStationName( s,session) +f"{trial}:"
             currentStations+=f"\r\n {s['city_name']}"
 
             if len(externalIps)>0:
