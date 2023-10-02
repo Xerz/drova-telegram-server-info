@@ -728,13 +728,17 @@ def handle_current(update, context, edit_message=False):
                             products_data_update(update, context)
                             game_name = products_data.get(session["product_id"], "Unknown")       
 
+                        trial=""
+                        if session['billing_type']=="trial":
+                            trial=" | Trial"
+
                         created_on=datetime.datetime.fromtimestamp(session["created_on"] / 1000.0   ).strftime("%d.%m %H:%M")
                         clientCityRange=calcRangeByIp(s,session["creator_ip"])
                         if clientCityRange==-1:
                             clientCityRange=""
                         else:
                             clientCityRange=f" {clientCityRange} км |"
-                        currentSessions += formatStationName( s,session) +" | "+game_name+" | "+getCityByIP(session["creator_ip"])+f" |{clientCityRange} "+created_on+" ("+formatDuration(getSessionDuration(session))+")\r\n"
+                        currentSessions += formatStationName( s,session) +" | "+game_name+ trial +" | "+getCityByIP(session["creator_ip"])+f" |{clientCityRange} "+created_on+" ("+formatDuration(getSessionDuration(session))+")\r\n"
                 else:
                     currentSessions += formatStationName(s,None) +" no sessions\r\n"
 
