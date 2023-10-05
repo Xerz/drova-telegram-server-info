@@ -169,6 +169,10 @@ def haversineDistance(lat1, lon1, lat2, lon2):
     :param lon2: Longitude of the second point in degrees.
     :return: The distance in kilometers.
     """
+
+    if lat1 is None or lon1 is None or lat2 is None or lon2 is None:
+        return -1
+
     # Convert latitude and longitude from degrees to radians
     lat1 = math.radians(lat1)
     lon1 = math.radians(lon1)
@@ -849,12 +853,16 @@ def handle_limit(update, context):
     else:
         bot.send_message(chat_id=chat_id, text=f"add limit number to command")
 
-def filterProductMonthSessions(stationSessions,productID):
+def filterSessionsByProductAndDays(stationSessions,productID,daysLimit=30):
     monthProductSessions=[]
-    monthBack=datetime.datetime.now()-datetime.timedelta(weeks=4)
+    monthBack=datetime.datetime.now()-datetime.timedelta(days=daysLimit)
     for session in stationSessions:
-        if session['product_id']==productID and session['created_on']/1000>monthBack.timestamp():
-            monthProductSessions.append(session)
+        if daysLimit>0:
+            if session['product_id']==productID and session['created_on']/1000>monthBack.timestamp():
+                monthProductSessions.append(session)
+        else:
+            if session['product_id']==productID:
+                monthProductSessions.append(session)
     return monthProductSessions
 
 def calcSessionsDuration(sessions):
@@ -873,9 +881,15 @@ def handle_dumpstantionsproducts(update,context):
     user_id = persistentData['userIDs'].get(str(chat_id), None)
 
     withTime=False
-    if(update['message']['text']).lower()=="/dumpstationsproductswithtime":
+    daysLimit=0
+    if(update['message']['text']).lower()=="/dumpstationsproductswithtime" :
         withTime=True
         allsessions={}
+    if(update['message']['text']).lower()=="/dumpstationsproductsmonth" :
+        withTime=True
+        allsessions={}
+        daysLimit=30
+
 
 
     servers=getServers(authToken,user_id,chat_id)
@@ -883,6 +897,8 @@ def handle_dumpstantionsproducts(update,context):
 
         columns={}
         allProducts={}
+        firstSessionDate=datetime.datetime.now()
+        LastSessionDate=datetime.datetime.strptime("01/01/2020", "%d/%m/%Y")
 
         for s in servers:
             columns[s['name']]=0
@@ -898,7 +914,13 @@ def handle_dumpstantionsproducts(update,context):
                 sessions=getSessions(authToken,s['uuid'])
                 if not sessions is None:
                     allsessions[s['uuid']]=sessions
-                
+                if daysLimit==0:
+                    for session in sessions:
+                        sessionStart=datetime.datetime.fromtimestamp(session["created_on"] / 1000.0)
+                        if sessionStart>LastSessionDate:
+                            LastSessionDate=sessionStart
+                        if sessionStart<firstSessionDate:
+                            firstSessionDate=sessionStart
 
         
         if len(allProducts.keys())>0:
@@ -912,8 +934,12 @@ def handle_dumpstantionsproducts(update,context):
             ws.cell(row=1,column=1).alignment = Alignment(horizontal='center')
 
             if  withTime:
-                ws.cell(row=1,column=1).value=ws.cell(row=1,column=1).value+" данные за месяц"
-
+                if daysLimit>0:
+                    ws.cell(row=1,column=1).value=ws.cell(row=1,column=1).value+f" данные за {daysLimit} дней"
+                else:
+                    ws.cell(row=1,column=1).value=ws.cell(row=1,column=1).value+f" данные с {firstSessionDate.strftime('%Y-%m-%d')} по {LastSessionDate.strftime('%Y-%m-%d')}"\
+                    +"\r\nу разных станций доступно разное количество сессий, дата начала взята с самой старой"
+                    ws.cell(row=1,column=1).alignment = Alignment(wrapText=True)
 
             #for stationName in sorted(columns.keys()):
             for stationID in sorted(persistentData['stationNames'][str(chat_id)].values()):
@@ -932,8 +958,8 @@ def handle_dumpstantionsproducts(update,context):
                     if  withTime:
                         stationSessions=allsessions[stationID]
                         productID=allProducts[productName][stationID]['productId']
-                        monthSessions=filterProductMonthSessions(stationSessions,productID)
-                        cellValue=formatDuration( calcSessionsDuration(monthSessions),False)
+                        productSessions=filterSessionsByProductAndDays(stationSessions,productID,daysLimit)
+                        cellValue=formatDuration( calcSessionsDuration(productSessions),False)
                         ws.cell(row=idx+2,column=columns[persistentData['stationNames'][str(chat_id)][stationID]]).number_format ="[h]:mm:ss" #'d h:mm:ss'
 
                     ws.cell(row=idx+2,column=columns[persistentData['stationNames'][str(chat_id)][stationID]]).value=cellValue
@@ -979,6 +1005,8 @@ def handle_dumpstantionsproducts(update,context):
                 filename=f"productStates{user_id}.xlsx"
                 if withTime:
                     filename=f"productStatesWithTime{user_id}.xlsx"
+                if daysLimit>0:
+                    filename=f"productStatesDays{daysLimit}_{user_id}.xlsx"
 
                 # old sending via tempfile disabled - check!
                 #wb.save(filename)
@@ -1325,6 +1353,8 @@ def main():
 
     dump_stantionsproducts2 = telegram.ext.CommandHandler("dumpStationsProductsWithTime", handle_dumpstantionsproducts)
     dispatcher.add_handler(dump_stantionsproducts2)
+    dump_stantionsproducts3 = telegram.ext.CommandHandler("dumpStationsProductsMonth", handle_dumpstantionsproducts)
+    dispatcher.add_handler(dump_stantionsproducts3)
 
     updater.start_polling()
     updater.idle()
