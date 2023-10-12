@@ -13,8 +13,8 @@ import geoip2.database
 from openpyxl import Workbook
 from openpyxl.styles import PatternFill,Alignment
 
-ip_reader = geoip2.database.Reader("GeoLite2-City.mmdb")
-ip_isp_reader = geoip2.database.Reader("GeoLite2-ASN.mmdb")
+ip_reader=None
+ip_isp_reader=None
 
 bot = telegram.Bot(token=os.environ["TELEGRAM_BOT_TOKEN"])
 
@@ -41,6 +41,14 @@ try:
 except:
     pass
 
+
+def tryLoadGeodb():
+    global ip_reader,ip_isp_reader
+    try:
+        ip_reader = geoip2.database.Reader("GeoLite2-City.mmdb")
+        ip_isp_reader = geoip2.database.Reader("GeoLite2-ASN.mmdb")
+    except:
+        pass
 
 def isRfc1918Ip(ip):
     try:
@@ -139,6 +147,11 @@ def getSessionDuration(session):
     return duration
 
 def getCityByIP(creator_ip,defValue=""):
+    if ip_reader==None:
+        tryLoadGeodb()
+    if ip_reader==None:
+        return defValue
+
     creator_city=defValue
     try:
         creator_city = ip_reader.city(creator_ip).city.name
@@ -149,6 +162,11 @@ def getCityByIP(creator_ip,defValue=""):
     return creator_city
 
 def getOrgByIP(creator_ip,defValue=""):
+    if ip_isp_reader==None:
+        tryLoadGeodb()
+    if ip_isp_reader==None:
+        return defValue
+
     creator_org = defValue
     try:
         creator_org = ip_isp_reader.asn(creator_ip).autonomous_system_organization
@@ -195,6 +213,11 @@ def haversineDistance(lat1, lon1, lat2, lon2):
     return distance
 
 def calcRangeByIp(station,clientIp):
+    if ip_reader==None:
+        tryLoadGeodb()
+    if ip_reader==None:
+        return -1
+
     cityInfo=None
     try:
         cityInfo = ip_reader.city(clientIp).location
@@ -204,7 +227,7 @@ def calcRangeByIp(station,clientIp):
     if cityInfo!=None:
         clientLatitude=cityInfo.latitude
         clientLongitude=cityInfo.longitude
-        return round( haversineDistance(station['latitude'],station['longitude'],clientLatitude,clientLongitude),1)
+        return round(haversineDistance(station['latitude'],station['longitude'],clientLatitude,clientLongitude),1)
 
     return -1
     
@@ -1266,6 +1289,8 @@ def handle_message(update, context):
 
 #  Set up the main function to handle updates
 def main():
+    tryLoadGeodb()
+
     updater = telegram.ext.Updater(
         token=os.environ["TELEGRAM_BOT_TOKEN"], use_context=True
     )
