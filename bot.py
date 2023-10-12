@@ -91,6 +91,9 @@ def setAuthToken(chatID,authToken):
         persistentData['authTokens'][str(chatID)]=authToken
         storePersistentData()
 
+def getAuthTokensByChatID(chatID):
+    return persistentData['authTokens'].get(str(chatID), None)
+
 def setSelectedStationID(chatID,stationID):
     if 'selectedStations'not in persistentData:
        persistentData['selectedStations'] = {}
@@ -234,7 +237,7 @@ def calcRangeByIp(station,clientIp):
 def send_sessions(update, context, edit_message=False, short_mode=False):
     chat_id = update.message.chat_id
 
-    authToken=persistentData['authTokens'].get(str(chat_id), None)
+    authToken=getAuthTokensByChatID(chat_id)
     if authToken is None:
         bot.send_message(chat_id=chat_id, text=f"setup me first")
         return
@@ -419,7 +422,7 @@ def removeAuthToken(update, context):
 
 
 def updateStationNames(chat_id):
-    authToken=persistentData['authTokens'].get(str(chat_id), None)
+    authToken=getAuthTokensByChatID(chat_id)
     if authToken is None:
         bot.send_message(chat_id=chat_id, text=f"setup me first")
         return
@@ -525,7 +528,7 @@ def getProductState(product,okState=""):
 def handle_stationsinfo(update,context, edit_message=False):
     chat_id = update.message.chat_id
 
-    authToken=persistentData['authTokens'].get(str(chat_id), None)
+    authToken=getAuthTokensByChatID(chat_id)
     if authToken is None:
         bot.send_message(chat_id=chat_id, text=f"setup me first")
         return
@@ -629,7 +632,7 @@ def handle_stationsinfo(update,context, edit_message=False):
 def handle_disabled(update,context, edit_message=False):
     chat_id = update.message.chat_id
 
-    authToken=persistentData['authTokens'].get(str(chat_id), None)
+    authToken=getAuthTokensByChatID(chat_id)
     if authToken is None:
         bot.send_message(chat_id=chat_id, text=f"setup me first")
         return
@@ -725,7 +728,7 @@ def formatStationName(station,session):
 def handle_current(update, context, edit_message=False):
     chat_id = update.message.chat_id
 
-    authToken=persistentData['authTokens'].get(str(chat_id), None)
+    authToken=getAuthTokensByChatID(chat_id)
     if authToken is None:
         bot.send_message(chat_id=chat_id, text=f"setup me first")
         return
@@ -812,7 +815,7 @@ def handle_current(update, context, edit_message=False):
 def handle_station(update, context):
     chat_id = update.message.chat_id
     
-    authToken=persistentData['authTokens'].get(str(chat_id), None)
+    authToken=getAuthTokensByChatID(chat_id)
     if authToken is None:
         bot.send_message(chat_id=chat_id, text=f"setup me first")
         return
@@ -863,7 +866,7 @@ def handle_station(update, context):
 def handle_limit(update, context):
     chat_id = update.message.chat_id
 
-    authToken=persistentData['authTokens'].get(str(chat_id), None)
+    authToken=getAuthTokensByChatID(chat_id)
     if authToken is None:
         bot.send_message(chat_id=chat_id, text=f"setup me first")
         return
@@ -897,7 +900,7 @@ def calcSessionsDuration(sessions):
 def handle_dumpstantionsproducts(update,context):
     chat_id = update.message.chat_id
 
-    authToken=persistentData['authTokens'].get(str(chat_id), None)
+    authToken=getAuthTokensByChatID(chat_id)
     if authToken is None:
         bot.send_message(chat_id=chat_id, text=f"setup me first")
 
@@ -1052,7 +1055,7 @@ def handle_dumpstantionsproducts(update,context):
 def handle_dump(update, context):
     chat_id = update.message.chat_id
 
-    authToken=persistentData['authTokens'].get(str(chat_id), None)
+    authToken=getAuthTokensByChatID(chat_id)
     if authToken is None:
         bot.send_message(chat_id=chat_id, text=f"setup me first")
         return
