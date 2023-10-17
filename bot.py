@@ -21,19 +21,7 @@ ip_isp_reader=None
 bot = telegram.Bot(token=os.environ["TELEGRAM_BOT_TOKEN"])
 
 
-products_data = {}
-
 PDM = PersistentDataManager()
-
-# Load the products data from a JSON file
-try:
-    with open("products.json", "r") as f:
-        products_data = json.load(f)
-except:
-    pass
-
-
-
 
 
 
@@ -70,10 +58,10 @@ def send_sessions(update, context, edit_message=False, short_mode=False):
 
         for i, session in enumerate(reversed(sessions), start=1):
             product_id = session["product_id"]
-            game_name = products_data.get(product_id, "Unknown game")
+            game_name = PDM.getProductData(product_id=product_id)
             if game_name == "Unknown game":
                 products_data_update(update, context)
-                game_name = products_data.get(product_id, "Unknown game")
+                game_name = PDM.getProductData(product_id=product_id)
 
             serverName=""
             if server_id is None and str(chat_id) in PDM.getStationNames(chatID=chat_id):
@@ -513,8 +501,6 @@ def update_current_callback(update, context):
 
 
 
-
-
 # Set up the command handler for the '/current' command
 def handle_current(update, context, edit_message=False):
     chat_id = update.message.chat_id
@@ -544,10 +530,10 @@ def handle_current(update, context, edit_message=False):
                 if len(sessions["sessions"])>0:
                     
                     for session in sessions["sessions"]:
-                        game_name = products_data.get(session["product_id"], "Unknown")
+                        game_name = PDM.getProductData(product_id=session["product_id"])
                         if game_name == "Unknown":
                             products_data_update(update, context)
-                            game_name = products_data.get(session["product_id"], "Unknown")       
+                            game_name = PDM.getProductData(product_id=session["product_id"])       
 
                         trial=""
                         if session['billing_type']=="trial":
@@ -880,7 +866,7 @@ def handle_dump(update, context):
 
                         creator_org= getOrgByIP(creator_ip,"X")
 
-                        game_name = products_data.get(product_id, "Unknown game")
+                        game_name = PDM.getProductData(product_id=product_id)
 
 
                         created_on = datetime.datetime.fromtimestamp(
@@ -989,37 +975,17 @@ def handle_dump(update, context):
 
 
 def products_data_update(update, context):
-    chat_id = update.message.chat_id
 
-    global products_data
+    products_data_len_old, products_data_len_new = PDM.updateProductsData()
+    chat_id=update.message.chat_id
 
-    products_data_len_old = len(products_data)
-
-    response = requests.get(
-        "https://services.drova.io/product-manager/product/listfull2",
-        params={},
-        headers={},
-    )
-    if response.status_code == 200:
-        games = response.json()
-
-        products_data_new = {}
-        for game in games:
-            products_data_new[game["productId"]] = game["title"]
-
-        products_data = products_data_new
-
-        products_data_len_new = len(products_data)
-
-        with open("products.json", "w") as f:
-            f.write(json.dumps(products_data))
-
+    if products_data_len_old != products_data_len_new:
         bot.send_message(
             chat_id=chat_id,
             text=f"Game database has been updated from {products_data_len_old} games to {products_data_len_new}",
         )
     else:
-        bot.send_message(chat_id=chat_id, text=f"Error: {response.status_code}")
+        bot.send_message(chat_id=chat_id, text=f"Game database is up to date or there has been an error while updating game database")
 
 
 # Define the callback function for the set server ID buttons

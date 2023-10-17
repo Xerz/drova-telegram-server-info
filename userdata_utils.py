@@ -1,4 +1,5 @@
 import json
+import requests
 
 class PersistentDataManager:
     def __init__(self):
@@ -9,6 +10,8 @@ class PersistentDataManager:
             "selectedStations": {},
             "stationNames": {},
         }
+
+        self.products_data = {}
         self.loadPersistentData()
 
     def loadPersistentData(self):
@@ -16,6 +19,12 @@ class PersistentDataManager:
         try:
             with open("persistentData.json", 'r') as f:
                 self.persistentData = json.load(f)
+        except:
+            pass
+        # Load the products data from a JSON file
+        try:
+            with open("products.json", "r") as f:
+                self.products_data = json.load(f)
         except:
             pass
 
@@ -86,5 +95,33 @@ class PersistentDataManager:
     def getStationNames(self, chatID):
         return self.persistentData['stationNames'].get(str(chatID), None)
     
+    def getProductData(self, product_id):
+        return self.products_data.get(product_id, "Unknown game")
+        
+    def updateProductsData(self):
+        products_data_len_old = len(self.products_data)
+
+        response = requests.get(
+            "https://services.drova.io/product-manager/product/listfull2",
+            params={},
+            headers={},
+        )
+        if response.status_code == 200:
+            games = response.json()
+
+            products_data_new = {}
+            for game in games:
+                products_data_new[game["productId"]] = game["title"]
+
+            self.products_data = products_data_new
+
+            products_data_len_new = len(self.products_data)
+
+            with open("products.json", "w") as f:
+                f.write(json.dumps(self.products_data))
+
+            return products_data_len_old, products_data_len_new
+        return products_data_len_old, None
+
     def getPersistentData(self):
         return self.persistentData
