@@ -13,8 +13,8 @@ from openpyxl.styles import PatternFill,Alignment
 
 from ip_utils import tryLoadGeodb, isRfc1918Ip, calcRangeByIp, getCityByIP, getOrgByIP
 from userdata_utils import PersistentDataManager
-import userdata_utils
-
+from format_utils import formatDuration, formatStationName
+from session_utils import filterSessionsByProductAndDays, calcSessionsDuration, getSessionDuration
 ip_reader=None
 ip_isp_reader=None
 
@@ -34,31 +34,8 @@ except:
 
 
 
-def formatDuration(elapsed_time,shortFormat=True):
-    if elapsed_time < 3600 and  shortFormat:
-        minutes, seconds = divmod(elapsed_time, 60)
-        return "{:.0f}m:{:.0f}s ".format(minutes,seconds)
-    elif elapsed_time < 86400 and  shortFormat:
-        hours, remainder = divmod(elapsed_time, 3600)
-        minutes, seconds = divmod(remainder, 60)
-        return "{:.0f}h {:.0f}m".format(hours, minutes)
-    else:
-        days, remainder = divmod(elapsed_time, 86400)
-        fullhours= elapsed_time/3600
-        hours, remainder = divmod(remainder, 3600)
-        minutes, seconds = divmod(remainder, 60)
-        if   shortFormat:
-            return "{:.0f}d {:.0f}h {:.0f}m".format(days, hours, minutes)
-        else:
-            return "{:02.0f}:{:02.0f}:{:02.0f}".format(fullhours, minutes,seconds)
-            #return "{:.0f} {:02.0f}:{:02.0f}:{:02.0f}".format(days, hours, minutes,seconds)
 
-def getSessionDuration(session):
-    if session['finished_on'] is None:
-        duration=(datetime.datetime.now().timestamp()-session['created_on']/1000)
-    else:
-        duration=(session['finished_on']-session['created_on'])/1000
-    return duration
+
 
 def send_sessions(update, context, edit_message=False, short_mode=False):
     chat_id = update.message.chat_id
@@ -535,19 +512,7 @@ def update_current_callback(update, context):
         query.answer()
 
 
-def formatStationName(station,session):
-    station_name=station["name"]
-    if station["state"]!="LISTEN"and station["state"]!= "HANDSHAKE" and station["state"]!="BUSY" :
-        station_name=f"<s>{station_name}</s>"
-    
-    if not station['published']:
-        station_name=f"<em>{station_name}</em>"
 
-    if not session is None:
-        if session["status"]=="ACTIVE" or  station["state"]== "HANDSHAKE":
-          station_name=f"<strong>{station_name}</strong>"   
-
-    return station_name     
 
 
 # Set up the command handler for the '/current' command
@@ -705,23 +670,7 @@ def handle_limit(update, context):
     else:
         bot.send_message(chat_id=chat_id, text=f"add limit number to command")
 
-def filterSessionsByProductAndDays(stationSessions,productID,daysLimit=30):
-    monthProductSessions=[]
-    monthBack=datetime.datetime.now()-datetime.timedelta(days=daysLimit)
-    for session in stationSessions:
-        if daysLimit>0:
-            if session['product_id']==productID and session['created_on']/1000>monthBack.timestamp():
-                monthProductSessions.append(session)
-        else:
-            if session['product_id']==productID:
-                monthProductSessions.append(session)
-    return monthProductSessions
 
-def calcSessionsDuration(sessions):
-    duration=0
-    for session in sessions:
-        duration+=getSessionDuration(session)
-    return duration
 
 def handle_dumpstantionsproducts(update,context):
     chat_id = update.message.chat_id
