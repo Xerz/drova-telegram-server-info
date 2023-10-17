@@ -6,26 +6,24 @@ import requests
 import json
 import csv
 import datetime
-import math
 import time
-import ipaddress
 import geoip2.database
 from openpyxl import Workbook
 from openpyxl.styles import PatternFill,Alignment
+
+from ip_utils import tryLoadGeodb, isRfc1918Ip, calcRangeByIp, getCityByIP, getOrgByIP
+from userdata_utils import PersistentDataManager
+import userdata_utils
 
 ip_reader=None
 ip_isp_reader=None
 
 bot = telegram.Bot(token=os.environ["TELEGRAM_BOT_TOKEN"])
 
+
 products_data = {}
-persistentData= {
-    "authTokens": {},
-    "userIDs":{},
-    "limits":{},
-    "selectedStations": {},
-    "stationNames":{},
-}
+
+PDM = PersistentDataManager()
 
 # Load the products data from a JSON file
 try:
@@ -34,93 +32,6 @@ try:
 except:
     pass
 
-# Load the auth tokens from a JSON file
-try:
-    with open("persistentData.json", 'r') as f:
-        persistentData = json.load(f)
-except:
-    pass
-
-
-def tryLoadGeodb():
-    global ip_reader,ip_isp_reader
-    try:
-        ip_reader = geoip2.database.Reader("GeoLite2-City.mmdb")
-        ip_isp_reader = geoip2.database.Reader("GeoLite2-ASN.mmdb")
-    except:
-        pass
-
-def isRfc1918Ip(ip):
-    try:
-        ip = ipaddress.ip_address(ip)
-        rfc1918Ranges = [
-            ipaddress.ip_network('10.0.0.0/8'),
-            ipaddress.ip_network('172.16.0.0/12'),
-            ipaddress.ip_network('192.168.0.0/16'),
-        ]
-        for rfcRange in rfc1918Ranges:
-            if ip in rfcRange:
-                return True
-        return False
-    except ValueError:
-        # Invalid IP address format
-        return False
-
-def storePersistentData():
-    try:
-        with open("persistentData.json", 'w') as f:
-            json.dump(persistentData, f, indent=4)
-    except:
-        pass
-
-def setUserID(chatID,userID):
-    if 'userIDs'not in persistentData:
-       persistentData['userIDs'] = {}
-    persistentData['userIDs'][str(chatID)]=userID
-    storePersistentData()
-
-def setAuthToken(chatID,authToken):
-    if 'authTokens'not in persistentData:
-       persistentData['authTokens'] = {}
-    
-    if authToken=="-" and str(chatID) in persistentData['authTokens']:
-        del persistentData['authTokens'][str(chatID)]
-        storePersistentData()
-        return True
-    elif authToken!="-":
-        persistentData['authTokens'][str(chatID)]=authToken
-        storePersistentData()
-
-def getAuthTokensByChatID(chatID):
-    return persistentData['authTokens'].get(str(chatID), None)
-
-def setSelectedStationID(chatID,stationID):
-    if 'selectedStations'not in persistentData:
-       persistentData['selectedStations'] = {}
-    if stationID=="-" and str(chatID) in persistentData['selectedStations']:
-        del persistentData['selectedStations'][str(chatID)]
-    elif stationID!="-":
-        persistentData['selectedStations'][str(chatID)]=stationID
-    storePersistentData()
-
-def setLimit(chatID,limit):
-    if 'limits'not in persistentData:
-       persistentData['limits'] = {}
-    persistentData['limits'][str(chatID)]=int(limit)
-    storePersistentData()
-
-def storeStationNames(chatID,stations):
-    if 'stationNames'not in persistentData:
-       persistentData['stationNames'] = {}
-    persistentData['stationNames'][str(chatID)]=stations
-    storePersistentData()    
-
-def getStationNamesWithID(chatID):
-    stations={}
-    if 'stationNames'not in persistentData and  str(chatID) in persistentData['stationNames']:
-        for id,name in persistentData['stationNames'][str(chatID)]:
-            stations[name]=id
-    return stations
 
 
 def formatDuration(elapsed_time,shortFormat=True):
@@ -149,112 +60,27 @@ def getSessionDuration(session):
         duration=(session['finished_on']-session['created_on'])/1000
     return duration
 
-def getCityByIP(creator_ip,defValue=""):
-    if ip_reader==None:
-        tryLoadGeodb()
-    if ip_reader==None:
-        return defValue
-
-    creator_city=defValue
-    try:
-        creator_city = ip_reader.city(creator_ip).city.name
-    except:
-        pass
-    if creator_city is None:
-        creator_city = defValue
-    return creator_city
-
-def getOrgByIP(creator_ip,defValue=""):
-    if ip_isp_reader==None:
-        tryLoadGeodb()
-    if ip_isp_reader==None:
-        return defValue
-
-    creator_org = defValue
-    try:
-        creator_org = ip_isp_reader.asn(creator_ip).autonomous_system_organization
-    except:
-        pass
-    if creator_org is None:
-        creator_org = defValue
-    return creator_org
-
-def haversineDistance(lat1, lon1, lat2, lon2):
-    """
-    Calculate the great-circle distance between two points on the Earth's surface
-    specified in decimal degrees of latitude and longitude.
-
-    :param lat1: Latitude of the first point in degrees.
-    :param lon1: Longitude of the first point in degrees.
-    :param lat2: Latitude of the second point in degrees.
-    :param lon2: Longitude of the second point in degrees.
-    :return: The distance in kilometers.
-    """
-
-    if lat1 is None or lon1 is None or lat2 is None or lon2 is None:
-        return -1
-
-    # Convert latitude and longitude from degrees to radians
-    lat1 = math.radians(lat1)
-    lon1 = math.radians(lon1)
-    lat2 = math.radians(lat2)
-    lon2 = math.radians(lon2)
-
-    # Radius of the Earth in kilometers
-    earth_radius = 6371.0
-
-    # Haversine formula
-    dlon = lon2 - lon1
-    dlat = lat2 - lat1
-
-    a = math.sin(dlat / 2)**2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlon / 2)**2
-    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
-
-    # Calculate the distance
-    distance = earth_radius * c
-
-    return distance
-
-def calcRangeByIp(station,clientIp):
-    if ip_reader==None:
-        tryLoadGeodb()
-    if ip_reader==None:
-        return -1
-
-    cityInfo=None
-    try:
-        cityInfo = ip_reader.city(clientIp).location
-    except:
-        pass
-
-    if cityInfo!=None:
-        clientLatitude=cityInfo.latitude
-        clientLongitude=cityInfo.longitude
-        return round(haversineDistance(station['latitude'],station['longitude'],clientLatitude,clientLongitude),1)
-
-    return -1
-    
 def send_sessions(update, context, edit_message=False, short_mode=False):
     chat_id = update.message.chat_id
 
-    authToken=getAuthTokensByChatID(chat_id)
+    authToken=PDM.getAuthTokensByChatID(chat_id)
     if authToken is None:
         bot.send_message(chat_id=chat_id, text=f"setup me first")
         return
     
-    server_id=persistentData['selectedStations'].get(str(chat_id), None)
+    server_id = PDM.getSelectedStation(chatID=chat_id)
 
     # Set up the endpoint URL and request parameters
     url = "https://services.drova.io/session-manager/sessions"
 
-    limit =persistentData['limits'].get(str(chat_id), 5)
+    limit = PDM.getLimit(chatID=chat_id)
     params={ "limit":limit}
     currentStationName=""
     if not server_id is None:
         params['server_id']=server_id
-        currentStations=persistentData['stationNames'].get(str(chat_id),None)
+        currentStations= PDM.getStationNames(chatID=chat_id)
         if not currentStations is None:
-            currentStationName=persistentData['stationNames'][str(chat_id)].get(server_id,None)
+            currentStationName = PDM.getStationName(chatID=chat_id, stationID=server_id)
 
     response = requests.get(url, params=params, headers={"X-Auth-Token": authToken})
 
@@ -273,8 +99,8 @@ def send_sessions(update, context, edit_message=False, short_mode=False):
                 game_name = products_data.get(product_id, "Unknown game")
 
             serverName=""
-            if server_id is None and str(chat_id) in persistentData['stationNames']:
-                serverName=persistentData['stationNames'][str(chat_id)].get(session['server_id'],"")
+            if server_id is None and str(chat_id) in PDM.getStationNames(chatID=chat_id):
+                serverName = PDM.getStationName(chatID=chat_id, stationID=session['server_id'])
                 if serverName!="":
                     serverName+="\r\n"
 
@@ -404,8 +230,8 @@ def set_auth_token(update, context):
         accountInfo = accountResp.json()
         if('uuid' in accountInfo):
             # Store the X-Auth-Token for this chat ID
-            setAuthToken(chat_id,token)
-            setUserID(chat_id,accountInfo['uuid'])
+            PDM.setAuthToken(chat_id,token)
+            PDM.setUserID(chat_id,accountInfo['uuid'])
             bot.send_message(chat_id=chat_id, text=f"X-Auth-Token has been set.\r\nПривет {accountInfo['name']}")
             products_data_update(update, context)
             updateStationNames(chat_id)
@@ -416,17 +242,17 @@ def set_auth_token(update, context):
     
 def removeAuthToken(update, context):
     chat_id = update.message.chat_id
-    result=setAuthToken(chat_id,"-")
+    result=PDM.setAuthToken(chat_id,"-")
     if result:
         bot.send_message(chat_id=chat_id, text=f"Token removed.")
 
 
 def updateStationNames(chat_id):
-    authToken=getAuthTokensByChatID(chat_id)
+    authToken=PDM.getAuthTokensByChatID(chat_id)
     if authToken is None:
         bot.send_message(chat_id=chat_id, text=f"setup me first")
         return
-    user_id = persistentData['userIDs'].get(str(chat_id), None)
+    user_id = PDM.getUserID(chatID=chat_id)
     getServers(authToken,user_id,chat_id)
 
 
@@ -468,7 +294,7 @@ def getServers(authToken,user_id,chat_id):
                 stationNames={}
                 for s in servers:
                     stationNames[s['uuid']]=s['name']
-                storeStationNames(chat_id,stationNames)
+                PDM.storeStationNames(chat_id,stationNames)
         return servers
 
 def getServerProducts(authToken,user_id,server_id):
@@ -528,12 +354,12 @@ def getProductState(product,okState=""):
 def handle_stationsinfo(update,context, edit_message=False):
     chat_id = update.message.chat_id
 
-    authToken=getAuthTokensByChatID(chat_id)
+    authToken=PDM.getAuthTokensByChatID(chat_id)
     if authToken is None:
         bot.send_message(chat_id=chat_id, text=f"setup me first")
         return
-
-    user_id = persistentData['userIDs'].get(str(chat_id), None)
+    
+    user_id = PDM.getUserID(chatID=chat_id)
 
     servers=getServers(authToken,user_id,chat_id)
     if not servers is None:
@@ -632,12 +458,12 @@ def handle_stationsinfo(update,context, edit_message=False):
 def handle_disabled(update,context, edit_message=False):
     chat_id = update.message.chat_id
 
-    authToken=getAuthTokensByChatID(chat_id)
+    authToken=PDM.getAuthTokensByChatID(chat_id)
     if authToken is None:
         bot.send_message(chat_id=chat_id, text=f"setup me first")
         return
 
-    user_id = persistentData['userIDs'].get(str(chat_id), None)
+    user_id = PDM.getUserID(chatID=chat_id)
 
     servers=getServers(authToken,user_id,chat_id)
     if not servers is None:
@@ -728,12 +554,12 @@ def formatStationName(station,session):
 def handle_current(update, context, edit_message=False):
     chat_id = update.message.chat_id
 
-    authToken=getAuthTokensByChatID(chat_id)
+    authToken=PDM.getAuthTokensByChatID(chat_id)
     if authToken is None:
         bot.send_message(chat_id=chat_id, text=f"setup me first")
         return
 
-    user_id = persistentData['userIDs'].get(str(chat_id), None)
+    user_id = PDM.getUserID(chatID=chat_id)
 
     servers=getServers(authToken,user_id,chat_id)
     if not servers is None:
@@ -815,7 +641,7 @@ def handle_current(update, context, edit_message=False):
 def handle_station(update, context):
     chat_id = update.message.chat_id
     
-    authToken=getAuthTokensByChatID(chat_id)
+    authToken=PDM.getAuthTokensByChatID(chat_id)
     if authToken is None:
         bot.send_message(chat_id=chat_id, text=f"setup me first")
         return
@@ -823,11 +649,11 @@ def handle_station(update, context):
     # If the user provided an ID, update the params with the new station ID
     if len(context.args) > 0:
         station_id = context.args[0]
-        setSelectedStationID(chat_id,station_id)
+        PDM.setSelectedStationID(chat_id,station_id)
         # Send a message to the user confirming the update
         bot.send_message(chat_id=chat_id, text=f"Station ID updated to {station_id}.")
     else:
-        user_id = persistentData['userIDs'].get(str(chat_id), None)
+        user_id = PDM.getUserID(chatID=chat_id)
 
         # Retrieve a list of available server IDs from the API
         response = requests.get(
@@ -842,7 +668,7 @@ def handle_station(update, context):
             stationNames={}
             for s in servers:
                 stationNames[s['uuid']]=s['name']
-            storeStationNames(chat_id,stationNames)
+            PDM.storeStationNames(chat_id,stationNames)
 
             servers.append({'uuid':"-","name":"all"})
 
@@ -866,14 +692,14 @@ def handle_station(update, context):
 def handle_limit(update, context):
     chat_id = update.message.chat_id
 
-    authToken=getAuthTokensByChatID(chat_id)
+    authToken=PDM.getAuthTokensByChatID(chat_id)
     if authToken is None:
         bot.send_message(chat_id=chat_id, text=f"setup me first")
         return
     
     if len(context.args) > 0:
         limit = context.args[0]
-        setLimit(chat_id,limit)
+        PDM.setLimit(chat_id,limit)
         # Send a message to the user confirming the update
         bot.send_message(chat_id=chat_id, text=f"Limit updated to {limit}.")
     else:
@@ -900,11 +726,11 @@ def calcSessionsDuration(sessions):
 def handle_dumpstantionsproducts(update,context):
     chat_id = update.message.chat_id
 
-    authToken=getAuthTokensByChatID(chat_id)
+    authToken=PDM.getAuthTokensByChatID(chat_id)
     if authToken is None:
         bot.send_message(chat_id=chat_id, text=f"setup me first")
 
-    user_id = persistentData['userIDs'].get(str(chat_id), None)
+    user_id = PDM.getUserID(chatID=chat_id)
 
     withTime=False
     daysLimit=0
@@ -968,7 +794,7 @@ def handle_dumpstantionsproducts(update,context):
                     ws.cell(row=1,column=1).alignment = Alignment(wrapText=True)
 
             #for stationName in sorted(columns.keys()):
-            for stationID in sorted(persistentData['stationNames'][str(chat_id)].values()):
+            for stationID in sorted(PDM.getStationNames(chatID=chat_id).values()):
                 ws.cell(row=1,column=colN).value=stationID
                 columns[stationID]=colN
                 colN+=1
@@ -986,13 +812,14 @@ def handle_dumpstantionsproducts(update,context):
                         productID=allProducts[productName][stationID]['productId']
                         productSessions=filterSessionsByProductAndDays(stationSessions,productID,daysLimit)
                         cellValue=formatDuration( calcSessionsDuration(productSessions),False)
-                        ws.cell(row=idx+2,column=columns[persistentData['stationNames'][str(chat_id)][stationID]]).number_format ="[h]:mm:ss" #'d h:mm:ss'
+                        ws.cell(row=idx+2,column=columns[PDM.getStationName(chatID=chat_id, stationID=stationID)]).number_format ="[h]:mm:ss" #'d h:mm:ss'
 
-                    ws.cell(row=idx+2,column=columns[persistentData['stationNames'][str(chat_id)][stationID]]).value=cellValue
+                    
+                    ws.cell(row=idx+2,column=columns[PDM.getStationName(chatID=chat_id, stationID=stationID)]).value=cellValue
 
                     if stateError:
                         yellow = "00FFFF00"
-                        ws.cell(row=idx+2,column=columns[persistentData['stationNames'][str(chat_id)][stationID]]).fill = PatternFill(start_color=yellow, end_color=yellow,fill_type = "solid")
+                        ws.cell(row=idx+2,column=columns[PDM.getStationName(chatID=chat_id, stationID=stationID)]).fill = PatternFill(start_color=yellow, end_color=yellow,fill_type = "solid")
 
             # добавляем формулы
             if ws.max_row>1:
@@ -1055,7 +882,7 @@ def handle_dumpstantionsproducts(update,context):
 def handle_dump(update, context):
     chat_id = update.message.chat_id
 
-    authToken=getAuthTokensByChatID(chat_id)
+    authToken=PDM.getAuthTokensByChatID(chat_id)
     if authToken is None:
         bot.send_message(chat_id=chat_id, text=f"setup me first")
         return
@@ -1071,7 +898,7 @@ def handle_dump(update, context):
 
     if len(context.args) == 0:
 
-        user_id = user_id = persistentData['userIDs'].get(str(chat_id), None)
+        user_id = user_id = PDM.getUserID(chatID=chat_id)
 
         # Retrieve a list of available server IDs from the API
         servers_response = requests.get(
@@ -1253,7 +1080,7 @@ def set_server_id_callback(update, context):
     server_id = query.data.split("_")[-1]
 
     # Store the server ID for this chat ID
-    setSelectedStationID(chat_id,server_id)
+    PDM.setSelectedStationID(chat_id,server_id)
 
     if server_id=="-":
         message=f"Selected all stations."
