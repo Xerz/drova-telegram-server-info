@@ -56,7 +56,7 @@ class IpTools:
             creator_org = defValue
         return creator_org
 
-    def haversineDistance(lat1, lon1, lat2, lon2):
+    def haversineDistance(self,lat1, lon1, lat2, lon2):
         """
         Calculate the great-circle distance between two points on the Earth's surface
         specified in decimal degrees of latitude and longitude.

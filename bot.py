@@ -189,33 +189,15 @@ def handle_start(update, context):
     bot.send_message(chat_id=chat_id, text=helpText)
 
 
-
-
 def getServers(authToken,user_id,chat_id):
-    # Retrieve a list of available server IDs from the API
-    response = requests.get(
-        "https://services.drova.io/server-manager/servers",
-        params={"user_id": user_id},
-        headers={"X-Auth-Token": authToken},
-    )
-    if response.status_code == 200:
-        servers=response.json()
-        if not servers is None:
-            if len(servers)>0:
-                stationNames={}
-                for s in servers:
-                    stationNames[s['uuid']]=s['name']
-                PDM.storeStationNames(chat_id,stationNames)
+    servers = DrovaClient.getServers(authToken=authToken, user_id=user_id, chat_id=chat_id)
+    if servers and len(servers) > 0:
+        stationNames = {s['uuid']: s['name'] for s in servers}
+        PDM.storeStationNames(chat_id, stationNames)
         return servers
+    return None
 
-def getServerProducts(authToken,user_id,server_id):
-    response = requests.get(
-        "https://services.drova.io/server-manager/serverproduct/list4edit2/"+server_id,
-        params={"user_id": user_id},
-        headers={"X-Auth-Token": authToken},
-    )
-    if response.status_code == 200:
-        return response.json()
+
 
 
 # Define the callback function for the update button
@@ -382,7 +364,7 @@ def handle_disabled(update,context, edit_message=False):
         currentProducts=""
 
         for s in servers:
-            products=getServerProducts(authToken,user_id,s['uuid'])
+            products=DrovaClient.getServerProducts(authToken,user_id,s['uuid'])
             if not products is None and len(products)>0:
                 currentServerProducts=""
                 for product in products:
@@ -626,7 +608,7 @@ def handle_dumpstantionsproducts(update,context):
 
 
     servers=getServers(authToken,user_id,chat_id)
-    if not servers is None:
+    if servers:
 
         columns={}
         allProducts={}
@@ -636,7 +618,7 @@ def handle_dumpstantionsproducts(update,context):
         for s in servers:
             columns[s['name']]=0
 
-            products=getServerProducts(authToken,user_id,s['uuid'])
+            products=DrovaClient.getServerProducts(authToken,user_id,s['uuid'])
             if not products is None and len(products)>0:
                 for product in products:
                     if not product['title'] in allProducts:
