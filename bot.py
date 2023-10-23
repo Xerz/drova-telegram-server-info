@@ -11,19 +11,17 @@ import geoip2.database
 from openpyxl import Workbook
 from openpyxl.styles import PatternFill,Alignment
 
-from ip_utils import tryLoadGeodb, isRfc1918Ip, calcRangeByIp, getCityByIP, getOrgByIP
 from userdata_utils import PersistentDataManager
-from format_utils import formatDuration, formatStationName
+from format_utils import formatDuration, formatStationName, generate_session_text
 from session_utils import filterSessionsByProductAndDays, calcSessionsDuration, getSessionDuration
-ip_reader=None
-ip_isp_reader=None
+from drova_utils import DrovaClient
+from ip_utils import IpTools
+
 
 bot = telegram.Bot(token=os.environ["TELEGRAM_BOT_TOKEN"])
 
-
+ip_tool = IpTools()
 PDM = PersistentDataManager()
-
-
 
 def send_sessions(update, context, edit_message=False, short_mode=False):
     chat_id = update.message.chat_id
@@ -35,22 +33,14 @@ def send_sessions(update, context, edit_message=False, short_mode=False):
     
     server_id = PDM.getSelectedStation(chatID=chat_id)
 
-    # Set up the endpoint URL and request parameters
-    url = "https://services.drova.io/session-manager/sessions"
-
+    
     limit = PDM.getLimit(chatID=chat_id)
-    params={ "limit":limit}
     currentStationName=""
-    if not server_id is None:
-        params['server_id']=server_id
-        currentStations= PDM.getStationNames(chatID=chat_id)
-        if not currentStations is None:
-            currentStationName = PDM.getStationName(chatID=chat_id, stationID=server_id)
+    if server_id:
+        currentStationName = PDM.getStationName(chatID=chat_id, stationID=server_id)
 
-    response = requests.get(url, params=params, headers={"X-Auth-Token": authToken})
-
-    if response.status_code == 200:
-        sessions = response.json()["sessions"]
+    sessions = DrovaClient.getSessions(authToken=authToken, server_id=server_id, limit=limit)
+    if sessions:
         message_long_text = " (excluding those shorter than 5 minutes)" if short_mode==True else ""
         message = f"Last {limit} sessions{message_long_text}:\n\n"
 
@@ -69,50 +59,17 @@ def send_sessions(update, context, edit_message=False, short_mode=False):
                 if serverName!="":
                     serverName+="\r\n"
 
-
-            creator_ip = session.get("creator_ip", "N/A")
-            creator_city= getCityByIP(creator_ip,"X")
-            creator_org= getOrgByIP(creator_ip,"X")
-
-            client_id = session.get("client_id", "xxxxxx")[-6:]
-
             created_on = datetime.datetime.fromtimestamp(
                 session["created_on"] / 1000.0
             ).strftime("%Y-%m-%d")
-            start_time = datetime.datetime.fromtimestamp(
-                session["created_on"] / 1000.0
-            ).strftime("%H:%M:%S")
-            finish_time = session["finished_on"]
-            
-            if finish_time:
-                finish_time = datetime.datetime.fromtimestamp(
-                    finish_time / 1000.0
-                ).strftime("%H:%M:%S")
-                duration = datetime.timedelta(seconds=(session["finished_on"] - session["created_on"]) / 1000)
-            else:
-                finish_time = "Now"
-                duration = datetime.timedelta(seconds=datetime.datetime.utcnow().timestamp() - session["created_on"] / 1000)
-            #duration_str = str(duration).split(".")[0]
-            duration_str =formatDuration( getSessionDuration(session))
-
-            score_text = session.get("score_text", "N/A")
 
             if not created_on == created_on_past:
                 message += f"<strong>{created_on}</strong>:\n"
                 created_on_past = created_on
-
-            if (not short_mode) or (short_mode and duration > datetime.timedelta(minutes=5)):
-                message += f"{limit-i+1}. <strong>{game_name}</strong>\n"
-                message += serverName
-                message += f"<code>{creator_ip}</code> <code>{client_id}</code>\n"
-                
-                message += f"{creator_city} {creator_org}\n{start_time}-{finish_time} ({duration_str})\n"
-
-                message += f"Feedback: {score_text}\n" if not score_text == None else ""
-
-                message += (
-                    f"{session.get('billing_type', 'N/A')} {session['status'].lower()}\n\n"
-                )
+            
+            duration = getSessionDuration(session)
+            if (not short_mode) or (short_mode and duration > 300):
+                message += generate_session_text(limit, i, game_name, serverName, session, ip_tool)
 
         current_time = datetime.datetime.now().strftime("%H:%M:%S")
 
@@ -154,7 +111,7 @@ def send_sessions(update, context, edit_message=False, short_mode=False):
             )
 
     else:
-        bot.send_message(chat_id=chat_id, text=f"Error: {response.status_code}")
+        bot.send_message(chat_id=chat_id, text=f"Error getting sessions")
 
 
 # Define the callback function for the update sessions button
@@ -186,22 +143,15 @@ def set_auth_token(update, context):
     
     token = context.args[0]
 
-    accountResp = requests.get(
-        "https://services.drova.io/accounting/myaccount",
-        headers={"X-Auth-Token": token},
-    )
+    accountInfo = DrovaClient.getAccountInfo(token)
     
-    if accountResp.status_code == 200:
-        accountInfo = accountResp.json()
-        if('uuid' in accountInfo):
-            # Store the X-Auth-Token for this chat ID
-            PDM.setAuthToken(chat_id,token)
-            PDM.setUserID(chat_id,accountInfo['uuid'])
-            bot.send_message(chat_id=chat_id, text=f"X-Auth-Token has been set.\r\nПривет {accountInfo['name']}")
-            products_data_update(update, context)
-            updateStationNames(chat_id)
-        else:
-            bot.send_message(chat_id=chat_id, text=f"Token error, not set.")
+    if accountInfo:
+        # Store the X-Auth-Token for this chat ID
+        PDM.setAuthToken(chat_id,token)
+        PDM.setUserID(chat_id,accountInfo['uuid'])
+        bot.send_message(chat_id=chat_id, text=f"X-Auth-Token has been set.\r\nПривет, {accountInfo['name']}!")
+        products_data_update(update, context)
+        updateStationNames(chat_id)
     else:
         bot.send_message(chat_id=chat_id, text=f"Token error, not set.")
     
@@ -239,11 +189,7 @@ def handle_start(update, context):
     bot.send_message(chat_id=chat_id, text=helpText)
 
 
-def getSessions(authToken,server_id):
-    response = requests.get("https://services.drova.io/session-manager/sessions", params={"server_id": server_id}, headers={"X-Auth-Token": authToken})
-    if response.status_code == 200:
-        return response.json()["sessions"]   
-    return None
+
 
 def getServers(authToken,user_id,chat_id):
     # Retrieve a list of available server IDs from the API
@@ -354,7 +300,7 @@ def handle_stationsinfo(update,context, edit_message=False):
                 ips = ipResponse.json()
                 if len(ips)>0:
                     for ip in ips:
-                        if isRfc1918Ip(ip['ip']):
+                        if ip_tool.isRfc1918Ip(ip['ip']):
                             internalIps.append(ip)
                         else:
                             externalIps.append(ip)
@@ -371,8 +317,8 @@ def handle_stationsinfo(update,context, edit_message=False):
             if len(externalIps)>0:
                 currentStations+="\r\n Внешние адреса:"
                 for ip in sorted(externalIps, key=lambda item: item['ip']) :
-                    city=getCityByIP(ip['ip'],"")
-                    org= getOrgByIP(ip['ip'],"")
+                    city=ip_tool.getCityByIP(ip['ip'],"")
+                    org= ip_tool.getOrgByIP(ip['ip'],"")
                     if len(org)>0:
                         org=f", {org[0:20]}"
                     if city!="":
@@ -540,12 +486,12 @@ def handle_current(update, context, edit_message=False):
                             trial=" | Trial"
 
                         created_on=datetime.datetime.fromtimestamp(session["created_on"] / 1000.0   ).strftime("%d.%m %H:%M")
-                        clientCityRange=calcRangeByIp(s,session["creator_ip"])
+                        clientCityRange=ip_tool.calcRangeByIp(s,session["creator_ip"])
                         if clientCityRange==-1:
                             clientCityRange=""
                         else:
                             clientCityRange=f" {clientCityRange} км |"
-                        currentSessions += formatStationName( s,session) +" | "+game_name+ trial +" | "+getCityByIP(session["creator_ip"])+f" |{clientCityRange} "+created_on+" ("+formatDuration(getSessionDuration(session))+")\r\n"
+                        currentSessions += formatStationName( s,session) +" | "+game_name+ trial +" | "+ip_tool.getCityByIP(session["creator_ip"])+f" |{clientCityRange} "+created_on+" ("+formatDuration(getSessionDuration(session))+")\r\n"
                 else:
                     currentSessions += formatStationName(s,None) +" no sessions\r\n"
 
@@ -698,7 +644,7 @@ def handle_dumpstantionsproducts(update,context):
                     allProducts[product['title']][s['uuid']]=product
 
             if withTime:
-                sessions=getSessions(authToken,s['uuid'])
+                sessions= DrovaClient.getSessions(authToken,s['uuid'])
                 if not sessions is None:
                     allsessions[s['uuid']]=sessions
                 if daysLimit==0:
@@ -861,10 +807,10 @@ def handle_dump(update, context):
                         product_id = item.get("product_id")
 
                         creator_ip = item.get("creator_ip")
-                        creator_city= getCityByIP(creator_ip,"X")
-                        clientCityRange=calcRangeByIp(s,creator_ip)
+                        creator_city= ip_tool.getCityByIP(creator_ip,"X")
+                        clientCityRange=ip_tool.calcRangeByIp(s,creator_ip)
 
-                        creator_org= getOrgByIP(creator_ip,"X")
+                        creator_org= ip_tool.getOrgByIP(creator_ip,"X")
 
                         game_name = PDM.getProductData(product_id=product_id)
 
@@ -975,10 +921,9 @@ def handle_dump(update, context):
 
 
 def products_data_update(update, context):
-
-    products_data_len_old, products_data_len_new = PDM.updateProductsData()
     chat_id=update.message.chat_id
-
+    products_data_len_old, products_data_len_new = PDM.updateProductsData()
+    
     if products_data_len_old != products_data_len_new:
         bot.send_message(
             chat_id=chat_id,
@@ -1034,7 +979,6 @@ def handle_message(update, context):
 
 #  Set up the main function to handle updates
 def main():
-    tryLoadGeodb()
 
     updater = telegram.ext.Updater(
         token=os.environ["TELEGRAM_BOT_TOKEN"], use_context=True

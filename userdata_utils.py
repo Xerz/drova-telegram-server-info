@@ -1,6 +1,6 @@
 import json
 import requests
-
+from drova_utils import DrovaClient
 class PersistentDataManager:
     def __init__(self):
         self.persistentData = {
@@ -101,18 +101,8 @@ class PersistentDataManager:
     def updateProductsData(self):
         products_data_len_old = len(self.products_data)
 
-        response = requests.get(
-            "https://services.drova.io/product-manager/product/listfull2",
-            params={},
-            headers={},
-        )
-        if response.status_code == 200:
-            games = response.json()
-
-            products_data_new = {}
-            for game in games:
-                products_data_new[game["productId"]] = game["title"]
-
+        products_data_new = DrovaClient.getProductsData()
+        if products_data_new:
             self.products_data = products_data_new
 
             products_data_len_new = len(self.products_data)

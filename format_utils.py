@@ -1,3 +1,7 @@
+from session_utils import getSessionDuration
+from ip_utils import IpTools
+import datetime
+
 def formatDuration(elapsed_time,shortFormat=True):
     if elapsed_time < 3600 and  shortFormat:
         minutes, seconds = divmod(elapsed_time, 60)
@@ -31,3 +35,30 @@ def formatStationName(station,session):
 
     return station_name     
 
+def generate_session_text(limit, i, game_name, server_name, session, ip_tool):
+
+    creator_ip = session.get("creator_ip", "N/A")
+    creator_city = ip_tool.getCityByIP(creator_ip,"X")
+    creator_org = ip_tool.getOrgByIP(creator_ip,"X")
+
+    client_id = session.get("client_id", "xxxxxx")[-6:]
+
+    start_time = datetime.datetime.fromtimestamp(
+                session["created_on"] / 1000.0
+            ).strftime("%H:%M:%S")
+    finish_time = session["finished_on"]
+    duration_str =formatDuration(getSessionDuration(session))
+    score_text = session.get("score_text", "N/A")
+
+
+    message = f"{limit - i + 1}. <strong>{game_name}</strong>\n"
+    message += server_name
+    message += f"<code>{creator_ip}</code> <code>{client_id}</code>\n"
+
+    message += f"{creator_city} {creator_org}\n{start_time}-{finish_time} ({duration_str})\n"
+
+    message += f"Feedback: {score_text}\n" if score_text is not None else ""
+
+    message += f"{session.get('billing_type', 'N/A')} {session['status'].lower()}\n\n"
+
+    return message
