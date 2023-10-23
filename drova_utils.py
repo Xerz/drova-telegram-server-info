@@ -35,21 +35,14 @@ class DrovaClient:
         return None
     
     @staticmethod
-    def getSessions(authToken, server_id):
-        response = requests.get("https://services.drova.io/session-manager/sessions", params={"server_id": server_id}, headers={"X-Auth-Token": authToken})
-        if response.status_code == 200:
-            return response.json()["sessions"]   
-        return None
-
-    @staticmethod
-    def getSessions(authToken, server_id, limit):
+    def getSessions(authToken, server_id, limit=1000):
         response = requests.get("https://services.drova.io/session-manager/sessions", params={"server_id": server_id, "limit": limit}, headers={"X-Auth-Token": authToken})
         if response.status_code == 200:
             return response.json()["sessions"]   
         return None
     
     @staticmethod
-    def getServers(authToken,user_id,chat_id):
+    def getServers(authToken,user_id):
         response = requests.get(
         "https://services.drova.io/server-manager/servers",
         params={"user_id": user_id},
@@ -60,6 +53,16 @@ class DrovaClient:
         print(response.status_code)
         return None
     
+    @staticmethod
+    def getServerIp(authToken, server_id):
+        ipResponse=requests.get(
+                "https://services.drova.io/server-manager/serverendpoint/list/"+server_id,
+                params={"server_id": s["uuid"],"limit":1},
+                headers={"X-Auth-Token": authToken},
+            )     
+        if ipResponse.status_code == 200:
+                return ipResponse.json()
+        return None
     @staticmethod
     def getServerProducts(authToken,user_id,server_id):
         response = requests.get(

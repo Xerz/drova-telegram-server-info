@@ -62,3 +62,23 @@ def generate_session_text(limit, i, game_name, server_name, session, ip_tool):
     message += f"{session.get('billing_type', 'N/A')} {session['status'].lower()}\n\n"
 
     return message
+
+def generate_current_station_text(s,session,trial,internalIps,externalIps,ip_tool):
+    currentStations=formatStationName(s,session) +f"{trial}:"
+    currentStations+=f"\r\n {s['city_name']}"
+
+    if len(externalIps)>0:
+        currentStations+="\r\n Внешние адреса:"
+        for ip in sorted(externalIps, key=lambda item: item['ip']) :
+            city=ip_tool.getCityByIP(ip['ip'],"")
+            org= ip_tool.getOrgByIP(ip['ip'],"")
+            if len(org)>0:
+                org=f", {org[0:20]}"
+            if city!="":
+                city=f"({city[0:15]}{org})"
+            currentStations+=f"\r\n <code>{ip['ip']}</code>:{ip['base_port']} {city}"
+    if len(internalIps)>0:
+        currentStations+="\r\n Внутренние адреса:"
+        for ip in sorted(internalIps, key=lambda item: item['ip']) :
+            currentStations+=f"\r\n <code>{ip['ip']}</code>:{ip['base_port']}"
+    return currentStations

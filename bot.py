@@ -190,7 +190,7 @@ def handle_start(update, context):
 
 
 def getServers(authToken,user_id,chat_id):
-    servers = DrovaClient.getServers(authToken=authToken, user_id=user_id, chat_id=chat_id)
+    servers = DrovaClient.getServers(authToken=authToken, user_id=user_id)
     if servers and len(servers) > 0:
         stationNames = {s['uuid']: s['name'] for s in servers}
         PDM.storeStationNames(chat_id, stationNames)
@@ -255,37 +255,16 @@ def handle_stationsinfo(update,context, edit_message=False):
     user_id = PDM.getUserID(chatID=chat_id)
 
     servers=getServers(authToken,user_id,chat_id)
-    if not servers is None:
+    if servers:
         currentStations=""
 
         for s in sorted(servers, key=lambda item: item['name']):
-            sessionResponse=requests.get(
-                "https://services.drova.io/session-manager/sessions",
-                params={"server_id": s["uuid"],"limit":1},
-                headers={"X-Auth-Token": authToken},
-            )         
-            session=None
-            if sessionResponse.status_code == 200:
-                sessions = sessionResponse.json()
-                if len(sessions)>0:
-                    #print (sessions)
-                    session=sessions['sessions'][0]
+            sessions = DrovaClient.getSessions(authToken, s["uuid"], 1)
+            if sessions and len(sessions)>0:
+                session=sessions[0]
 
-            ipResponse=requests.get(
-                "https://services.drova.io/server-manager/serverendpoint/list/"+s['uuid'],
-                params={"server_id": s["uuid"],"limit":1},
-                headers={"X-Auth-Token": authToken},
-            )         
-            externalIps=[]
-            internalIps=[]
-            if ipResponse.status_code == 200:
-                ips = ipResponse.json()
-                if len(ips)>0:
-                    for ip in ips:
-                        if ip_tool.isRfc1918Ip(ip['ip']):
-                            internalIps.append(ip)
-                        else:
-                            externalIps.append(ip)
+            ips = DrovaClient.getServerIp(authToken, s['uuid'])
+            internalIps, externalIps = ip_tool.split_external_ips(ips)
 
             trial=""
             if  'groups_list' in s and "Free trial volunteers" in s['groups_list']:
@@ -293,25 +272,9 @@ def handle_stationsinfo(update,context, edit_message=False):
 
             if currentStations!="":
                 currentStations+="\r\n\r\n"
-            currentStations+=formatStationName( s,session) +f"{trial}:"
-            currentStations+=f"\r\n {s['city_name']}"
-
-            if len(externalIps)>0:
-                currentStations+="\r\n Внешние адреса:"
-                for ip in sorted(externalIps, key=lambda item: item['ip']) :
-                    city=ip_tool.getCityByIP(ip['ip'],"")
-                    org= ip_tool.getOrgByIP(ip['ip'],"")
-                    if len(org)>0:
-                        org=f", {org[0:20]}"
-                    if city!="":
-                        city=f"({city[0:15]}{org})"
-                    currentStations+=f"\r\n <code>{ip['ip']}</code>:{ip['base_port']} {city}"
-            if len(internalIps)>0:
-                currentStations+="\r\n Внутренние адреса:"
-                for ip in sorted(internalIps, key=lambda item: item['ip']) :
-                    currentStations+=f"\r\n <code>{ip['ip']}</code>:{ip['base_port']}"
-        
-
+            
+            currentStations += generate_session_text(s,session,trial,internalIps,externalIps,ip_tool)
+            
         current_time = datetime.datetime.now().strftime("%H:%M:%S")
         update_text = f"Update ({current_time})"
         update_callback_data = "update_stationsinfo"
@@ -446,18 +409,11 @@ def handle_current(update, context, edit_message=False):
         currentSessions=""
 
         for s in sorted(servers, key=lambda item: item['name']):
-            sessionResponse=requests.get(
-                "https://services.drova.io/session-manager/sessions",
-                params={"server_id": s["uuid"],"limit":1},
-                headers={"X-Auth-Token": authToken},
-            )         
+            sessions = DrovaClient.getSessions(authToken, s["uuid"], 1)  
 
-            if sessionResponse.status_code == 200:
-                sessions = sessionResponse.json()
-
-                if len(sessions["sessions"])>0:
-                    
-                    for session in sessions["sessions"]:
+            if sessions:
+                if len(sessions)>0:
+                    for session in sessions:
                         game_name = PDM.getProductData(product_id=session["product_id"])
                         if game_name == "Unknown":
                             products_data_update(update, context)
@@ -534,21 +490,9 @@ def handle_station(update, context):
     else:
         user_id = PDM.getUserID(chatID=chat_id)
 
-        # Retrieve a list of available server IDs from the API
-        response = requests.get(
-            "https://services.drova.io/server-manager/servers",
-            params={"user_id": user_id},
-            headers={"X-Auth-Token": authToken},
-        )
-
-        if response.status_code == 200:
-            servers = response.json()
-
-            stationNames={}
-            for s in servers:
-                stationNames[s['uuid']]=s['name']
-            PDM.storeStationNames(chat_id,stationNames)
-
+        
+        servers = DrovaClient.getServers(authToken, user_id)
+        if servers:
             servers.append({'uuid':"-","name":"all"})
 
             # Create inline keyboard buttons for each available server ID
@@ -566,7 +510,7 @@ def handle_station(update, context):
                 chat_id=chat_id, text="Select a station:", reply_markup=reply_markup
             )
         else:
-            bot.send_message(chat_id=chat_id, text=f"Error: {response.status_code}")
+            bot.send_message(chat_id=chat_id, text=f"Error while getting servers list")
 
 def handle_limit(update, context):
     chat_id = update.message.chat_id
@@ -755,25 +699,12 @@ def handle_dump(update, context):
         dumpOnefile=True
 
 
-    # Set up the endpoint URL and request parameters
-    url = "https://services.drova.io/session-manager/sessions"
-
-
     if len(context.args) == 0:
 
         user_id = user_id = PDM.getUserID(chatID=chat_id)
 
-        # Retrieve a list of available server IDs from the API
-        servers_response = requests.get(
-            "https://services.drova.io/server-manager/servers",
-            params={"user_id": user_id},
-            headers={"X-Auth-Token": authToken},
-        )
-
-        if servers_response.status_code == 200:
-            servers = servers_response.json()
-
-
+        servers = DrovaClient.getServers(authToken, user_id)
+        if servers:
             fieldnames = ['Game name','creator_ip','City','RangeKm','ASN','Date','Duration','Start time','Finish time', 'billing_type','status',  'abort_comment', 'client_id','id','uuid',  'server_id', 'merchant_id', 'product_id', 'created_on', 'finished_on', 'score', 'score_reason', 'score_text', 'parent', 'sched_hints']
 
             if dumpOnefile:
@@ -782,9 +713,8 @@ def handle_dump(update, context):
                 #ws.append(fieldnames)
 
             for s in servers:
-                response = requests.get(url, params={"server_id": s["uuid"]}, headers={"X-Auth-Token": authToken})
-                if response.status_code == 200:
-                    sessions = response.json()["sessions"]
+                sessions = DrovaClient.getSessions(authToken, s["uuid"])
+                if sessions:
                     for item in sessions:
                         product_id = item.get("product_id")
 

@@ -26,6 +26,17 @@ class IpTools:
             # Invalid IP address format
             return False
     
+    def split_external_ips(self, ips):
+        internalIps=[]
+        externalIps=[]
+        if ips and len(ips)>0:
+                for ip in ips:
+                    if self.isRfc1918Ip(ip['ip']):
+                        internalIps.append(ip)
+                    else:
+                        externalIps.append(ip)
+        return internalIps, externalIps
+
     def getCityByIP(self, creator_ip, defValue=""):
         if self.ip_reader==None:
             self.tryLoadGeodb()
