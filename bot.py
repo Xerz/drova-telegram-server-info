@@ -6,260 +6,41 @@ import requests
 import json
 import csv
 import datetime
-import math
 import time
-import ipaddress
 import geoip2.database
 from openpyxl import Workbook
 from openpyxl.styles import PatternFill,Alignment
 
-ip_reader=None
-ip_isp_reader=None
+from userdata_utils import PersistentDataManager
+from format_utils import formatDuration, formatStationName, generate_session_text
+from session_utils import filterSessionsByProductAndDays, calcSessionsDuration, getSessionDuration
+from drova_utils import DrovaClient
+from ip_utils import IpTools
+
 
 bot = telegram.Bot(token=os.environ["TELEGRAM_BOT_TOKEN"])
 
-products_data = {}
-persistentData= {
-    "authTokens": {},
-    "userIDs":{},
-    "limits":{},
-    "selectedStations": {},
-    "stationNames":{},
-}
+ip_tool = IpTools()
+PDM = PersistentDataManager()
 
-# Load the products data from a JSON file
-try:
-    with open("products.json", "r") as f:
-        products_data = json.load(f)
-except:
-    pass
-
-# Load the auth tokens from a JSON file
-try:
-    with open("persistentData.json", 'r') as f:
-        persistentData = json.load(f)
-except:
-    pass
-
-
-def tryLoadGeodb():
-    global ip_reader,ip_isp_reader
-    try:
-        ip_reader = geoip2.database.Reader("GeoLite2-City.mmdb")
-        ip_isp_reader = geoip2.database.Reader("GeoLite2-ASN.mmdb")
-    except:
-        pass
-
-def isRfc1918Ip(ip):
-    try:
-        ip = ipaddress.ip_address(ip)
-        rfc1918Ranges = [
-            ipaddress.ip_network('10.0.0.0/8'),
-            ipaddress.ip_network('172.16.0.0/12'),
-            ipaddress.ip_network('192.168.0.0/16'),
-        ]
-        for rfcRange in rfc1918Ranges:
-            if ip in rfcRange:
-                return True
-        return False
-    except ValueError:
-        # Invalid IP address format
-        return False
-
-def storePersistentData():
-    try:
-        with open("persistentData.json", 'w') as f:
-            json.dump(persistentData, f, indent=4)
-    except:
-        pass
-
-def setUserID(chatID,userID):
-    if 'userIDs'not in persistentData:
-       persistentData['userIDs'] = {}
-    persistentData['userIDs'][str(chatID)]=userID
-    storePersistentData()
-
-def setAuthToken(chatID,authToken):
-    if 'authTokens'not in persistentData:
-       persistentData['authTokens'] = {}
-    
-    if authToken=="-" and str(chatID) in persistentData['authTokens']:
-        del persistentData['authTokens'][str(chatID)]
-        storePersistentData()
-        return True
-    elif authToken!="-":
-        persistentData['authTokens'][str(chatID)]=authToken
-        storePersistentData()
-
-def getAuthTokensByChatID(chatID):
-    return persistentData['authTokens'].get(str(chatID), None)
-
-def setSelectedStationID(chatID,stationID):
-    if 'selectedStations'not in persistentData:
-       persistentData['selectedStations'] = {}
-    if stationID=="-" and str(chatID) in persistentData['selectedStations']:
-        del persistentData['selectedStations'][str(chatID)]
-    elif stationID!="-":
-        persistentData['selectedStations'][str(chatID)]=stationID
-    storePersistentData()
-
-def setLimit(chatID,limit):
-    if 'limits'not in persistentData:
-       persistentData['limits'] = {}
-    persistentData['limits'][str(chatID)]=int(limit)
-    storePersistentData()
-
-def storeStationNames(chatID,stations):
-    if 'stationNames'not in persistentData:
-       persistentData['stationNames'] = {}
-    persistentData['stationNames'][str(chatID)]=stations
-    storePersistentData()    
-
-def getStationNamesWithID(chatID):
-    stations={}
-    if 'stationNames'not in persistentData and  str(chatID) in persistentData['stationNames']:
-        for id,name in persistentData['stationNames'][str(chatID)]:
-            stations[name]=id
-    return stations
-
-
-def formatDuration(elapsed_time,shortFormat=True):
-    if elapsed_time < 3600 and  shortFormat:
-        minutes, seconds = divmod(elapsed_time, 60)
-        return "{:.0f}m:{:.0f}s ".format(minutes,seconds)
-    elif elapsed_time < 86400 and  shortFormat:
-        hours, remainder = divmod(elapsed_time, 3600)
-        minutes, seconds = divmod(remainder, 60)
-        return "{:.0f}h {:.0f}m".format(hours, minutes)
-    else:
-        days, remainder = divmod(elapsed_time, 86400)
-        fullhours= elapsed_time/3600
-        hours, remainder = divmod(remainder, 3600)
-        minutes, seconds = divmod(remainder, 60)
-        if   shortFormat:
-            return "{:.0f}d {:.0f}h {:.0f}m".format(days, hours, minutes)
-        else:
-            return "{:02.0f}:{:02.0f}:{:02.0f}".format(fullhours, minutes,seconds)
-            #return "{:.0f} {:02.0f}:{:02.0f}:{:02.0f}".format(days, hours, minutes,seconds)
-
-def getSessionDuration(session):
-    if session['finished_on'] is None:
-        duration=(datetime.datetime.now().timestamp()-session['created_on']/1000)
-    else:
-        duration=(session['finished_on']-session['created_on'])/1000
-    return duration
-
-def getCityByIP(creator_ip,defValue=""):
-    if ip_reader==None:
-        tryLoadGeodb()
-    if ip_reader==None:
-        return defValue
-
-    creator_city=defValue
-    try:
-        creator_city = ip_reader.city(creator_ip).city.name
-    except:
-        pass
-    if creator_city is None:
-        creator_city = defValue
-    return creator_city
-
-def getOrgByIP(creator_ip,defValue=""):
-    if ip_isp_reader==None:
-        tryLoadGeodb()
-    if ip_isp_reader==None:
-        return defValue
-
-    creator_org = defValue
-    try:
-        creator_org = ip_isp_reader.asn(creator_ip).autonomous_system_organization
-    except:
-        pass
-    if creator_org is None:
-        creator_org = defValue
-    return creator_org
-
-def haversineDistance(lat1, lon1, lat2, lon2):
-    """
-    Calculate the great-circle distance between two points on the Earth's surface
-    specified in decimal degrees of latitude and longitude.
-
-    :param lat1: Latitude of the first point in degrees.
-    :param lon1: Longitude of the first point in degrees.
-    :param lat2: Latitude of the second point in degrees.
-    :param lon2: Longitude of the second point in degrees.
-    :return: The distance in kilometers.
-    """
-
-    if lat1 is None or lon1 is None or lat2 is None or lon2 is None:
-        return -1
-
-    # Convert latitude and longitude from degrees to radians
-    lat1 = math.radians(lat1)
-    lon1 = math.radians(lon1)
-    lat2 = math.radians(lat2)
-    lon2 = math.radians(lon2)
-
-    # Radius of the Earth in kilometers
-    earth_radius = 6371.0
-
-    # Haversine formula
-    dlon = lon2 - lon1
-    dlat = lat2 - lat1
-
-    a = math.sin(dlat / 2)**2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlon / 2)**2
-    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
-
-    # Calculate the distance
-    distance = earth_radius * c
-
-    return distance
-
-def calcRangeByIp(station,clientIp):
-    if ip_reader==None:
-        tryLoadGeodb()
-    if ip_reader==None:
-        return -1
-
-    cityInfo=None
-    try:
-        cityInfo = ip_reader.city(clientIp).location
-    except:
-        pass
-
-    if cityInfo!=None:
-        clientLatitude=cityInfo.latitude
-        clientLongitude=cityInfo.longitude
-        return round(haversineDistance(station['latitude'],station['longitude'],clientLatitude,clientLongitude),1)
-
-    return -1
-    
 def send_sessions(update, context, edit_message=False, short_mode=False):
     chat_id = update.message.chat_id
 
-    authToken=getAuthTokensByChatID(chat_id)
+    authToken=PDM.getAuthTokensByChatID(chat_id)
     if authToken is None:
         bot.send_message(chat_id=chat_id, text=f"setup me first")
         return
     
-    server_id=persistentData['selectedStations'].get(str(chat_id), None)
+    server_id = PDM.getSelectedStation(chatID=chat_id)
 
-    # Set up the endpoint URL and request parameters
-    url = "https://services.drova.io/session-manager/sessions"
-
-    limit =persistentData['limits'].get(str(chat_id), 5)
-    params={ "limit":limit}
+    
+    limit = PDM.getLimit(chatID=chat_id)
     currentStationName=""
-    if not server_id is None:
-        params['server_id']=server_id
-        currentStations=persistentData['stationNames'].get(str(chat_id),None)
-        if not currentStations is None:
-            currentStationName=persistentData['stationNames'][str(chat_id)].get(server_id,None)
+    if server_id:
+        currentStationName = PDM.getStationName(chatID=chat_id, stationID=server_id)
 
-    response = requests.get(url, params=params, headers={"X-Auth-Token": authToken})
-
-    if response.status_code == 200:
-        sessions = response.json()["sessions"]
+    sessions = DrovaClient.getSessions(authToken=authToken, server_id=server_id, limit=limit)
+    if sessions:
         message_long_text = " (excluding those shorter than 5 minutes)" if short_mode==True else ""
         message = f"Last {limit} sessions{message_long_text}:\n\n"
 
@@ -267,61 +48,28 @@ def send_sessions(update, context, edit_message=False, short_mode=False):
 
         for i, session in enumerate(reversed(sessions), start=1):
             product_id = session["product_id"]
-            game_name = products_data.get(product_id, "Unknown game")
+            game_name = PDM.getProductData(product_id=product_id)
             if game_name == "Unknown game":
                 products_data_update(update, context)
-                game_name = products_data.get(product_id, "Unknown game")
+                game_name = PDM.getProductData(product_id=product_id)
 
             serverName=""
-            if server_id is None and str(chat_id) in persistentData['stationNames']:
-                serverName=persistentData['stationNames'][str(chat_id)].get(session['server_id'],"")
+            if server_id is None and str(chat_id) in PDM.getStationNames(chatID=chat_id):
+                serverName = PDM.getStationName(chatID=chat_id, stationID=session['server_id'])
                 if serverName!="":
                     serverName+="\r\n"
-
-
-            creator_ip = session.get("creator_ip", "N/A")
-            creator_city= getCityByIP(creator_ip,"X")
-            creator_org= getOrgByIP(creator_ip,"X")
-
-            client_id = session.get("client_id", "xxxxxx")[-6:]
 
             created_on = datetime.datetime.fromtimestamp(
                 session["created_on"] / 1000.0
             ).strftime("%Y-%m-%d")
-            start_time = datetime.datetime.fromtimestamp(
-                session["created_on"] / 1000.0
-            ).strftime("%H:%M:%S")
-            finish_time = session["finished_on"]
-            
-            if finish_time:
-                finish_time = datetime.datetime.fromtimestamp(
-                    finish_time / 1000.0
-                ).strftime("%H:%M:%S")
-                duration = datetime.timedelta(seconds=(session["finished_on"] - session["created_on"]) / 1000)
-            else:
-                finish_time = "Now"
-                duration = datetime.timedelta(seconds=datetime.datetime.utcnow().timestamp() - session["created_on"] / 1000)
-            #duration_str = str(duration).split(".")[0]
-            duration_str =formatDuration( getSessionDuration(session))
-
-            score_text = session.get("score_text", "N/A")
 
             if not created_on == created_on_past:
                 message += f"<strong>{created_on}</strong>:\n"
                 created_on_past = created_on
-
-            if (not short_mode) or (short_mode and duration > datetime.timedelta(minutes=5)):
-                message += f"{limit-i+1}. <strong>{game_name}</strong>\n"
-                message += serverName
-                message += f"<code>{creator_ip}</code> <code>{client_id}</code>\n"
-                
-                message += f"{creator_city} {creator_org}\n{start_time}-{finish_time} ({duration_str})\n"
-
-                message += f"Feedback: {score_text}\n" if not score_text == None else ""
-
-                message += (
-                    f"{session.get('billing_type', 'N/A')} {session['status'].lower()}\n\n"
-                )
+            
+            duration = getSessionDuration(session)
+            if (not short_mode) or (short_mode and duration > 300):
+                message += generate_session_text(limit, i, game_name, serverName, session, ip_tool)
 
         current_time = datetime.datetime.now().strftime("%H:%M:%S")
 
@@ -363,7 +111,7 @@ def send_sessions(update, context, edit_message=False, short_mode=False):
             )
 
     else:
-        bot.send_message(chat_id=chat_id, text=f"Error: {response.status_code}")
+        bot.send_message(chat_id=chat_id, text=f"Error getting sessions")
 
 
 # Define the callback function for the update sessions button
@@ -395,38 +143,31 @@ def set_auth_token(update, context):
     
     token = context.args[0]
 
-    accountResp = requests.get(
-        "https://services.drova.io/accounting/myaccount",
-        headers={"X-Auth-Token": token},
-    )
+    accountInfo = DrovaClient.getAccountInfo(token)
     
-    if accountResp.status_code == 200:
-        accountInfo = accountResp.json()
-        if('uuid' in accountInfo):
-            # Store the X-Auth-Token for this chat ID
-            setAuthToken(chat_id,token)
-            setUserID(chat_id,accountInfo['uuid'])
-            bot.send_message(chat_id=chat_id, text=f"X-Auth-Token has been set.\r\nПривет {accountInfo['name']}")
-            products_data_update(update, context)
-            updateStationNames(chat_id)
-        else:
-            bot.send_message(chat_id=chat_id, text=f"Token error, not set.")
+    if accountInfo:
+        # Store the X-Auth-Token for this chat ID
+        PDM.setAuthToken(chat_id,token)
+        PDM.setUserID(chat_id,accountInfo['uuid'])
+        bot.send_message(chat_id=chat_id, text=f"X-Auth-Token has been set.\r\nПривет, {accountInfo['name']}!")
+        products_data_update(update, context)
+        updateStationNames(chat_id)
     else:
         bot.send_message(chat_id=chat_id, text=f"Token error, not set.")
     
 def removeAuthToken(update, context):
     chat_id = update.message.chat_id
-    result=setAuthToken(chat_id,"-")
+    result=PDM.setAuthToken(chat_id,"-")
     if result:
         bot.send_message(chat_id=chat_id, text=f"Token removed.")
 
 
 def updateStationNames(chat_id):
-    authToken=getAuthTokensByChatID(chat_id)
+    authToken=PDM.getAuthTokensByChatID(chat_id)
     if authToken is None:
         bot.send_message(chat_id=chat_id, text=f"setup me first")
         return
-    user_id = persistentData['userIDs'].get(str(chat_id), None)
+    user_id = PDM.getUserID(chatID=chat_id)
     getServers(authToken,user_id,chat_id)
 
 
@@ -448,37 +189,15 @@ def handle_start(update, context):
     bot.send_message(chat_id=chat_id, text=helpText)
 
 
-def getSessions(authToken,server_id):
-    response = requests.get("https://services.drova.io/session-manager/sessions", params={"server_id": server_id}, headers={"X-Auth-Token": authToken})
-    if response.status_code == 200:
-        return response.json()["sessions"]   
+def getServers(authToken,user_id,chat_id):
+    servers = DrovaClient.getServers(authToken=authToken, user_id=user_id)
+    if servers and len(servers) > 0:
+        stationNames = {s['uuid']: s['name'] for s in servers}
+        PDM.storeStationNames(chat_id, stationNames)
+        return servers
     return None
 
-def getServers(authToken,user_id,chat_id):
-    # Retrieve a list of available server IDs from the API
-    response = requests.get(
-        "https://services.drova.io/server-manager/servers",
-        params={"user_id": user_id},
-        headers={"X-Auth-Token": authToken},
-    )
-    if response.status_code == 200:
-        servers=response.json()
-        if not servers is None:
-            if len(servers)>0:
-                stationNames={}
-                for s in servers:
-                    stationNames[s['uuid']]=s['name']
-                storeStationNames(chat_id,stationNames)
-        return servers
 
-def getServerProducts(authToken,user_id,server_id):
-    response = requests.get(
-        "https://services.drova.io/server-manager/serverproduct/list4edit2/"+server_id,
-        params={"user_id": user_id},
-        headers={"X-Auth-Token": authToken},
-    )
-    if response.status_code == 200:
-        return response.json()
 
 
 # Define the callback function for the update button
@@ -528,45 +247,24 @@ def getProductState(product,okState=""):
 def handle_stationsinfo(update,context, edit_message=False):
     chat_id = update.message.chat_id
 
-    authToken=getAuthTokensByChatID(chat_id)
+    authToken=PDM.getAuthTokensByChatID(chat_id)
     if authToken is None:
         bot.send_message(chat_id=chat_id, text=f"setup me first")
         return
-
-    user_id = persistentData['userIDs'].get(str(chat_id), None)
+    
+    user_id = PDM.getUserID(chatID=chat_id)
 
     servers=getServers(authToken,user_id,chat_id)
-    if not servers is None:
+    if servers:
         currentStations=""
 
         for s in sorted(servers, key=lambda item: item['name']):
-            sessionResponse=requests.get(
-                "https://services.drova.io/session-manager/sessions",
-                params={"server_id": s["uuid"],"limit":1},
-                headers={"X-Auth-Token": authToken},
-            )         
-            session=None
-            if sessionResponse.status_code == 200:
-                sessions = sessionResponse.json()
-                if len(sessions)>0:
-                    #print (sessions)
-                    session=sessions['sessions'][0]
+            sessions = DrovaClient.getSessions(authToken, s["uuid"], 1)
+            if sessions and len(sessions)>0:
+                session=sessions[0]
 
-            ipResponse=requests.get(
-                "https://services.drova.io/server-manager/serverendpoint/list/"+s['uuid'],
-                params={"server_id": s["uuid"],"limit":1},
-                headers={"X-Auth-Token": authToken},
-            )         
-            externalIps=[]
-            internalIps=[]
-            if ipResponse.status_code == 200:
-                ips = ipResponse.json()
-                if len(ips)>0:
-                    for ip in ips:
-                        if isRfc1918Ip(ip['ip']):
-                            internalIps.append(ip)
-                        else:
-                            externalIps.append(ip)
+            ips = DrovaClient.getServerIp(authToken, s['uuid'])
+            internalIps, externalIps = ip_tool.split_external_ips(ips)
 
             trial=""
             if  'groups_list' in s and "Free trial volunteers" in s['groups_list']:
@@ -574,25 +272,9 @@ def handle_stationsinfo(update,context, edit_message=False):
 
             if currentStations!="":
                 currentStations+="\r\n\r\n"
-            currentStations+=formatStationName( s,session) +f"{trial}:"
-            currentStations+=f"\r\n {s['city_name']}"
-
-            if len(externalIps)>0:
-                currentStations+="\r\n Внешние адреса:"
-                for ip in sorted(externalIps, key=lambda item: item['ip']) :
-                    city=getCityByIP(ip['ip'],"")
-                    org= getOrgByIP(ip['ip'],"")
-                    if len(org)>0:
-                        org=f", {org[0:20]}"
-                    if city!="":
-                        city=f"({city[0:15]}{org})"
-                    currentStations+=f"\r\n <code>{ip['ip']}</code>:{ip['base_port']} {city}"
-            if len(internalIps)>0:
-                currentStations+="\r\n Внутренние адреса:"
-                for ip in sorted(internalIps, key=lambda item: item['ip']) :
-                    currentStations+=f"\r\n <code>{ip['ip']}</code>:{ip['base_port']}"
-        
-
+            
+            currentStations += generate_session_text(s,session,trial,internalIps,externalIps,ip_tool)
+            
         current_time = datetime.datetime.now().strftime("%H:%M:%S")
         update_text = f"Update ({current_time})"
         update_callback_data = "update_stationsinfo"
@@ -632,12 +314,12 @@ def handle_stationsinfo(update,context, edit_message=False):
 def handle_disabled(update,context, edit_message=False):
     chat_id = update.message.chat_id
 
-    authToken=getAuthTokensByChatID(chat_id)
+    authToken=PDM.getAuthTokensByChatID(chat_id)
     if authToken is None:
         bot.send_message(chat_id=chat_id, text=f"setup me first")
         return
 
-    user_id = persistentData['userIDs'].get(str(chat_id), None)
+    user_id = PDM.getUserID(chatID=chat_id)
 
     servers=getServers(authToken,user_id,chat_id)
     if not servers is None:
@@ -645,7 +327,7 @@ def handle_disabled(update,context, edit_message=False):
         currentProducts=""
 
         for s in servers:
-            products=getServerProducts(authToken,user_id,s['uuid'])
+            products=DrovaClient.getServerProducts(authToken,user_id,s['uuid'])
             if not products is None and len(products)>0:
                 currentServerProducts=""
                 for product in products:
@@ -709,31 +391,17 @@ def update_current_callback(update, context):
         query.answer()
 
 
-def formatStationName(station,session):
-    station_name=station["name"]
-    if station["state"]!="LISTEN"and station["state"]!= "HANDSHAKE" and station["state"]!="BUSY" :
-        station_name=f"<s>{station_name}</s>"
-    
-    if not station['published']:
-        station_name=f"<em>{station_name}</em>"
-
-    if not session is None:
-        if session["status"]=="ACTIVE" or  station["state"]== "HANDSHAKE":
-          station_name=f"<strong>{station_name}</strong>"   
-
-    return station_name     
-
 
 # Set up the command handler for the '/current' command
 def handle_current(update, context, edit_message=False):
     chat_id = update.message.chat_id
 
-    authToken=getAuthTokensByChatID(chat_id)
+    authToken=PDM.getAuthTokensByChatID(chat_id)
     if authToken is None:
         bot.send_message(chat_id=chat_id, text=f"setup me first")
         return
 
-    user_id = persistentData['userIDs'].get(str(chat_id), None)
+    user_id = PDM.getUserID(chatID=chat_id)
 
     servers=getServers(authToken,user_id,chat_id)
     if not servers is None:
@@ -741,34 +409,27 @@ def handle_current(update, context, edit_message=False):
         currentSessions=""
 
         for s in sorted(servers, key=lambda item: item['name']):
-            sessionResponse=requests.get(
-                "https://services.drova.io/session-manager/sessions",
-                params={"server_id": s["uuid"],"limit":1},
-                headers={"X-Auth-Token": authToken},
-            )         
+            sessions = DrovaClient.getSessions(authToken, s["uuid"], 1)  
 
-            if sessionResponse.status_code == 200:
-                sessions = sessionResponse.json()
-
-                if len(sessions["sessions"])>0:
-                    
-                    for session in sessions["sessions"]:
-                        game_name = products_data.get(session["product_id"], "Unknown")
+            if sessions:
+                if len(sessions)>0:
+                    for session in sessions:
+                        game_name = PDM.getProductData(product_id=session["product_id"])
                         if game_name == "Unknown":
                             products_data_update(update, context)
-                            game_name = products_data.get(session["product_id"], "Unknown")       
+                            game_name = PDM.getProductData(product_id=session["product_id"])       
 
                         trial=""
                         if session['billing_type']=="trial":
                             trial=" | Trial"
 
                         created_on=datetime.datetime.fromtimestamp(session["created_on"] / 1000.0   ).strftime("%d.%m %H:%M")
-                        clientCityRange=calcRangeByIp(s,session["creator_ip"])
+                        clientCityRange=ip_tool.calcRangeByIp(s,session["creator_ip"])
                         if clientCityRange==-1:
                             clientCityRange=""
                         else:
                             clientCityRange=f" {clientCityRange} км |"
-                        currentSessions += formatStationName( s,session) +" | "+game_name+ trial +" | "+getCityByIP(session["creator_ip"])+f" |{clientCityRange} "+created_on+" ("+formatDuration(getSessionDuration(session))+")\r\n"
+                        currentSessions += formatStationName( s,session) +" | "+game_name+ trial +" | "+ip_tool.getCityByIP(session["creator_ip"])+f" |{clientCityRange} "+created_on+" ("+formatDuration(getSessionDuration(session))+")\r\n"
                 else:
                     currentSessions += formatStationName(s,None) +" no sessions\r\n"
 
@@ -815,7 +476,7 @@ def handle_current(update, context, edit_message=False):
 def handle_station(update, context):
     chat_id = update.message.chat_id
     
-    authToken=getAuthTokensByChatID(chat_id)
+    authToken=PDM.getAuthTokensByChatID(chat_id)
     if authToken is None:
         bot.send_message(chat_id=chat_id, text=f"setup me first")
         return
@@ -823,27 +484,15 @@ def handle_station(update, context):
     # If the user provided an ID, update the params with the new station ID
     if len(context.args) > 0:
         station_id = context.args[0]
-        setSelectedStationID(chat_id,station_id)
+        PDM.setSelectedStationID(chat_id,station_id)
         # Send a message to the user confirming the update
         bot.send_message(chat_id=chat_id, text=f"Station ID updated to {station_id}.")
     else:
-        user_id = persistentData['userIDs'].get(str(chat_id), None)
+        user_id = PDM.getUserID(chatID=chat_id)
 
-        # Retrieve a list of available server IDs from the API
-        response = requests.get(
-            "https://services.drova.io/server-manager/servers",
-            params={"user_id": user_id},
-            headers={"X-Auth-Token": authToken},
-        )
-
-        if response.status_code == 200:
-            servers = response.json()
-
-            stationNames={}
-            for s in servers:
-                stationNames[s['uuid']]=s['name']
-            storeStationNames(chat_id,stationNames)
-
+        
+        servers = DrovaClient.getServers(authToken, user_id)
+        if servers:
             servers.append({'uuid':"-","name":"all"})
 
             # Create inline keyboard buttons for each available server ID
@@ -861,50 +510,34 @@ def handle_station(update, context):
                 chat_id=chat_id, text="Select a station:", reply_markup=reply_markup
             )
         else:
-            bot.send_message(chat_id=chat_id, text=f"Error: {response.status_code}")
+            bot.send_message(chat_id=chat_id, text=f"Error while getting servers list")
 
 def handle_limit(update, context):
     chat_id = update.message.chat_id
 
-    authToken=getAuthTokensByChatID(chat_id)
+    authToken=PDM.getAuthTokensByChatID(chat_id)
     if authToken is None:
         bot.send_message(chat_id=chat_id, text=f"setup me first")
         return
     
     if len(context.args) > 0:
         limit = context.args[0]
-        setLimit(chat_id,limit)
+        PDM.setLimit(chat_id,limit)
         # Send a message to the user confirming the update
         bot.send_message(chat_id=chat_id, text=f"Limit updated to {limit}.")
     else:
         bot.send_message(chat_id=chat_id, text=f"add limit number to command")
 
-def filterSessionsByProductAndDays(stationSessions,productID,daysLimit=30):
-    monthProductSessions=[]
-    monthBack=datetime.datetime.now()-datetime.timedelta(days=daysLimit)
-    for session in stationSessions:
-        if daysLimit>0:
-            if session['product_id']==productID and session['created_on']/1000>monthBack.timestamp():
-                monthProductSessions.append(session)
-        else:
-            if session['product_id']==productID:
-                monthProductSessions.append(session)
-    return monthProductSessions
 
-def calcSessionsDuration(sessions):
-    duration=0
-    for session in sessions:
-        duration+=getSessionDuration(session)
-    return duration
 
 def handle_dumpstantionsproducts(update,context):
     chat_id = update.message.chat_id
 
-    authToken=getAuthTokensByChatID(chat_id)
+    authToken=PDM.getAuthTokensByChatID(chat_id)
     if authToken is None:
         bot.send_message(chat_id=chat_id, text=f"setup me first")
 
-    user_id = persistentData['userIDs'].get(str(chat_id), None)
+    user_id = PDM.getUserID(chatID=chat_id)
 
     withTime=False
     daysLimit=0
@@ -919,7 +552,7 @@ def handle_dumpstantionsproducts(update,context):
 
 
     servers=getServers(authToken,user_id,chat_id)
-    if not servers is None:
+    if servers:
 
         columns={}
         allProducts={}
@@ -929,7 +562,7 @@ def handle_dumpstantionsproducts(update,context):
         for s in servers:
             columns[s['name']]=0
 
-            products=getServerProducts(authToken,user_id,s['uuid'])
+            products=DrovaClient.getServerProducts(authToken,user_id,s['uuid'])
             if not products is None and len(products)>0:
                 for product in products:
                     if not product['title'] in allProducts:
@@ -937,7 +570,7 @@ def handle_dumpstantionsproducts(update,context):
                     allProducts[product['title']][s['uuid']]=product
 
             if withTime:
-                sessions=getSessions(authToken,s['uuid'])
+                sessions= DrovaClient.getSessions(authToken,s['uuid'])
                 if not sessions is None:
                     allsessions[s['uuid']]=sessions
                 if daysLimit==0:
@@ -968,7 +601,7 @@ def handle_dumpstantionsproducts(update,context):
                     ws.cell(row=1,column=1).alignment = Alignment(wrapText=True)
 
             #for stationName in sorted(columns.keys()):
-            for stationID in sorted(persistentData['stationNames'][str(chat_id)].values()):
+            for stationID in sorted(PDM.getStationNames(chatID=chat_id).values()):
                 ws.cell(row=1,column=colN).value=stationID
                 columns[stationID]=colN
                 colN+=1
@@ -986,13 +619,14 @@ def handle_dumpstantionsproducts(update,context):
                         productID=allProducts[productName][stationID]['productId']
                         productSessions=filterSessionsByProductAndDays(stationSessions,productID,daysLimit)
                         cellValue=formatDuration( calcSessionsDuration(productSessions),False)
-                        ws.cell(row=idx+2,column=columns[persistentData['stationNames'][str(chat_id)][stationID]]).number_format ="[h]:mm:ss" #'d h:mm:ss'
+                        ws.cell(row=idx+2,column=columns[PDM.getStationName(chatID=chat_id, stationID=stationID)]).number_format ="[h]:mm:ss" #'d h:mm:ss'
 
-                    ws.cell(row=idx+2,column=columns[persistentData['stationNames'][str(chat_id)][stationID]]).value=cellValue
+                    
+                    ws.cell(row=idx+2,column=columns[PDM.getStationName(chatID=chat_id, stationID=stationID)]).value=cellValue
 
                     if stateError:
                         yellow = "00FFFF00"
-                        ws.cell(row=idx+2,column=columns[persistentData['stationNames'][str(chat_id)][stationID]]).fill = PatternFill(start_color=yellow, end_color=yellow,fill_type = "solid")
+                        ws.cell(row=idx+2,column=columns[PDM.getStationName(chatID=chat_id, stationID=stationID)]).fill = PatternFill(start_color=yellow, end_color=yellow,fill_type = "solid")
 
             # добавляем формулы
             if ws.max_row>1:
@@ -1055,7 +689,7 @@ def handle_dumpstantionsproducts(update,context):
 def handle_dump(update, context):
     chat_id = update.message.chat_id
 
-    authToken=getAuthTokensByChatID(chat_id)
+    authToken=PDM.getAuthTokensByChatID(chat_id)
     if authToken is None:
         bot.send_message(chat_id=chat_id, text=f"setup me first")
         return
@@ -1065,25 +699,12 @@ def handle_dump(update, context):
         dumpOnefile=True
 
 
-    # Set up the endpoint URL and request parameters
-    url = "https://services.drova.io/session-manager/sessions"
-
-
     if len(context.args) == 0:
 
-        user_id = user_id = persistentData['userIDs'].get(str(chat_id), None)
+        user_id = user_id = PDM.getUserID(chatID=chat_id)
 
-        # Retrieve a list of available server IDs from the API
-        servers_response = requests.get(
-            "https://services.drova.io/server-manager/servers",
-            params={"user_id": user_id},
-            headers={"X-Auth-Token": authToken},
-        )
-
-        if servers_response.status_code == 200:
-            servers = servers_response.json()
-
-
+        servers = DrovaClient.getServers(authToken, user_id)
+        if servers:
             fieldnames = ['Game name','creator_ip','City','RangeKm','ASN','Date','Duration','Start time','Finish time', 'billing_type','status',  'abort_comment', 'client_id','id','uuid',  'server_id', 'merchant_id', 'product_id', 'created_on', 'finished_on', 'score', 'score_reason', 'score_text', 'parent', 'sched_hints']
 
             if dumpOnefile:
@@ -1092,19 +713,18 @@ def handle_dump(update, context):
                 #ws.append(fieldnames)
 
             for s in servers:
-                response = requests.get(url, params={"server_id": s["uuid"]}, headers={"X-Auth-Token": authToken})
-                if response.status_code == 200:
-                    sessions = response.json()["sessions"]
+                sessions = DrovaClient.getSessions(authToken, s["uuid"])
+                if sessions:
                     for item in sessions:
                         product_id = item.get("product_id")
 
                         creator_ip = item.get("creator_ip")
-                        creator_city= getCityByIP(creator_ip,"X")
-                        clientCityRange=calcRangeByIp(s,creator_ip)
+                        creator_city= ip_tool.getCityByIP(creator_ip,"X")
+                        clientCityRange=ip_tool.calcRangeByIp(s,creator_ip)
 
-                        creator_org= getOrgByIP(creator_ip,"X")
+                        creator_org= ip_tool.getOrgByIP(creator_ip,"X")
 
-                        game_name = products_data.get(product_id, "Unknown game")
+                        game_name = PDM.getProductData(product_id=product_id)
 
 
                         created_on = datetime.datetime.fromtimestamp(
@@ -1213,37 +833,16 @@ def handle_dump(update, context):
 
 
 def products_data_update(update, context):
-    chat_id = update.message.chat_id
-
-    global products_data
-
-    products_data_len_old = len(products_data)
-
-    response = requests.get(
-        "https://services.drova.io/product-manager/product/listfull2",
-        params={},
-        headers={},
-    )
-    if response.status_code == 200:
-        games = response.json()
-
-        products_data_new = {}
-        for game in games:
-            products_data_new[game["productId"]] = game["title"]
-
-        products_data = products_data_new
-
-        products_data_len_new = len(products_data)
-
-        with open("products.json", "w") as f:
-            f.write(json.dumps(products_data))
-
+    chat_id=update.message.chat_id
+    products_data_len_old, products_data_len_new = PDM.updateProductsData()
+    
+    if products_data_len_old != products_data_len_new:
         bot.send_message(
             chat_id=chat_id,
             text=f"Game database has been updated from {products_data_len_old} games to {products_data_len_new}",
         )
     else:
-        bot.send_message(chat_id=chat_id, text=f"Error: {response.status_code}")
+        bot.send_message(chat_id=chat_id, text=f"Game database is up to date or there has been an error while updating game database")
 
 
 # Define the callback function for the set server ID buttons
@@ -1253,7 +852,7 @@ def set_server_id_callback(update, context):
     server_id = query.data.split("_")[-1]
 
     # Store the server ID for this chat ID
-    setSelectedStationID(chat_id,server_id)
+    PDM.setSelectedStationID(chat_id,server_id)
 
     if server_id=="-":
         message=f"Selected all stations."
@@ -1292,7 +891,6 @@ def handle_message(update, context):
 
 #  Set up the main function to handle updates
 def main():
-    tryLoadGeodb()
 
     updater = telegram.ext.Updater(
         token=os.environ["TELEGRAM_BOT_TOKEN"], use_context=True
