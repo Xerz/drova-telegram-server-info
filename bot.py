@@ -548,7 +548,7 @@ def handle_stationsinfo(update,context, edit_message=False):
             session=None
             if sessionResponse.status_code == 200:
                 sessions = sessionResponse.json()
-                if len(sessions)>0:
+                if len(sessions['sessions'])>0:
                     #print (sessions)
                     session=sessions['sessions'][0]
 
