@@ -10,11 +10,6 @@
 
 ## Запуск
 
-### Docker
-
-1. Скопируйте `.env.example` в `.env` и задайте значение `TELEGRAM_BOT_TOKEN`.
-2. Запустите бота командой `docker-compose up --build`.
-
 
 1. Склонируйте этот репозиторий на свой локальный компьютер.
 2. Скачайте базы данных IP адресов `GeoLite2` (файлы называется `GeoLite2-City.mmdb` и `GeoLite2-ASN.mmdb`) в папку с репозиторием.
@@ -36,6 +31,11 @@ export TELEGRAM_BOT_TOKEN=<ваш токен бота>
 6. Замените `REPLACE-TO-YOUR-TELEGRAM-BOT-TOKEN` в файле `startbot.cmd` на ваш токен
 7. Запустите `startbot.cmd`.
 
+
+### Docker
+
+1. Скопируйте `.env.example` в `.env` и задайте значение `TELEGRAM_BOT_TOKEN`.
+2. Запустите бота командой `docker-compose up --build`.
 ###
 ## Доступные команды
 1. ```/token ваш_токен_здесь```

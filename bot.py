@@ -79,7 +79,7 @@ def send_sessions(update, context, edit_message=False, short_mode=False):
 
             serverName=""
             if server_id is None and str(chat_id) in persistentData['stationNames']:
-                serverName=persistentData['stationNames'][str(chat_id)].get(session['server_id'],"")
+                serverName=persistentData['stationNames'][str(chat_id)].get(session.get("server_id", ""),"")
                 if serverName!="":
                     serverName+="\r\n"
 
@@ -96,7 +96,7 @@ def send_sessions(update, context, edit_message=False, short_mode=False):
             start_time = datetime.datetime.fromtimestamp(
                 session["created_on"] / 1000.0
             ).strftime("%H:%M:%S")
-            finish_time = session["finished_on"]
+            finish_time = session.get("finished_o", None)
             
             if finish_time:
                 finish_time = datetime.datetime.fromtimestamp(

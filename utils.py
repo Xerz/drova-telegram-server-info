@@ -21,9 +21,9 @@ def formatDuration(elapsed_time, shortFormat=True):
 
 
 def getSessionDuration(session):
-    if session['finished_on'] is None:
-        duration = (datetime.datetime.now().timestamp() - session['created_on']/1000)
+    if session.get("finished_on", None) is None:
+        duration = (datetime.datetime.now().timestamp() - session['created_on'] / 1000)
     else:
-        duration = (session['finished_on'] - session['created_on'])/1000
+        duration = (session['finished_on'] - session['created_on']) / 1000
     return duration
 
