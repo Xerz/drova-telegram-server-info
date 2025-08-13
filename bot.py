@@ -6,27 +6,32 @@ import requests
 import json
 import csv
 import datetime
-import math
 import time
-import ipaddress
-import geoip2.database
 from openpyxl import Workbook
 from openpyxl.styles import PatternFill,Alignment
 
-ip_reader=None
-ip_isp_reader=None
+from storage import (
+    persistentData,
+    setUserID,
+    setAuthToken,
+    getAuthTokensByChatID,
+    setSelectedStationID,
+    setLimit,
+    storeStationNames,
+    getStationNamesWithID,
+)
+from geo_utils import (
+    tryLoadGeodb,
+    isRfc1918Ip,
+    getCityByIP,
+    getOrgByIP,
+    calcRangeByIp,
+)
+from utils import formatDuration, getSessionDuration
 
 bot = telegram.Bot(token=os.environ["TELEGRAM_BOT_TOKEN"])
 
 products_data = {}
-persistentData= {
-    "authTokens": {},
-    "userIDs":{},
-    "limits":{},
-    "selectedStations": {},
-    "stationNames":{},
-}
-
 # Load the products data from a JSON file
 try:
     with open("products.json", "r") as f:
@@ -34,206 +39,6 @@ try:
 except:
     pass
 
-# Load the auth tokens from a JSON file
-try:
-    with open("persistentData.json", 'r') as f:
-        persistentData = json.load(f)
-except:
-    pass
-
-
-def tryLoadGeodb():
-    global ip_reader,ip_isp_reader
-    try:
-        ip_reader = geoip2.database.Reader("GeoLite2-City.mmdb")
-        ip_isp_reader = geoip2.database.Reader("GeoLite2-ASN.mmdb")
-    except:
-        pass
-
-def isRfc1918Ip(ip):
-    try:
-        ip = ipaddress.ip_address(ip)
-        rfc1918Ranges = [
-            ipaddress.ip_network('10.0.0.0/8'),
-            ipaddress.ip_network('172.16.0.0/12'),
-            ipaddress.ip_network('192.168.0.0/16'),
-        ]
-        for rfcRange in rfc1918Ranges:
-            if ip in rfcRange:
-                return True
-        return False
-    except ValueError:
-        # Invalid IP address format
-        return False
-
-def storePersistentData():
-    try:
-        with open("persistentData.json", 'w') as f:
-            json.dump(persistentData, f, indent=4)
-    except:
-        pass
-
-def setUserID(chatID,userID):
-    if 'userIDs'not in persistentData:
-       persistentData['userIDs'] = {}
-    persistentData['userIDs'][str(chatID)]=userID
-    storePersistentData()
-
-def setAuthToken(chatID,authToken):
-    if 'authTokens'not in persistentData:
-       persistentData['authTokens'] = {}
-    
-    if authToken=="-" and str(chatID) in persistentData['authTokens']:
-        del persistentData['authTokens'][str(chatID)]
-        storePersistentData()
-        return True
-    elif authToken!="-":
-        persistentData['authTokens'][str(chatID)]=authToken
-        storePersistentData()
-
-def getAuthTokensByChatID(chatID):
-    return persistentData['authTokens'].get(str(chatID), None)
-
-def setSelectedStationID(chatID,stationID):
-    if 'selectedStations'not in persistentData:
-       persistentData['selectedStations'] = {}
-    if stationID=="-" and str(chatID) in persistentData['selectedStations']:
-        del persistentData['selectedStations'][str(chatID)]
-    elif stationID!="-":
-        persistentData['selectedStations'][str(chatID)]=stationID
-    storePersistentData()
-
-def setLimit(chatID,limit):
-    if 'limits'not in persistentData:
-       persistentData['limits'] = {}
-    persistentData['limits'][str(chatID)]=int(limit)
-    storePersistentData()
-
-def storeStationNames(chatID,stations):
-    if 'stationNames'not in persistentData:
-       persistentData['stationNames'] = {}
-    persistentData['stationNames'][str(chatID)]=stations
-    storePersistentData()    
-
-def getStationNamesWithID(chatID):
-    stations={}
-    if 'stationNames'not in persistentData and  str(chatID) in persistentData['stationNames']:
-        for id,name in persistentData['stationNames'][str(chatID)]:
-            stations[name]=id
-    return stations
-
-
-def formatDuration(elapsed_time,shortFormat=True):
-    if elapsed_time < 3600 and  shortFormat:
-        minutes, seconds = divmod(elapsed_time, 60)
-        return "{:.0f}m:{:.0f}s ".format(minutes,seconds)
-    elif elapsed_time < 86400 and  shortFormat:
-        hours, remainder = divmod(elapsed_time, 3600)
-        minutes, seconds = divmod(remainder, 60)
-        return "{:.0f}h {:.0f}m".format(hours, minutes)
-    else:
-        days, remainder = divmod(elapsed_time, 86400)
-        fullhours= elapsed_time/3600
-        hours, remainder = divmod(remainder, 3600)
-        minutes, seconds = divmod(remainder, 60)
-        if   shortFormat:
-            return "{:.0f}d {:.0f}h {:.0f}m".format(days, hours, minutes)
-        else:
-            return "{:02.0f}:{:02.0f}:{:02.0f}".format(fullhours, minutes,seconds)
-            #return "{:.0f} {:02.0f}:{:02.0f}:{:02.0f}".format(days, hours, minutes,seconds)
-
-def getSessionDuration(session):
-    if session['finished_on'] is None:
-        duration=(datetime.datetime.now().timestamp()-session['created_on']/1000)
-    else:
-        duration=(session['finished_on']-session['created_on'])/1000
-    return duration
-
-def getCityByIP(creator_ip,defValue=""):
-    if ip_reader==None:
-        tryLoadGeodb()
-    if ip_reader==None:
-        return defValue
-
-    creator_city=defValue
-    try:
-        creator_city = ip_reader.city(creator_ip).city.name
-    except:
-        pass
-    if creator_city is None:
-        creator_city = defValue
-    return creator_city
-
-def getOrgByIP(creator_ip,defValue=""):
-    if ip_isp_reader==None:
-        tryLoadGeodb()
-    if ip_isp_reader==None:
-        return defValue
-
-    creator_org = defValue
-    try:
-        creator_org = ip_isp_reader.asn(creator_ip).autonomous_system_organization
-    except:
-        pass
-    if creator_org is None:
-        creator_org = defValue
-    return creator_org
-
-def haversineDistance(lat1, lon1, lat2, lon2):
-    """
-    Calculate the great-circle distance between two points on the Earth's surface
-    specified in decimal degrees of latitude and longitude.
-
-    :param lat1: Latitude of the first point in degrees.
-    :param lon1: Longitude of the first point in degrees.
-    :param lat2: Latitude of the second point in degrees.
-    :param lon2: Longitude of the second point in degrees.
-    :return: The distance in kilometers.
-    """
-
-    if lat1 is None or lon1 is None or lat2 is None or lon2 is None:
-        return -1
-
-    # Convert latitude and longitude from degrees to radians
-    lat1 = math.radians(lat1)
-    lon1 = math.radians(lon1)
-    lat2 = math.radians(lat2)
-    lon2 = math.radians(lon2)
-
-    # Radius of the Earth in kilometers
-    earth_radius = 6371.0
-
-    # Haversine formula
-    dlon = lon2 - lon1
-    dlat = lat2 - lat1
-
-    a = math.sin(dlat / 2)**2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlon / 2)**2
-    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
-
-    # Calculate the distance
-    distance = earth_radius * c
-
-    return distance
-
-def calcRangeByIp(station,clientIp):
-    if ip_reader==None:
-        tryLoadGeodb()
-    if ip_reader==None:
-        return -1
-
-    cityInfo=None
-    try:
-        cityInfo = ip_reader.city(clientIp).location
-    except:
-        pass
-
-    if cityInfo!=None:
-        clientLatitude=cityInfo.latitude
-        clientLongitude=cityInfo.longitude
-        return round(haversineDistance(station['latitude'],station['longitude'],clientLatitude,clientLongitude),1)
-
-    return -1
-    
 def send_sessions(update, context, edit_message=False, short_mode=False):
     chat_id = update.message.chat_id
 
