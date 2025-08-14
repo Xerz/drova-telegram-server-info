@@ -53,7 +53,7 @@ def get_sessions(auth_token: str, *, merchant_id: Optional[str] = None, server_i
         params["limit"] = limit
     if merchant_id is not None:
         params["merchant_id"] = merchant_id
-    return _get(f"/accounting/merchant_sessions/{merchant_id}", params=params, headers={"X-Auth-Token": auth_token})
+    return _get("/session-manager/sessions", params=params, headers={"X-Auth-Token": auth_token})
 
 
 def get_servers(auth_token: str, user_id: str) -> Tuple[Optional[List[Dict[str, Any]]], int]:
