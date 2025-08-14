@@ -16,10 +16,10 @@ def format_duration(elapsed_time, short_format=True):
     return f"{total_hours:02}:{minutes:02}:{seconds:02}"
 
 def get_session_duration(session):
-    # finished = session.get("finished_on")
-    # created = session["created_on"]
-    # if finished is None:
-    #     duration = datetime.datetime.now().timestamp() - created / 1000
-    # else:
-    #     duration = (finished - created) / 1000
+    finished = session.get("finished_on")
+    created = session["created_on"]
+    if finished is None:
+        duration = datetime.datetime.now().timestamp() - created / 1000
+    else:
+        duration = (finished - created) / 1000
     return duration
