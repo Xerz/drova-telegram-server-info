@@ -2,17 +2,19 @@ import io
 import json
 import datetime
 from typing import Any, Dict, List, Optional, Tuple
-
+import logging
 from openpyxl import Workbook
 from openpyxl.styles import PatternFill, Alignment
 
 import api
 from storage import persistentData, storeStationNames
-from utils import formatDuration, getSessionDuration
+from utils import format_duration, get_session_duration
 from geo_utils import getCityByIP, getOrgByIP, isRfc1918Ip, calcRangeByIp
 
 
+logger = logging.getLogger(__name__)
 def update_products_data() -> Tuple[Dict[str, str], int, int]:
+    logger.debug("Updating products data from file and remote API")
     products_data: Dict[str, str] = {}
     try:
         with open("products.json", "r") as f:
@@ -33,6 +35,7 @@ def update_products_data() -> Tuple[Dict[str, str], int, int]:
 
 
 def get_servers_and_store_names(auth_token: str, user_id: str, chat_id: int) -> Tuple[Optional[List[Dict[str, Any]]], int]:
+    logger.debug(f"Fetching servers for user_id={user_id}")
     servers, status = api.get_servers(auth_token, user_id)
     if status == 200 and servers is not None:
         if len(servers) > 0:
@@ -56,7 +59,9 @@ def format_station_name(station: Dict[str, Any], session: Optional[Dict[str, Any
 
 
 def build_sessions_message(auth_token: str, chat_id: int, server_id: Optional[str], limit: int, short_mode: bool, products_data: Dict[str, str]) -> Tuple[str, str, bool, int]:
-    data, status = api.get_sessions(auth_token, server_id=server_id, limit=limit)
+    logger.debug(f"Building sessions message chat_id={chat_id} server_id={server_id} limit={limit} short={short_mode}")
+    merchant_id = persistentData['userIDs'][str(chat_id)]
+    data, status = api.get_sessions(auth_token, server_id=server_id, merchant_id=merchant_id, limit=limit)
     if status != 200 or data is None:
         return f"Error: {status}", "", False, status
 
@@ -87,11 +92,11 @@ def build_sessions_message(auth_token: str, chat_id: int, server_id: Optional[st
         creator_city = getCityByIP(creator_ip, "X")
         creator_org = getOrgByIP(creator_ip, "X")
 
-        client_id = session.get("client_id", "xxxxxx")[-6:]
+        client_id = session.get("client_id", "")[-6:]
 
         created_on = datetime.datetime.fromtimestamp(session["created_on"] / 1000.0).strftime("%Y-%m-%d")
         start_time = datetime.datetime.fromtimestamp(session["created_on"] / 1000.0).strftime("%H:%M:%S")
-        finish_time = session.get("finished_o", None)
+        finish_time = session.get("finished_on", None)
 
         if finish_time:
             finish_time = datetime.datetime.fromtimestamp(finish_time / 1000.0).strftime("%H:%M:%S")
@@ -99,22 +104,24 @@ def build_sessions_message(auth_token: str, chat_id: int, server_id: Optional[st
         else:
             finish_time = "Now"
             duration = datetime.timedelta(seconds=datetime.datetime.utcnow().timestamp() - session["created_on"] / 1000)
-        duration_str = formatDuration(getSessionDuration(session))
+        duration_str = format_duration(get_session_duration(session))
 
-        score_text = session.get("score_text", "N/A")
+        score_text = session.get("score_text", None)
+        billing_text = session.get("billing_type", None)
 
         if created_on != created_on_past:
             message += f"<strong>{created_on}</strong>:\n"
             created_on_past = created_on
 
         if (not short_mode) or (short_mode and duration > datetime.timedelta(minutes=5)):
-            message += f"{limit - i + 1}. <strong>{game_name}</strong>\n"
-            message += serverName
-            message += f"<code>{creator_ip}</code> <code>{client_id}</code>\n"
-            message += f"{creator_city} {creator_org}\n{start_time}-{finish_time} ({duration_str})\n"
-            if score_text is not None:
-                message += f"Feedback: {score_text}\n"
-            message += f"{session.get('billing_type', 'N/A')} {session['status'].lower()}\n\n"
+            if billing_text is not None:
+                message += f"{limit - i + 1}. <strong>{game_name}</strong>\n"
+                message += serverName
+                message += f"<code>{creator_ip}</code> <code>{client_id}</code>\n"
+                message += f"{creator_city} {creator_org}\n{start_time}-{finish_time} ({duration_str})\n"
+                if score_text is not None:
+                    message += f"Feedback: {score_text}\n" if score_text is not None else ""
+                message += f"{session.get('billing_type', 'N/A')} {session['status'].lower()}\n\n"
 
     return message, currentStationName, unknown_missing, 200
 
@@ -133,6 +140,7 @@ def get_product_state(product: Dict[str, Any], ok_state: str = "") -> Tuple[bool
 
 
 def build_stations_info_message(auth_token: str, user_id: str, chat_id: int) -> Tuple[str, int]:
+    logger.debug(f"Building stations info message chat_id={chat_id}")
     servers, status = get_servers_and_store_names(auth_token, user_id, chat_id)
     if status != 200 or servers is None:
         return "Error", status
@@ -177,6 +185,7 @@ def build_stations_info_message(auth_token: str, user_id: str, chat_id: int) -> 
 
 
 def build_disabled_products_message(auth_token: str, user_id: str) -> Tuple[str, int]:
+    logger.debug(f"Building disabled products message for user_id={user_id}")
     servers, status = api.get_servers(auth_token, user_id)
     if status != 200 or servers is None:
         return "Error", status
@@ -199,6 +208,7 @@ def build_disabled_products_message(auth_token: str, user_id: str) -> Tuple[str,
 
 
 def build_current_message(auth_token: str, user_id: str, chat_id: int, products_data: Dict[str, str]) -> Tuple[str, int]:
+    logger.debug(f"Building current sessions message chat_id={chat_id}")
     servers, status = get_servers_and_store_names(auth_token, user_id, chat_id)
     if status != 200 or servers is None:
         return "Error", status
@@ -220,7 +230,7 @@ def build_current_message(auth_token: str, user_id: str, chat_id: int, products_
                         clientCityRange = ""
                     else:
                         clientCityRange = f" {clientCityRange} км |"
-                    currentSessions += format_station_name(s, session) + " | " + game_name + trial + " | " + getCityByIP(session["creator_ip"]) + f" |{clientCityRange} " + created_on + " (" + formatDuration(getSessionDuration(session)) + ")\r\n"
+                    currentSessions += format_station_name(s, session) + " | " + game_name + trial + " | " + getCityByIP(session["creator_ip"]) + f" |{clientCityRange} " + created_on + " (" + format_duration(get_session_duration(session)) + ")\r\n"
             else:
                 currentSessions += format_station_name(s, None) + " no sessions\r\n"
     return currentSessions, 200
@@ -242,12 +252,13 @@ def filter_sessions_by_product_and_days(stationSessions: List[Dict[str, Any]], p
 def calc_sessions_duration(sessions: List[Dict[str, Any]]) -> float:
     duration = 0.0
     for session in sessions:
-        duration += getSessionDuration(session)
+        duration += get_session_duration(session)
     return duration
 
 
 def export_sessions(auth_token: str, user_id: str, dump_one_file: bool, products_data: Dict[str, str]) -> Tuple[List[Tuple[str, io.BytesIO]], int]:
     attachments: List[Tuple[str, io.BytesIO]] = []
+    logger.debug(f"Export sessions dump_one_file={dump_one_file} user_id={user_id}")
     servers, status = api.get_servers(auth_token, user_id)
     if status != 200 or servers is None:
         return attachments, status
@@ -277,7 +288,7 @@ def export_sessions(auth_token: str, user_id: str, dump_one_file: bool, products
                     finish_time = datetime.datetime.fromtimestamp(finish_time / 1000.0).strftime("%H:%M:%S")
                 else:
                     finish_time = "Now"
-                duration_str = formatDuration(getSessionDuration(item), False)
+                duration_str = format_duration(get_session_duration(item), False)
 
                 item["Game name"] = game_name
                 item["City"] = creator_city
@@ -334,6 +345,7 @@ def export_sessions(auth_token: str, user_id: str, dump_one_file: bool, products
 
 
 def export_stations_products(auth_token: str, user_id: str, chat_id: int, with_time: bool, days_limit: int) -> Tuple[Optional[Tuple[str, io.BytesIO]], int]:
+    logger.debug(f"Export stations products with_time={with_time} days_limit={days_limit} chat_id={chat_id}")
     servers, status = get_servers_and_store_names(auth_token, user_id, chat_id)
     if status != 200 or servers is None:
         return None, status
@@ -399,7 +411,7 @@ def export_stations_products(auth_token: str, user_id: str, chat_id: int, with_t
                 stationSessions = allsessions.get(stationID, [])
                 productID = allProducts[productName][stationID]['productId']
                 productSessions = filter_sessions_by_product_and_days(stationSessions, productID, days_limit)
-                cellValue = formatDuration(calc_sessions_duration(productSessions), False)
+                cellValue = format_duration(calc_sessions_duration(productSessions), False)
                 ws.cell(row=idx + 2, column=columns[persistentData['stationNames'][str(chat_id)][stationID]]).number_format = "[h]:mm:ss"
 
             ws.cell(row=idx + 2, column=columns[persistentData['stationNames'][str(chat_id)][stationID]]).value = cellValue

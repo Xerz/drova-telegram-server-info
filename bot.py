@@ -1,4 +1,5 @@
 import os
+import logging
 from telegram import InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.constants import ParseMode
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, CallbackQueryHandler, ContextTypes, filters
@@ -32,7 +33,7 @@ except:
     pass
 
 async def send_sessions(update, context: ContextTypes.DEFAULT_TYPE, edit_message=False, short_mode=False):
-    chat_id = update.effective_chat.id
+    chat_id = update.effective_chat.id if hasattr(update, "effective_chat") and update.effective_chat else update.callback_query.message.chat.id
     global products_data
 
     authToken=getAuthTokensByChatID(chat_id)
@@ -103,7 +104,7 @@ async def update_sessions_callback(update, context: ContextTypes.DEFAULT_TYPE):
 
     if "update_sessions" in query.data:
         # Modify the original message with the updated session list
-        await send_sessions(query, context, edit_message=True, short_mode=short_mode)
+        await send_sessions(update, context, edit_message=True, short_mode=short_mode)
         await query.answer()
     else:
         await context.bot.send_message(
@@ -170,22 +171,6 @@ async def handle_start(update, context: ContextTypes.DEFAULT_TYPE):
 """
 
     await context.bot.send_message(chat_id=chat_id, text=helpText)
-
-
-def getSessions(authToken,server_id):
-    data, status = api.get_sessions(authToken, server_id=server_id)
-    if status == 200 and data is not None:
-        return data["sessions"]   
-    return None
-
-def getServers(authToken,user_id,chat_id):
-    servers, status = services.get_servers_and_store_names(authToken, user_id, chat_id)
-    return servers
-
-def getServerProducts(authToken,user_id,server_id):
-    products, status = api.get_server_products(authToken, user_id, server_id)
-    if status == 200:
-        return products
 
 
 # Define the callback function for the update button
@@ -295,10 +280,10 @@ async def handle_disabled(update,context: ContextTypes.DEFAULT_TYPE, edit_messag
 # Define the callback function for the update button
 async def update_current_callback(update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
-    chat_id = update.effective_chat.id
+    chat_id = query.message.chat.id
 
     if "update_current" in query.data:
-        await handle_current(query, context, edit_message=True)
+        await handle_current(update, context, edit_message=True)
         await query.answer()
     else:
         await context.bot.send_message(chat_id=chat_id, text="Sorry, I don't understand that command.")
@@ -311,7 +296,7 @@ def formatStationName(station,session):
 
 # Set up the command handler for the '/current' command
 async def handle_current(update, context: ContextTypes.DEFAULT_TYPE, edit_message=False):
-    chat_id = update.effective_chat.id
+    chat_id = update.effective_chat.id if hasattr(update, "effective_chat") and update.effective_chat else update.callback_query.message.chat.id
 
     authToken=getAuthTokensByChatID(chat_id)
     if authToken is None:
@@ -510,6 +495,14 @@ async def handle_message(update, context: ContextTypes.DEFAULT_TYPE):
 
 #  Set up the main function to handle updates
 def main():
+    # Configure logging level from LOG_LEVEL env var
+    level_str = os.getenv("LOG_LEVEL", "INFO").upper()
+    level = getattr(logging, level_str, logging.INFO)
+    logging.basicConfig(
+        level=level,
+        format="%(asctime)s %(levelname)s [%(name)s] %(message)s",
+    )
+    logging.getLogger(__name__).info(f"Starting bot with LOG_LEVEL={level_str}")
     tryLoadGeodb()
 
     application = ApplicationBuilder().token(os.environ["TELEGRAM_BOT_TOKEN"]) .build()
