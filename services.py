@@ -318,12 +318,9 @@ def export_sessions(auth_token: str, user_id: str, dump_one_file: bool, products
             else:
                 for row in sessions:
                     if ws.max_row == 1:
-                        ws.append(list(row.keys()))
-                    if 'parent' in row:
-                        del row['parent']
-                    if 'sched_hints' in row:
-                        del row['sched_hints']
-                    ws.append(list(row.values()))
+                        ws.append(fieldnames)
+                    row_data = [row.get(column, "") for column in fieldnames]
+                    ws.append(row_data)
 
     if dump_one_file:
         if ws.max_row > 1:
