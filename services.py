@@ -283,11 +283,11 @@ def export_sessions(auth_token: str, user_id: str, dump_one_file: bool, products
 
                 created_on = datetime.datetime.fromtimestamp(item["created_on"] / 1000.0).strftime("%Y-%m-%d")
                 start_time = datetime.datetime.fromtimestamp(item["created_on"] / 1000.0).strftime("%H:%M:%S")
-                finish_time = item["finished_on"]
-                if finish_time:
-                    finish_time = datetime.datetime.fromtimestamp(finish_time / 1000.0).strftime("%H:%M:%S")
-                else:
-                    finish_time = "Now"
+                finish_time_raw = item.get("finished_on")
+                if not finish_time_raw:
+                    finish_time_raw = int(datetime.datetime.now(datetime.timezone.utc).timestamp() * 1000)
+                    item["finished_on"] = finish_time_raw
+                finish_time = datetime.datetime.fromtimestamp(finish_time_raw / 1000.0).strftime("%H:%M:%S")
                 duration_str = format_duration(get_session_duration(item), False)
 
                 item["Game name"] = game_name
