@@ -46,6 +46,23 @@ def getAuthTokensByChatID(chatID):
     return persistentData['authTokens'].get(str(chatID), None)
 
 
+def replaceAuthToken(oldAuthToken, newAuthToken):
+    if oldAuthToken == newAuthToken:
+        return 0
+    if 'authTokens' not in persistentData:
+        persistentData['authTokens'] = {}
+
+    updated = 0
+    for chatID, authToken in persistentData['authTokens'].items():
+        if authToken == oldAuthToken:
+            persistentData['authTokens'][chatID] = newAuthToken
+            updated += 1
+
+    if updated > 0:
+        storePersistentData()
+    return updated
+
+
 def setSelectedStationID(chatID, stationID):
     if 'selectedStations' not in persistentData:
         persistentData['selectedStations'] = {}
