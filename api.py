@@ -41,6 +41,27 @@ def _get(path: str, *, params: Optional[Dict[str, Any]] = None, headers: Optiona
         return None, 0
 
 
+def _post(path: str, *, headers: Optional[Dict[str, str]] = None) -> Tuple[Optional[Any], int]:
+    url = f"{BASE_URL}{path}"
+    masked_headers = _mask_headers(headers)
+    try:
+        t0 = time.perf_counter()
+        logger.debug(f"POST {url} headers={masked_headers}")
+        resp = requests.post(url, headers=headers or {})
+        status = resp.status_code
+        try:
+            data = resp.json()
+        except Exception:
+            data = None
+        logger.debug(f"POST {url} status={status} data={data}")
+        dt = (time.perf_counter() - t0) * 1000
+        logger.debug(f"POST {url} -> status={status} time_ms={dt:.1f} json={'yes' if data is not None else 'no'}")
+        return data, status
+    except Exception as e:
+        logger.exception(f"POST {url} failed: {e}")
+        return None, 0
+
+
 def get_account_info(token: str) -> Tuple[Optional[Dict[str, Any]], int]:
     return _get("/accounting/myaccount", headers={"X-Auth-Token": token})
 
@@ -75,3 +96,8 @@ def get_server_endpoints(auth_token: str, server_id: str, *, limit: Optional[int
 
 def get_products_full() -> Tuple[Optional[List[Dict[str, Any]]], int]:
     return _get("/product-manager/product/listfull2")
+
+
+def set_server_published(auth_token: str, server_id: str, published: bool) -> Tuple[Optional[Any], int]:
+    path = f"/server-manager/servers/{server_id}/set_published/{str(published).lower()}"
+    return _post(path, headers={"X-Auth-Token": auth_token})

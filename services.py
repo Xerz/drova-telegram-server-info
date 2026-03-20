@@ -207,33 +207,45 @@ def build_disabled_products_message(auth_token: str, user_id: str) -> Tuple[str,
     return currentProducts, 200
 
 
-def build_current_message(auth_token: str, user_id: str, chat_id: int, products_data: Dict[str, str]) -> Tuple[str, int]:
+def build_current_message(auth_token: str, user_id: str, chat_id: int, products_data: Dict[str, str]) -> Tuple[str, List[Dict[str, Any]], int]:
     logger.debug(f"Building current sessions message chat_id={chat_id}")
     servers, status = get_servers_and_store_names(auth_token, user_id, chat_id)
     if status != 200 or servers is None:
-        return "Error", status
+        return "Error", [], status
+
+    sorted_servers = sorted(servers, key=lambda item: item['name'])
+    if len(sorted_servers) == 0:
+        return "No stations", sorted_servers, 200
 
     currentSessions = ""
-    for s in sorted(servers, key=lambda item: item['name']):
+    for index, s in enumerate(sorted_servers, start=1):
         data, st2 = api.get_sessions(auth_token, server_id=s["uuid"], limit=1)
-        if st2 == 200 and data is not None:
-            sessions = data
-            if len(sessions["sessions"]) > 0:
-                for session in sessions["sessions"]:
-                    game_name = products_data.get(session["product_id"], "Unknown")
-                    trial = ""
-                    if session.get('billing_type') == "trial":
-                        trial = " | Trial"
-                    created_on = datetime.datetime.fromtimestamp(session["created_on"] / 1000.0).strftime("%d.%m %H:%M")
-                    clientCityRange = calcRangeByIp(s, session["creator_ip"])
-                    if clientCityRange == -1:
-                        clientCityRange = ""
-                    else:
-                        clientCityRange = f" {clientCityRange} км |"
-                    currentSessions += format_station_name(s, session) + " | " + game_name + trial + " | " + getCityByIP(session["creator_ip"]) + f" |{clientCityRange} " + created_on + " (" + format_duration(get_session_duration(session)) + ")\r\n"
-            else:
-                currentSessions += format_station_name(s, None) + " no sessions\r\n"
-    return currentSessions, 200
+        if st2 != 200 or data is None:
+            currentSessions += f"{index}. {format_station_name(s, None)} error loading sessions\r\n"
+            continue
+
+        sessions = data.get("sessions", [])
+        if len(sessions) == 0:
+            currentSessions += f"{index}. {format_station_name(s, None)} no sessions\r\n"
+            continue
+
+        session = sessions[0]
+        game_name = products_data.get(session["product_id"], "Unknown")
+        trial = ""
+        if session.get('billing_type') == "trial":
+            trial = " | Trial"
+        created_on = datetime.datetime.fromtimestamp(session["created_on"] / 1000.0).strftime("%d.%m %H:%M")
+        clientCityRange = calcRangeByIp(s, session["creator_ip"])
+        if clientCityRange == -1:
+            clientCityRange = ""
+        else:
+            clientCityRange = f" {clientCityRange} км |"
+        currentSessions += f"{index}. " + format_station_name(s, session) + " | " + game_name + trial + " | " + getCityByIP(session["creator_ip"]) + f" |{clientCityRange} " + created_on + " (" + format_duration(get_session_duration(session)) + ")\r\n"
+
+    if currentSessions == "":
+        currentSessions = "No stations"
+
+    return currentSessions, sorted_servers, 200
 
 
 def filter_sessions_by_product_and_days(stationSessions: List[Dict[str, Any]], productID: Any, daysLimit: int = 30) -> List[Dict[str, Any]]:

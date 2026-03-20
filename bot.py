@@ -3,6 +3,10 @@ import logging
 from telegram import InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.constants import ParseMode
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, CallbackQueryHandler, ContextTypes, filters
+try:
+    from dotenv import load_dotenv
+except ImportError:
+    load_dotenv = None
 import api
 import services
 import json
@@ -25,6 +29,50 @@ from geo_utils import (
 bot = None  # context.bot will be used in PTB v21
 
 products_data = {}
+CURRENT_UPDATE_CALLBACK = "current:update"
+CURRENT_SHOW_PUBLISH_CALLBACK = "current:publish:show"
+CURRENT_HIDE_PUBLISH_CALLBACK = "current:publish:hide"
+CURRENT_TOGGLE_PUBLISH_PREFIX = "current:publish:toggle:"
+CURRENT_PUBLISH_BUTTONS_PER_ROW = 5
+
+
+def chunk_items(items, chunk_size):
+    for i in range(0, len(items), chunk_size):
+        yield items[i:i + chunk_size]
+
+
+def build_current_reply_markup(servers, show_publish_buttons=False):
+    current_time = datetime.datetime.now().strftime("%H:%M:%S")
+    update_text = f"Update ({current_time})"
+    publish_text = "Hide Publication Buttons" if show_publish_buttons else "Set Published"
+    publish_callback = CURRENT_HIDE_PUBLISH_CALLBACK if show_publish_buttons else CURRENT_SHOW_PUBLISH_CALLBACK
+
+    keyboard = [[
+        InlineKeyboardButton(text=update_text, callback_data=CURRENT_UPDATE_CALLBACK),
+        InlineKeyboardButton(text=publish_text, callback_data=publish_callback),
+    ]]
+
+    if show_publish_buttons:
+        station_buttons = [
+            InlineKeyboardButton(
+                text=str(index),
+                callback_data=f"{CURRENT_TOGGLE_PUBLISH_PREFIX}{server['uuid']}",
+            )
+            for index, server in enumerate(servers, start=1)
+        ]
+        for row in chunk_items(station_buttons, CURRENT_PUBLISH_BUTTONS_PER_ROW):
+            keyboard.append(row)
+
+    return InlineKeyboardMarkup(keyboard)
+
+
+def get_toggle_publish_result_text(station_name, published):
+    station_name = station_name[:120]
+    if published:
+        return f"{station_name} published"
+    return f"{station_name} hidden"
+
+
 # Load the products data from a JSON file
 try:
     with open("products.json", "r") as f:
@@ -282,9 +330,17 @@ async def update_current_callback(update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     chat_id = query.message.chat.id
 
-    if "update_current" in query.data:
+    if query.data == CURRENT_UPDATE_CALLBACK:
         await handle_current(update, context, edit_message=True)
         await query.answer()
+    elif query.data == CURRENT_SHOW_PUBLISH_CALLBACK:
+        await handle_current(update, context, edit_message=True, show_publish_buttons=True)
+        await query.answer()
+    elif query.data == CURRENT_HIDE_PUBLISH_CALLBACK:
+        await handle_current(update, context, edit_message=True, show_publish_buttons=False)
+        await query.answer()
+    elif query.data.startswith(CURRENT_TOGGLE_PUBLISH_PREFIX):
+        await toggle_station_published_callback(update, context)
     else:
         await context.bot.send_message(chat_id=chat_id, text="Sorry, I don't understand that command.")
         await query.answer()
@@ -294,8 +350,40 @@ def formatStationName(station,session):
     return services.format_station_name(station, session)
 
 
+async def toggle_station_published_callback(update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    chat_id = query.message.chat.id
+    server_id = query.data[len(CURRENT_TOGGLE_PUBLISH_PREFIX):]
+
+    authToken = getAuthTokensByChatID(chat_id)
+    if authToken is None:
+        await query.answer(text="setup me first")
+        return
+
+    user_id = persistentData['userIDs'].get(str(chat_id), None)
+    servers, status = services.get_servers_and_store_names(authToken, user_id, chat_id)
+    if status != 200 or servers is None:
+        await query.answer(text=f"Error: {status}")
+        return
+
+    target_server = next((server for server in servers if server["uuid"] == server_id), None)
+    if target_server is None:
+        await handle_current(update, context, edit_message=True, show_publish_buttons=True)
+        await query.answer(text="Station not found")
+        return
+
+    target_published = not target_server.get("published", True)
+    _, status = api.set_server_published(authToken, server_id, target_published)
+    await handle_current(update, context, edit_message=True, show_publish_buttons=True)
+
+    if status == 200:
+        await query.answer(text=get_toggle_publish_result_text(target_server["name"], target_published))
+    else:
+        await query.answer(text=f"Publish error: {status}")
+
+
 # Set up the command handler for the '/current' command
-async def handle_current(update, context: ContextTypes.DEFAULT_TYPE, edit_message=False):
+async def handle_current(update, context: ContextTypes.DEFAULT_TYPE, edit_message=False, show_publish_buttons=False):
     chat_id = update.effective_chat.id if hasattr(update, "effective_chat") and update.effective_chat else update.callback_query.message.chat.id
 
     authToken=getAuthTokensByChatID(chat_id)
@@ -305,17 +393,12 @@ async def handle_current(update, context: ContextTypes.DEFAULT_TYPE, edit_messag
 
     user_id = persistentData['userIDs'].get(str(chat_id), None)
 
-    text, status = services.build_current_message(authToken, user_id, chat_id, products_data)
+    text, servers, status = services.build_current_message(authToken, user_id, chat_id, products_data)
     if status != 200:
         await context.bot.send_message(chat_id=chat_id, text=f"Error")
         return
 
-    current_time = datetime.datetime.now().strftime("%H:%M:%S")
-    update_text = f"Update ({current_time})"
-    update_callback_data = "update_current"
-    reply_markup = InlineKeyboardMarkup(
-        [[InlineKeyboardButton(text=update_text, callback_data=update_callback_data)]]
-    )
+    reply_markup = build_current_reply_markup(servers, show_publish_buttons=show_publish_buttons)
     if edit_message:
         try:
             await context.bot.edit_message_text(
@@ -495,6 +578,9 @@ async def handle_message(update, context: ContextTypes.DEFAULT_TYPE):
 
 #  Set up the main function to handle updates
 def main():
+    if load_dotenv is not None:
+        load_dotenv()
+
     # Configure logging level from LOG_LEVEL env var
     level_str = os.getenv("LOG_LEVEL", "INFO").upper()
     level = getattr(logging, level_str, logging.INFO)
@@ -505,7 +591,13 @@ def main():
     logging.getLogger(__name__).info(f"Starting bot with LOG_LEVEL={level_str}")
     tryLoadGeodb()
 
-    application = ApplicationBuilder().token(os.environ["TELEGRAM_BOT_TOKEN"]) .build()
+    application_builder = ApplicationBuilder().token(os.environ["TELEGRAM_BOT_TOKEN"])
+    telegram_http_proxy = os.getenv("TELEGRAM_HTTP_PROXY", "").strip()
+    if telegram_http_proxy != "":
+        logging.getLogger(__name__).info("Using TELEGRAM_HTTP_PROXY for Telegram Bot API traffic")
+        application_builder = application_builder.proxy(telegram_http_proxy).get_updates_proxy(telegram_http_proxy)
+
+    application = application_builder.build()
 
     # Add handlers for the '/sessions' command and regular text messages
     command_handler = CommandHandler("sessions", handle_command)
@@ -530,7 +622,7 @@ def main():
     application.add_handler(set_server_id_handler)
 
     # Set up the callback query handlers
-    update_current_handler = CallbackQueryHandler(update_current_callback, pattern="^update_current")
+    update_current_handler = CallbackQueryHandler(update_current_callback, pattern="^current:")
     application.add_handler(update_current_handler)
 
     # Set up the command handler for the '/current' command
