@@ -44,7 +44,7 @@ def chunk_items(items, chunk_size):
 def build_current_reply_markup(servers, show_publish_buttons=False):
     current_time = datetime.datetime.now().strftime("%H:%M:%S")
     update_text = f"Update ({current_time})"
-    publish_text = "Hide Publication Buttons" if show_publish_buttons else "Set Published"
+    publish_text = "Hide Publication Buttons" if show_publish_buttons else "Show Publication Buttons"
     publish_callback = CURRENT_HIDE_PUBLISH_CALLBACK if show_publish_buttons else CURRENT_SHOW_PUBLISH_CALLBACK
 
     keyboard = [[
