@@ -175,6 +175,7 @@ async def set_auth_token(update, context: ContextTypes.DEFAULT_TYPE):
     
     if status == 200 and accountInfo is not None:
         if('uuid' in accountInfo):
+            token = api.get_latest_auth_token(token) or token
             # Store the X-Auth-Token for this chat ID
             setAuthToken(chat_id,token)
             setUserID(chat_id,accountInfo['uuid'])
