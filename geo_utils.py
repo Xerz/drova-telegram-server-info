@@ -1,19 +1,63 @@
 import ipaddress
 import math
+import os
+import shutil
+import urllib.request
+
 import geoip2.database
 
 
 ip_reader = None
 ip_isp_reader = None
 
+_BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+_GEODB_URLS = {
+    'GeoLite2-City.mmdb': 'https://github.com/P3TERX/GeoLite.mmdb/raw/download/GeoLite2-City.mmdb',
+    'GeoLite2-ASN.mmdb': 'https://github.com/P3TERX/GeoLite.mmdb/raw/download/GeoLite2-ASN.mmdb',
+}
+
+
+def _getGeodbPath(filename):
+    return os.path.join(_BASE_DIR, filename)
+
+
+def _downloadGeodb(filename):
+    file_path = _getGeodbPath(filename)
+    temp_path = f'{file_path}.download'
+    try:
+        with urllib.request.urlopen(_GEODB_URLS[filename], timeout=15) as response, open(temp_path, 'wb') as temp_file:
+            shutil.copyfileobj(response, temp_file)
+        os.replace(temp_path, file_path)
+        return True
+    except Exception:
+        try:
+            os.remove(temp_path)
+        except OSError:
+            pass
+        return False
+
 
 def tryLoadGeodb():
     global ip_reader, ip_isp_reader
-    try:
-        ip_reader = geoip2.database.Reader('GeoLite2-City.mmdb')
-        ip_isp_reader = geoip2.database.Reader('GeoLite2-ASN.mmdb')
-    except Exception:
-        pass
+    city_db_path = _getGeodbPath('GeoLite2-City.mmdb')
+    asn_db_path = _getGeodbPath('GeoLite2-ASN.mmdb')
+
+    if not os.path.exists(city_db_path):
+        _downloadGeodb('GeoLite2-City.mmdb')
+    if not os.path.exists(asn_db_path):
+        _downloadGeodb('GeoLite2-ASN.mmdb')
+
+    if ip_reader is None:
+        try:
+            ip_reader = geoip2.database.Reader(city_db_path)
+        except Exception:
+            ip_reader = None
+
+    if ip_isp_reader is None:
+        try:
+            ip_isp_reader = geoip2.database.Reader(asn_db_path)
+        except Exception:
+            ip_isp_reader = None
 
 
 def isRfc1918Ip(ip):
@@ -93,4 +137,3 @@ def getOrgByIP(creator_ip, defValue=""):
     if creator_org is None:
         creator_org = defValue
     return creator_org
-
