@@ -22,9 +22,10 @@
 ```bash
 export TELEGRAM_BOT_TOKEN=<ваш токен бота>
 ```
-7. При необходимости можно задать прокси только для Telegram Bot API:
+7. При необходимости можно задать стандартные глобальные переменные прокси, они будут подхвачены автоматически:
 ```bash
-export TELEGRAM_HTTP_PROXY=http://user:pass@127.0.0.1:8080
+export HTTP_PROXY=http://user:pass@127.0.0.1:8080
+export HTTPS_PROXY=http://user:pass@127.0.0.1:8080
 ```
 8. Запустите бота, выполнив команду `python bot.py` в вашем терминале. Также можно положить переменные в файл `.env` рядом с проектом.
 
@@ -38,7 +39,7 @@ export TELEGRAM_HTTP_PROXY=http://user:pass@127.0.0.1:8080
 
 ### Docker
 
-1. Скопируйте `.env.example` в `.env` и задайте значение `TELEGRAM_BOT_TOKEN`. При необходимости там же можно указать `TELEGRAM_HTTP_PROXY`.
+1. Скопируйте `.env.example` в `.env` и задайте значение `TELEGRAM_BOT_TOKEN`. При необходимости там же можно указать `HTTP_PROXY` и `HTTPS_PROXY`.
 2. Запустите бота командой `docker-compose up --build`.
 ###
 ## Доступные команды

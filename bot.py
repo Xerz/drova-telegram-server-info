@@ -34,12 +34,6 @@ CURRENT_SHOW_PUBLISH_CALLBACK = "current:publish:show"
 CURRENT_HIDE_PUBLISH_CALLBACK = "current:publish:hide"
 CURRENT_TOGGLE_PUBLISH_PREFIX = "current:publish:toggle:"
 CURRENT_PUBLISH_BUTTONS_PER_ROW = 5
-TELEGRAM_BOT_POOL_TIMEOUT = 10.0
-TELEGRAM_GET_UPDATES_CONNECTION_POOL_SIZE = 4
-TELEGRAM_GET_UPDATES_POOL_TIMEOUT = 10.0
-TELEGRAM_GET_UPDATES_CONNECT_TIMEOUT = 10.0
-TELEGRAM_GET_UPDATES_READ_TIMEOUT = 30.0
-TELEGRAM_GET_UPDATES_WRITE_TIMEOUT = 30.0
 
 
 def chunk_items(items, chunk_size):
@@ -598,32 +592,7 @@ def main():
     logging.getLogger(__name__).info(f"Starting bot with LOG_LEVEL={level_str}")
     tryLoadGeodb()
 
-    application_builder = (
-        ApplicationBuilder()
-        .token(os.environ["TELEGRAM_BOT_TOKEN"])
-        .pool_timeout(TELEGRAM_BOT_POOL_TIMEOUT)
-        .get_updates_connection_pool_size(TELEGRAM_GET_UPDATES_CONNECTION_POOL_SIZE)
-        .get_updates_pool_timeout(TELEGRAM_GET_UPDATES_POOL_TIMEOUT)
-        .get_updates_connect_timeout(TELEGRAM_GET_UPDATES_CONNECT_TIMEOUT)
-        .get_updates_read_timeout(TELEGRAM_GET_UPDATES_READ_TIMEOUT)
-        .get_updates_write_timeout(TELEGRAM_GET_UPDATES_WRITE_TIMEOUT)
-    )
-    telegram_http_proxy = os.getenv("TELEGRAM_HTTP_PROXY", "").strip()
-    if telegram_http_proxy != "":
-        logging.getLogger(__name__).info("Using TELEGRAM_HTTP_PROXY for Telegram Bot API traffic")
-        application_builder = application_builder.proxy(telegram_http_proxy).get_updates_proxy(telegram_http_proxy)
-
-    logging.getLogger(__name__).info(
-        "Telegram polling config: bot_pool_timeout=%s get_updates_pool_size=%s get_updates_pool_timeout=%s get_updates_connect_timeout=%s get_updates_read_timeout=%s get_updates_write_timeout=%s",
-        TELEGRAM_BOT_POOL_TIMEOUT,
-        TELEGRAM_GET_UPDATES_CONNECTION_POOL_SIZE,
-        TELEGRAM_GET_UPDATES_POOL_TIMEOUT,
-        TELEGRAM_GET_UPDATES_CONNECT_TIMEOUT,
-        TELEGRAM_GET_UPDATES_READ_TIMEOUT,
-        TELEGRAM_GET_UPDATES_WRITE_TIMEOUT,
-    )
-
-    application = application_builder.build()
+    application = ApplicationBuilder().token(os.environ["TELEGRAM_BOT_TOKEN"]).build()
 
     # Add handlers for the '/sessions' command and regular text messages
     command_handler = CommandHandler("sessions", handle_command)

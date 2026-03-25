@@ -1,4 +1,4 @@
-python-telegram-bot[socks]>=21.0,<22.0
+python-telegram-bot>=21.0,<22.0
 requests
 geoip2
 openpyxl
