@@ -65,14 +65,18 @@
   ],
   "routing": {
     "domainStrategy": "AsIs",
-    "rules": [
-      {
-        "type": "field",
-        "inboundTag": [
-          "mixed-in"
-        ],
-        "outboundTag": "vless-out"
-      }
-    ]
+      "rules": [
+        {
+          "type": "field",
+          "inboundTag": ["mixed-in"],
+          "domain": ["domain:drova.io"],
+          "outboundTag": "direct"
+        },
+        {
+          "type": "field",
+          "inboundTag": ["mixed-in"],
+          "outboundTag": "vless-out"
+        }
+      ]
   }
 }
