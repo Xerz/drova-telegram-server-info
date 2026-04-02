@@ -89,13 +89,30 @@ TELEGRAM_BOT_TOKEN=123456:replace-with-real-token
 LOG_LEVEL=INFO
 ```
 
-3. Откройте `xray-config/config.json` и замените шаблонные значения на параметры вашего VLESS-сервера:
+3. Подготовьте рабочий конфиг Xray. В каталоге `xray-config` есть два шаблона:
+
+- `config.json.example-vless` — весь трафик `bot` идёт через `mixed -> vless`;
+- `config.json.example-direct` — весь трафик `bot` идёт через `mixed -> direct`, без удалённого прокси; удобно для быстрой проверки связки `bot -> xray`.
+
+Если нужен VLESS-маршрут, скопируйте шаблон и заполните параметры сервера:
+
+```bash
+cp xray-config/config.json.example-vless xray-config/config.json
+```
+
+Далее замените шаблонные значения на параметры вашего VLESS-сервера:
 
 - `address` — адрес сервера;
 - `port` — порт VLESS;
 - `id` — UUID клиента;
 - `serverName` — SNI / домен TLS;
 - при необходимости адаптируйте `streamSettings`, если на сервере используется не `tcp + tls`, а, например, `ws`, `grpc` или `reality`.
+
+Если нужен прямой выход без VLESS, используйте:
+
+```bash
+cp xray-config/config.json.example-direct xray-config/config.json
+```
 
 Текущий пример настроен как клиент `mixed -> vless`:
 
@@ -128,7 +145,8 @@ docker compose down
 - файл `persistentData.json` хранит токены, выбранные станции и лимиты и сохраняется на хосте;
 - кэш `products.json` и базы `GeoLite2-*.mmdb` тоже остаются в рабочей директории проекта;
 - изменения в исходниках сразу видны контейнеру из-за bind mount;
-- если `xray-config/config.json` оставлен с шаблонными значениями, контейнер `xray` стартует, но трафик бота через такой VLESS-маршрут работать не будет;
+- перед запуском в `xray-config` должен существовать файл `config.json`; его удобно создавать копированием одного из шаблонов `config.json.example-*`;
+- если `xray-config/config.json` собран из VLESS-шаблона, но оставлен с шаблонными значениями, контейнер `xray` стартует, но трафик бота через такой VLESS-маршрут работать не будет;
 - после изменения зависимостей или `Dockerfile` контейнер нужно пересобрать через `docker compose up --build`.
 
 Если у вас старая версия Docker Compose, вместо `docker compose` используйте `docker-compose`.
