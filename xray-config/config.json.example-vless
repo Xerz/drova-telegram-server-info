@@ -13,7 +13,7 @@
         "udp": true
       },
       "sniffing": {
-        "enabled": true,
+        "enabled": false,
         "destOverride": [
           "http",
           "tls",
@@ -42,11 +42,14 @@
       },
       "streamSettings": {
         "network": "tcp",
-        "security": "tls",
-        "tlsSettings": {
-          "serverName": "REPLACE_WITH_TLS_SERVER_NAME",
-          "allowInsecure": false
-        }
+        "security": "reality",
+        "realitySettings": {
+                "fingerprint": "chrome",
+                "serverName": "REPLACE_WITH_SNI",
+                "password": "REPLACE_WITH_PASSWORD",
+                "shortId": ""
+                }
+
       }
     },
     {

@@ -13,7 +13,7 @@
         "udp": true
       },
       "sniffing": {
-        "enabled": true,
+        "enabled": false,
         "destOverride": [
           "http",
           "tls",
