@@ -1,6 +1,7 @@
 import io
 import json
 import datetime
+import html
 from typing import Any, Dict, List, Optional, Tuple
 import logging
 from openpyxl import Workbook
@@ -13,6 +14,14 @@ from geo_utils import getCityByIP, getOrgByIP, isRfc1918Ip, calcRangeByIp
 
 
 logger = logging.getLogger(__name__)
+
+
+def escape_html(value: Any, default: str = "") -> str:
+    if value is None:
+        return default
+    return html.escape(str(value))
+
+
 def update_products_data() -> Tuple[Dict[str, str], int, int]:
     logger.debug("Updating products data from file and remote API")
     products_data: Dict[str, str] = {}
@@ -47,7 +56,7 @@ def get_servers_and_store_names(auth_token: str, user_id: str, chat_id: int) -> 
 
 
 def format_station_name(station: Dict[str, Any], session: Optional[Dict[str, Any]]) -> str:
-    name = station["name"]
+    name = escape_html(station.get("name", ""))
     if station["state"] != "LISTEN" and station["state"] != "HANDSHAKE" and station["state"] != "BUSY":
         name = f"<s>{name}</s>"
     if not station.get('published', True):
@@ -78,21 +87,25 @@ def build_sessions_message(auth_token: str, chat_id: int, server_id: Optional[st
 
     for i, session in enumerate(reversed(sessions), start=1):
         product_id = session.get("product_id")
-        game_name = products_data.get(product_id, "Unknown game")
-        if game_name == "Unknown game":
+        game_name_raw = products_data.get(product_id, "Unknown game")
+        game_name = escape_html(game_name_raw)
+        if game_name_raw == "Unknown game":
             unknown_missing = True
 
         serverName = ""
         if server_id is None and str(chat_id) in persistentData['stationNames']:
-            serverName = persistentData['stationNames'][str(chat_id)].get(session.get("server_id", ""), "")
+            serverName = escape_html(
+                persistentData['stationNames'][str(chat_id)].get(session.get("server_id", ""), "")
+            )
             if serverName != "":
                 serverName += "\r\n"
 
         creator_ip = session.get("creator_ip", "N/A")
-        creator_city = getCityByIP(creator_ip, "X")
-        creator_org = getOrgByIP(creator_ip, "X")
+        creator_ip_display = escape_html(creator_ip)
+        creator_city = escape_html(getCityByIP(creator_ip, "X"))
+        creator_org = escape_html(getOrgByIP(creator_ip, "X"))
 
-        client_id = session.get("client_id", "")[-6:]
+        client_id = escape_html(session.get("client_id", "")[-6:])
 
         created_on = datetime.datetime.fromtimestamp(session["created_on"] / 1000.0).strftime("%Y-%m-%d")
         start_time = datetime.datetime.fromtimestamp(session["created_on"] / 1000.0).strftime("%H:%M:%S")
@@ -106,8 +119,11 @@ def build_sessions_message(auth_token: str, chat_id: int, server_id: Optional[st
             duration = datetime.timedelta(seconds=datetime.datetime.utcnow().timestamp() - session["created_on"] / 1000)
         duration_str = format_duration(get_session_duration(session))
 
-        score_text = session.get("score_text", None)
+        score_text_raw = session.get("score_text", None)
+        score_text = escape_html(score_text_raw) if score_text_raw is not None else None
         billing_text = session.get("billing_type", None)
+        billing_type_display = escape_html(session.get("billing_type", "N/A"))
+        status_display = escape_html(str(session.get("status", "N/A")).lower())
 
         if created_on != created_on_past:
             message += f"<strong>{created_on}</strong>:\n"
@@ -117,11 +133,11 @@ def build_sessions_message(auth_token: str, chat_id: int, server_id: Optional[st
             if billing_text is not None:
                 message += f"{limit - i + 1}. <strong>{game_name}</strong>\n"
                 message += serverName
-                message += f"<code>{creator_ip}</code> <code>{client_id}</code>\n"
+                message += f"<code>{creator_ip_display}</code> <code>{client_id}</code>\n"
                 message += f"{creator_city} {creator_org}\n{start_time}-{finish_time} ({duration_str})\n"
                 if score_text is not None:
-                    message += f"Feedback: {score_text}\n" if score_text is not None else ""
-                message += f"{session.get('billing_type', 'N/A')} {session['status'].lower()}\n\n"
+                    message += f"Feedback: {score_text}\n"
+                message += f"{billing_type_display} {status_display}\n\n"
 
     return message, currentStationName, unknown_missing, 200
 
@@ -164,22 +180,22 @@ def build_stations_info_message(auth_token: str, user_id: str, chat_id: int) -> 
         if currentStations != "":
             currentStations += "\r\n\r\n"
         currentStations += f"{format_station_name(s, None)}{trial}:"
-        currentStations += f"\r\n {s['city_name']}"
+        currentStations += f"\r\n {escape_html(s.get('city_name', ''))}"
 
         if len(externalIps) > 0:
             currentStations += "\r\n Внешние адреса:"
             for ip in sorted(externalIps, key=lambda item: item['ip']):
-                city = getCityByIP(ip['ip'], "")
-                org = getOrgByIP(ip['ip'], "")
+                city = escape_html(getCityByIP(ip['ip'], ""))
+                org = escape_html(getOrgByIP(ip['ip'], ""))
                 if len(org) > 0:
                     org = f", {org[0:20]}"
                 if city != "":
                     city = f"({city[0:15]}{org})"
-                currentStations += f"\r\n <code>{ip['ip']}</code>:{ip['base_port']} {city}"
+                currentStations += f"\r\n <code>{escape_html(ip['ip'])}</code>:{ip['base_port']} {city}"
         if len(internalIps) > 0:
             currentStations += "\r\n Внутренние адреса:"
             for ip in sorted(internalIps, key=lambda item: item['ip']):
-                currentStations += f"\r\n <code>{ip['ip']}</code>:{ip['base_port']}"
+                currentStations += f"\r\n <code>{escape_html(ip['ip'])}</code>:{ip['base_port']}"
 
     return currentStations, 200
 
@@ -198,7 +214,7 @@ def build_disabled_products_message(auth_token: str, user_id: str) -> Tuple[str,
             for product in products:
                 if not product.get('published', True) or not product.get('enabled', True) or not product.get('available', True):
                     _, info = get_product_state(product)
-                    currentServerProducts += product['title'] + info + "\r\n"
+                    currentServerProducts += escape_html(product['title']) + info + "\r\n"
             if currentServerProducts != "":
                 currentProducts += f"{format_station_name(s, None)}:\r\n{currentServerProducts}"
 
@@ -230,7 +246,7 @@ def build_current_message(auth_token: str, user_id: str, chat_id: int, products_
             continue
 
         session = sessions[0]
-        game_name = products_data.get(session["product_id"], "Unknown")
+        game_name = escape_html(products_data.get(session["product_id"], "Unknown"))
         trial = ""
         if session.get('billing_type') == "trial":
             trial = " | Trial"
@@ -240,7 +256,20 @@ def build_current_message(auth_token: str, user_id: str, chat_id: int, products_
             clientCityRange = ""
         else:
             clientCityRange = f" {clientCityRange} км |"
-        currentSessions += f"{index}. " + format_station_name(s, session) + " | " + game_name + trial + " | " + getCityByIP(session["creator_ip"]) + f" |{clientCityRange} " + created_on + " (" + format_duration(get_session_duration(session)) + ")\r\n"
+        currentSessions += (
+            f"{index}. "
+            + format_station_name(s, session)
+            + " | "
+            + game_name
+            + trial
+            + " | "
+            + escape_html(getCityByIP(session["creator_ip"]))
+            + f" |{clientCityRange} "
+            + created_on
+            + " ("
+            + format_duration(get_session_duration(session))
+            + ")\r\n"
+        )
 
     if currentSessions == "":
         currentSessions = "No stations"

@@ -1,8 +1,10 @@
 import os
+import sys
 import logging
 from telegram import InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.constants import ParseMode
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, CallbackQueryHandler, ContextTypes, filters
+from telegram.error import BadRequest, NetworkError
 try:
     from dotenv import load_dotenv
 except ImportError:
@@ -34,11 +36,120 @@ CURRENT_SHOW_PUBLISH_CALLBACK = "current:publish:show"
 CURRENT_HIDE_PUBLISH_CALLBACK = "current:publish:hide"
 CURRENT_TOGGLE_PUBLISH_PREFIX = "current:publish:toggle:"
 CURRENT_PUBLISH_BUTTONS_PER_ROW = 5
+TELEGRAM_CONNECT_TIMEOUT = 5.0
+TELEGRAM_READ_TIMEOUT = 10.0
+TELEGRAM_WRITE_TIMEOUT = 10.0
+TELEGRAM_POOL_TIMEOUT = 5.0
+TELEGRAM_GET_UPDATES_TIMEOUT = 10
+TELEGRAM_BOOTSTRAP_RETRIES = 0
+
+logger = logging.getLogger(__name__)
+fatal_exit_requested = False
+fatal_exit_reason = ""
 
 
 def chunk_items(items, chunk_size):
     for i in range(0, len(items), chunk_size):
         yield items[i:i + chunk_size]
+
+
+def _describe_update(update):
+    if update is None:
+        return "none"
+    update_id = getattr(update, "update_id", None)
+    if update_id is not None:
+        return f"update_id={update_id}"
+    return type(update).__name__
+
+
+def _is_parse_entities_error(exc: BadRequest) -> bool:
+    return "can't parse entities" in str(exc).lower()
+
+
+def _is_message_not_modified_error(exc: BadRequest) -> bool:
+    return "message is not modified" in str(exc).lower()
+
+
+def _request_fatal_shutdown(application, reason: str):
+    global fatal_exit_requested, fatal_exit_reason
+    if fatal_exit_requested:
+        return
+    fatal_exit_requested = True
+    fatal_exit_reason = reason
+    logger.error("Fatal Telegram network error, stopping application: %s", reason)
+    if application is not None and getattr(application, "running", False):
+        application.stop_running()
+
+
+async def _send_html_message(bot, chat_id, text, reply_markup=None):
+    try:
+        await bot.send_message(
+            chat_id=chat_id,
+            text=text,
+            reply_markup=reply_markup,
+            parse_mode=ParseMode.HTML,
+        )
+    except BadRequest as exc:
+        if not _is_parse_entities_error(exc):
+            raise
+        logger.error(
+            "Telegram rejected HTML message for chat_id=%s, retrying as plain text: %s",
+            chat_id,
+            exc,
+        )
+        await bot.send_message(
+            chat_id=chat_id,
+            text=text,
+            reply_markup=reply_markup,
+        )
+
+
+async def _edit_html_message(bot, chat_id, message_id, text, reply_markup=None):
+    try:
+        await bot.edit_message_text(
+            chat_id=chat_id,
+            message_id=message_id,
+            text=text,
+            reply_markup=reply_markup,
+            parse_mode=ParseMode.HTML,
+        )
+        return True
+    except BadRequest as exc:
+        if _is_message_not_modified_error(exc):
+            logger.debug("Telegram message %s in chat %s is not modified", message_id, chat_id)
+            return False
+        if not _is_parse_entities_error(exc):
+            raise
+        logger.error(
+            "Telegram rejected HTML edit for chat_id=%s message_id=%s, retrying as plain text: %s",
+            chat_id,
+            message_id,
+            exc,
+        )
+        try:
+            await bot.edit_message_text(
+                chat_id=chat_id,
+                message_id=message_id,
+                text=text,
+                reply_markup=reply_markup,
+            )
+            return True
+        except BadRequest as fallback_exc:
+            if _is_message_not_modified_error(fallback_exc):
+                logger.debug("Telegram message %s in chat %s is not modified", message_id, chat_id)
+                return False
+            raise
+
+
+async def handle_application_error(update, context: ContextTypes.DEFAULT_TYPE):
+    error = context.error
+    logger.error(
+        "Unhandled exception while processing %s",
+        _describe_update(update),
+        exc_info=(type(error), error, error.__traceback__),
+    )
+    if isinstance(error, NetworkError):
+        _request_fatal_shutdown(context.application, f"{error.__class__.__name__}: {error}")
 
 
 def build_current_reply_markup(servers, show_publish_buttons=False):
@@ -123,22 +234,19 @@ async def send_sessions(update, context: ContextTypes.DEFAULT_TYPE, edit_message
         [[InlineKeyboardButton(text=update_text, callback_data=update_callback_data)]]
     )
     if edit_message:
-        try:
-            await context.bot.edit_message_text(
-                chat_id=chat_id,
-                message_id=update.effective_message.message_id,
-                text=message,
-                reply_markup=reply_markup,
-                parse_mode=ParseMode.HTML,
-            )
-        except Exception:
-            pass
-    else:
-        await context.bot.send_message(
-            chat_id=chat_id,
-            text=message,
+        await _edit_html_message(
+            context.bot,
+            chat_id,
+            update.effective_message.message_id,
+            message,
             reply_markup=reply_markup,
-            parse_mode=ParseMode.HTML,
+        )
+    else:
+        await _send_html_message(
+            context.bot,
+            chat_id,
+            message,
+            reply_markup=reply_markup,
         )
 
 
@@ -277,18 +385,20 @@ async def handle_stationsinfo(update,context: ContextTypes.DEFAULT_TYPE, edit_me
         [[InlineKeyboardButton(text=update_text, callback_data=update_callback_data)]]
     )
     if edit_message:
-        try:
-            await context.bot.edit_message_text(
-                chat_id=chat_id,
-                message_id=update.effective_message.message_id,
-                text=text,
-                reply_markup=reply_markup,
-                parse_mode=ParseMode.HTML,
-            )
-        except Exception:
-            pass
+        await _edit_html_message(
+            context.bot,
+            chat_id,
+            update.effective_message.message_id,
+            text,
+            reply_markup=reply_markup,
+        )
     else:
-        await context.bot.send_message(chat_id=chat_id, text=text, reply_markup=reply_markup, parse_mode=ParseMode.HTML)
+        await _send_html_message(
+            context.bot,
+            chat_id,
+            text,
+            reply_markup=reply_markup,
+        )
 
 
 async def handle_disabled(update,context: ContextTypes.DEFAULT_TYPE, edit_message=False):
@@ -313,18 +423,20 @@ async def handle_disabled(update,context: ContextTypes.DEFAULT_TYPE, edit_messag
         [[InlineKeyboardButton(text=update_text, callback_data=update_callback_data)]]
     )
     if edit_message:
-        try:
-            await context.bot.edit_message_text(
-                chat_id=chat_id,
-                message_id=update.effective_message.message_id,
-                text=text,
-                reply_markup=reply_markup,
-                parse_mode=ParseMode.HTML,
-            )
-        except Exception:
-            pass
+        await _edit_html_message(
+            context.bot,
+            chat_id,
+            update.effective_message.message_id,
+            text,
+            reply_markup=reply_markup,
+        )
     else:
-        await context.bot.send_message(chat_id=chat_id, text=text, reply_markup=reply_markup, parse_mode=ParseMode.HTML)
+        await _send_html_message(
+            context.bot,
+            chat_id,
+            text,
+            reply_markup=reply_markup,
+        )
 
 # Define the callback function for the update button
 async def update_current_callback(update, context: ContextTypes.DEFAULT_TYPE):
@@ -401,18 +513,20 @@ async def handle_current(update, context: ContextTypes.DEFAULT_TYPE, edit_messag
 
     reply_markup = build_current_reply_markup(servers, show_publish_buttons=show_publish_buttons)
     if edit_message:
-        try:
-            await context.bot.edit_message_text(
-                chat_id=chat_id,
-                message_id=update.effective_message.message_id,
-                text=text,
-                reply_markup=reply_markup,
-                parse_mode=ParseMode.HTML,
-            )
-        except Exception:
-            pass
+        await _edit_html_message(
+            context.bot,
+            chat_id,
+            update.effective_message.message_id,
+            text,
+            reply_markup=reply_markup,
+        )
     else:
-        await context.bot.send_message(chat_id=chat_id, text=text, reply_markup=reply_markup, parse_mode=ParseMode.HTML)
+        await _send_html_message(
+            context.bot,
+            chat_id,
+            text,
+            reply_markup=reply_markup,
+        )
 
 
 
@@ -560,6 +674,7 @@ async def set_server_id_callback(update, context: ContextTypes.DEFAULT_TYPE):
 # Set up the command handler
 async def handle_command(update, context: ContextTypes.DEFAULT_TYPE):
     command = update.message.text
+    chat_id = update.effective_chat.id
 
     if "/sessions" in command:
         if len(context.args) > 0 and context.args[0] == "short":
@@ -579,6 +694,10 @@ async def handle_message(update, context: ContextTypes.DEFAULT_TYPE):
 
 #  Set up the main function to handle updates
 def main():
+    global fatal_exit_requested, fatal_exit_reason
+    fatal_exit_requested = False
+    fatal_exit_reason = ""
+
     if load_dotenv is not None:
         load_dotenv()
 
@@ -589,10 +708,23 @@ def main():
         level=level,
         format="%(asctime)s %(levelname)s [%(name)s] %(message)s",
     )
-    logging.getLogger(__name__).info(f"Starting bot with LOG_LEVEL={level_str}")
+    logger.info(f"Starting bot with LOG_LEVEL={level_str}")
     tryLoadGeodb()
 
-    application = ApplicationBuilder().token(os.environ["TELEGRAM_BOT_TOKEN"]).build()
+    application = (
+        ApplicationBuilder()
+        .token(os.environ["TELEGRAM_BOT_TOKEN"])
+        .connect_timeout(TELEGRAM_CONNECT_TIMEOUT)
+        .read_timeout(TELEGRAM_READ_TIMEOUT)
+        .write_timeout(TELEGRAM_WRITE_TIMEOUT)
+        .pool_timeout(TELEGRAM_POOL_TIMEOUT)
+        .get_updates_connect_timeout(TELEGRAM_CONNECT_TIMEOUT)
+        .get_updates_read_timeout(TELEGRAM_READ_TIMEOUT)
+        .get_updates_write_timeout(TELEGRAM_WRITE_TIMEOUT)
+        .get_updates_pool_timeout(TELEGRAM_POOL_TIMEOUT)
+        .build()
+    )
+    application.add_error_handler(handle_application_error)
 
     # Add handlers for the '/sessions' command and regular text messages
     command_handler = CommandHandler("sessions", handle_command)
@@ -667,7 +799,21 @@ def main():
     dump_stantionsproducts3 = CommandHandler("dumpStationsProductsMonth", handle_dumpstantionsproducts)
     application.add_handler(dump_stantionsproducts3)
 
-    application.run_polling()
+    try:
+        application.run_polling(
+            timeout=TELEGRAM_GET_UPDATES_TIMEOUT,
+            bootstrap_retries=TELEGRAM_BOOTSTRAP_RETRIES,
+        )
+    except NetworkError as exc:
+        logger.error(
+            "Telegram polling stopped due to network error",
+            exc_info=(type(exc), exc, exc.__traceback__),
+        )
+        _request_fatal_shutdown(application, f"{exc.__class__.__name__}: {exc}")
+    finally:
+        if fatal_exit_requested:
+            logger.error("Exiting process with code 1: %s", fatal_exit_reason)
+            sys.exit(1)
 
 
 if __name__ == "__main__":
