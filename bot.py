@@ -1,10 +1,9 @@
 import os
-import sys
 import logging
 from telegram import InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.constants import ParseMode
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, CallbackQueryHandler, ContextTypes, filters
-from telegram.error import BadRequest, NetworkError
+from telegram.error import BadRequest, NetworkError, TimedOut
 try:
     from dotenv import load_dotenv
 except ImportError:
@@ -44,8 +43,6 @@ TELEGRAM_GET_UPDATES_TIMEOUT = 10
 TELEGRAM_BOOTSTRAP_RETRIES = 0
 
 logger = logging.getLogger(__name__)
-fatal_exit_requested = False
-fatal_exit_reason = ""
 
 
 def chunk_items(items, chunk_size):
@@ -70,15 +67,10 @@ def _is_message_not_modified_error(exc: BadRequest) -> bool:
     return "message is not modified" in str(exc).lower()
 
 
-def _request_fatal_shutdown(application, reason: str):
-    global fatal_exit_requested, fatal_exit_reason
-    if fatal_exit_requested:
-        return
-    fatal_exit_requested = True
-    fatal_exit_reason = reason
-    logger.error("Fatal Telegram network error, stopping application: %s", reason)
-    if application is not None and getattr(application, "running", False):
-        application.stop_running()
+def _hard_exit(reason: str, exit_code: int = 1):
+    logger.error("Fatal Telegram network error, terminating process immediately: %s", reason)
+    logging.shutdown()
+    os._exit(exit_code)
 
 
 async def _send_html_message(bot, chat_id, text, reply_markup=None):
@@ -148,8 +140,8 @@ async def handle_application_error(update, context: ContextTypes.DEFAULT_TYPE):
         _describe_update(update),
         exc_info=(type(error), error, error.__traceback__),
     )
-    if isinstance(error, NetworkError):
-        _request_fatal_shutdown(context.application, f"{error.__class__.__name__}: {error}")
+    if isinstance(error, (NetworkError, TimedOut)):
+        _hard_exit(f"{error.__class__.__name__}: {error}")
 
 
 def build_current_reply_markup(servers, show_publish_buttons=False):
@@ -694,10 +686,6 @@ async def handle_message(update, context: ContextTypes.DEFAULT_TYPE):
 
 #  Set up the main function to handle updates
 def main():
-    global fatal_exit_requested, fatal_exit_reason
-    fatal_exit_requested = False
-    fatal_exit_reason = ""
-
     if load_dotenv is not None:
         load_dotenv()
 
@@ -804,16 +792,12 @@ def main():
             timeout=TELEGRAM_GET_UPDATES_TIMEOUT,
             bootstrap_retries=TELEGRAM_BOOTSTRAP_RETRIES,
         )
-    except NetworkError as exc:
+    except (NetworkError, TimedOut) as exc:
         logger.error(
             "Telegram polling stopped due to network error",
             exc_info=(type(exc), exc, exc.__traceback__),
         )
-        _request_fatal_shutdown(application, f"{exc.__class__.__name__}: {exc}")
-    finally:
-        if fatal_exit_requested:
-            logger.error("Exiting process with code 1: %s", fatal_exit_reason)
-            sys.exit(1)
+        _hard_exit(f"{exc.__class__.__name__}: {exc}")
 
 
 if __name__ == "__main__":
