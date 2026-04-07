@@ -35,14 +35,38 @@ CURRENT_SHOW_PUBLISH_CALLBACK = "current:publish:show"
 CURRENT_HIDE_PUBLISH_CALLBACK = "current:publish:hide"
 CURRENT_TOGGLE_PUBLISH_PREFIX = "current:publish:toggle:"
 CURRENT_PUBLISH_BUTTONS_PER_ROW = 5
-TELEGRAM_CONNECT_TIMEOUT = 5.0
-TELEGRAM_READ_TIMEOUT = 10.0
-TELEGRAM_WRITE_TIMEOUT = 10.0
-TELEGRAM_POOL_TIMEOUT = 5.0
-TELEGRAM_GET_UPDATES_TIMEOUT = 10
-TELEGRAM_BOOTSTRAP_RETRIES = 0
 
 logger = logging.getLogger(__name__)
+
+
+def _get_env_float(name: str, default: float) -> float:
+    value = os.getenv(name)
+    if value in (None, ""):
+        return default
+    try:
+        return float(value)
+    except ValueError:
+        logger.warning("Invalid %s=%r, using default %s", name, value, default)
+        return default
+
+
+def _get_env_int(name: str, default: int) -> int:
+    value = os.getenv(name)
+    if value in (None, ""):
+        return default
+    try:
+        return int(value)
+    except ValueError:
+        logger.warning("Invalid %s=%r, using default %s", name, value, default)
+        return default
+
+
+TELEGRAM_CONNECT_TIMEOUT = _get_env_float("TELEGRAM_CONNECT_TIMEOUT", 15.0)
+TELEGRAM_READ_TIMEOUT = _get_env_float("TELEGRAM_READ_TIMEOUT", 30.0)
+TELEGRAM_WRITE_TIMEOUT = _get_env_float("TELEGRAM_WRITE_TIMEOUT", 30.0)
+TELEGRAM_POOL_TIMEOUT = _get_env_float("TELEGRAM_POOL_TIMEOUT", 15.0)
+TELEGRAM_GET_UPDATES_TIMEOUT = _get_env_int("TELEGRAM_GET_UPDATES_TIMEOUT", 30)
+TELEGRAM_BOOTSTRAP_RETRIES = _get_env_int("TELEGRAM_BOOTSTRAP_RETRIES", 0)
 
 
 def chunk_items(items, chunk_size):
@@ -81,6 +105,7 @@ async def _send_html_message(bot, chat_id, text, reply_markup=None):
             reply_markup=reply_markup,
             parse_mode=ParseMode.HTML,
         )
+        return True
     except BadRequest as exc:
         if not _is_parse_entities_error(exc):
             raise
@@ -89,11 +114,29 @@ async def _send_html_message(bot, chat_id, text, reply_markup=None):
             chat_id,
             exc,
         )
-        await bot.send_message(
-            chat_id=chat_id,
-            text=text,
-            reply_markup=reply_markup,
+        try:
+            await bot.send_message(
+                chat_id=chat_id,
+                text=text,
+                reply_markup=reply_markup,
+            )
+            return True
+        except (NetworkError, TimedOut) as fallback_exc:
+            logger.warning(
+                "Telegram send_message retry failed due to network issue for chat_id=%s: %s: %s",
+                chat_id,
+                fallback_exc.__class__.__name__,
+                fallback_exc,
+            )
+            return False
+    except (NetworkError, TimedOut) as exc:
+        logger.warning(
+            "Telegram send_message failed due to network issue for chat_id=%s: %s: %s",
+            chat_id,
+            exc.__class__.__name__,
+            exc,
         )
+        return False
 
 
 async def _edit_html_message(bot, chat_id, message_id, text, reply_markup=None):
@@ -131,17 +174,41 @@ async def _edit_html_message(bot, chat_id, message_id, text, reply_markup=None):
                 logger.debug("Telegram message %s in chat %s is not modified", message_id, chat_id)
                 return False
             raise
+        except (NetworkError, TimedOut) as fallback_exc:
+            logger.warning(
+                "Telegram edit_message_text retry failed due to network issue for chat_id=%s message_id=%s: %s: %s",
+                chat_id,
+                message_id,
+                fallback_exc.__class__.__name__,
+                fallback_exc,
+            )
+            return False
+    except (NetworkError, TimedOut) as exc:
+        logger.warning(
+            "Telegram edit_message_text failed due to network issue for chat_id=%s message_id=%s: %s: %s",
+            chat_id,
+            message_id,
+            exc.__class__.__name__,
+            exc,
+        )
+        return False
 
 
 async def handle_application_error(update, context: ContextTypes.DEFAULT_TYPE):
     error = context.error
+    if isinstance(error, (NetworkError, TimedOut)):
+        logger.warning(
+            "Retryable Telegram network error while processing %s: %s: %s",
+            _describe_update(update),
+            error.__class__.__name__,
+            error,
+        )
+        return
     logger.error(
         "Unhandled exception while processing %s",
         _describe_update(update),
         exc_info=(type(error), error, error.__traceback__),
     )
-    if isinstance(error, (NetworkError, TimedOut)):
-        _hard_exit(f"{error.__class__.__name__}: {error}")
 
 
 def build_current_reply_markup(servers, show_publish_buttons=False):
