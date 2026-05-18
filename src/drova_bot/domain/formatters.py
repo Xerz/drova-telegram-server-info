@@ -6,6 +6,7 @@ import ipaddress
 from collections.abc import Iterable, Mapping
 from datetime import UTC, datetime
 from html import escape
+from ipaddress import IPv4Address, ip_address, ip_network
 from zoneinfo import ZoneInfo
 
 from drova_bot.domain.models import (
@@ -18,6 +19,12 @@ from drova_bot.domain.models import (
     Session,
     Station,
     StationProduct,
+)
+
+RFC1918_NETWORKS = (
+    ip_network("10.0.0.0/8"),
+    ip_network("172.16.0.0/12"),
+    ip_network("192.168.0.0/16"),
 )
 
 
@@ -165,10 +172,17 @@ def masked_client_id(client_id: str | None) -> str:
 def endpoint_is_internal(endpoint: Endpoint) -> bool:
     if endpoint.externally_routable is not None:
         return not endpoint.externally_routable
-    try:
-        return ipaddress.ip_address(endpoint.ip).is_private
-    except ValueError:
+    address = parse_endpoint_ip(endpoint)
+    if not isinstance(address, IPv4Address):
         return False
+    return any(address in network for network in RFC1918_NETWORKS)
+
+
+def parse_endpoint_ip(endpoint: Endpoint) -> ipaddress.IPv4Address | ipaddress.IPv6Address | None:
+    try:
+        return ip_address(endpoint.ip)
+    except ValueError:
+        return None
 
 
 def group_endpoints(endpoints: Iterable[Endpoint]) -> tuple[list[Endpoint], list[Endpoint]]:

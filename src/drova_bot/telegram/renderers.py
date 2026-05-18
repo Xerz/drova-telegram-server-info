@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from math import asin, cos, radians, sin, sqrt
+
+import structlog
 
 from drova_bot.domain.formatters import (
     filter_sessions,
@@ -17,6 +20,7 @@ from drova_bot.domain.formatters import (
     group_endpoints,
     html_escape,
     masked_client_id,
+    parse_endpoint_ip,
     product_problem_flags,
     product_title,
     session_duration_seconds,
@@ -27,12 +31,25 @@ from drova_bot.domain.models import ChatProfile, Endpoint, Session, Station, Sta
 from drova_bot.telegram.callbacks import CallbackSpec
 from drova_bot.telegram.keyboards import ButtonSpec, KeyboardSpec
 
+logger = structlog.get_logger(__name__)
+
 
 @dataclass(frozen=True, slots=True)
 class RenderedMessage:
     text: str
     keyboard: KeyboardSpec | None = None
     parse_mode: str = "HTML"
+
+
+@dataclass(frozen=True, slots=True)
+class EndpointGeo:
+    city: str | None = None
+    provider: str | None = None
+    latitude: float | None = None
+    longitude: float | None = None
+
+
+EndpointGeoResolver = Callable[[Endpoint], EndpointGeo | None]
 
 
 def render_start_not_connected() -> RenderedMessage:
@@ -315,6 +332,8 @@ def render_disabled(
 def render_stations(
     stations: Sequence[Station],
     endpoints_by_station: Mapping[str, Sequence[Endpoint]],
+    *,
+    geo_resolver: EndpointGeoResolver | None = None,
 ) -> RenderedMessage:
     blocks: list[str] = []
     for station in sort_stations(stations):
@@ -326,10 +345,10 @@ def render_stations(
             lines.append("Endpoints не найдены.")
         if external:
             lines.append("Внешние:")
-            lines.extend(_render_endpoint(endpoint) for endpoint in external)
+            lines.extend(_render_endpoint(endpoint, station, geo_resolver) for endpoint in external)
         if internal:
             lines.append("Внутренние:")
-            lines.extend(_render_endpoint(endpoint) for endpoint in internal)
+            lines.extend(_render_endpoint(endpoint, station, geo_resolver) for endpoint in internal)
         blocks.append("\n".join(lines))
     return RenderedMessage("\n\n".join(blocks))
 
@@ -348,5 +367,57 @@ def utc_now() -> datetime:
     return datetime.now(tz=UTC)
 
 
-def _render_endpoint(endpoint: Endpoint) -> str:
-    return f"{html_escape(endpoint.ip)}:{endpoint.base_port}"
+def _render_endpoint(
+    endpoint: Endpoint,
+    station: Station,
+    geo_resolver: EndpointGeoResolver | None,
+) -> str:
+    ip_label = html_escape(endpoint.ip)
+    if parse_endpoint_ip(endpoint) is None:
+        logger.warning("invalid_endpoint_ip", endpoint_id=endpoint.uuid)
+        ip_label = "IP неизвестен"
+    parts = [f"{ip_label}:{endpoint.base_port}"]
+    geo = _safe_endpoint_geo(endpoint, geo_resolver)
+    if geo is not None:
+        geo_parts = [value for value in (geo.city, geo.provider) if value]
+        distance = _distance_km(station, geo)
+        if distance is not None:
+            geo_parts.append(f"{distance:.0f} км")
+        if geo_parts:
+            parts.append(", ".join(html_escape(part) for part in geo_parts))
+    return " · ".join(parts)
+
+
+def _safe_endpoint_geo(
+    endpoint: Endpoint,
+    geo_resolver: EndpointGeoResolver | None,
+) -> EndpointGeo | None:
+    if geo_resolver is None or parse_endpoint_ip(endpoint) is None:
+        return None
+    try:
+        return geo_resolver(endpoint)
+    except Exception as exc:
+        logger.warning(
+            "endpoint_geo_lookup_failed",
+            endpoint_id=endpoint.uuid,
+            error_code=type(exc).__name__,
+        )
+        return None
+
+
+def _distance_km(station: Station, geo: EndpointGeo) -> float | None:
+    if (
+        station.latitude is None
+        or station.longitude is None
+        or geo.latitude is None
+        or geo.longitude is None
+    ):
+        return None
+    station_lat = radians(station.latitude)
+    station_lon = radians(station.longitude)
+    client_lat = radians(geo.latitude)
+    client_lon = radians(geo.longitude)
+    lat_delta = client_lat - station_lat
+    lon_delta = client_lon - station_lon
+    value = sin(lat_delta / 2) ** 2 + cos(station_lat) * cos(client_lat) * sin(lon_delta / 2) ** 2
+    return 2 * 6371.0 * asin(sqrt(value))

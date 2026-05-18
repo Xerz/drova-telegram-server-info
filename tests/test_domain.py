@@ -3,11 +3,13 @@ from __future__ import annotations
 from datetime import datetime
 
 from drova_bot.domain.formatters import (
+    endpoint_is_internal,
     filter_sessions,
     format_duration,
     format_export_duration,
     group_endpoints,
     normalize_session_limit,
+    parse_endpoint_ip,
     product_problem_flags,
     sort_stations,
     station_display_name,
@@ -45,10 +47,14 @@ def test_endpoint_grouping_uses_explicit_flag_then_rfc1918() -> None:
         Endpoint("external", "station", "203.0.113.11", 48000, True),
         Endpoint("internal-explicit", "station", "198.51.100.7", 48000, False),
         Endpoint("internal-rfc1918", "station", "192.168.1.10", 48000, None),
+        Endpoint("external-doc-range", "station", "198.51.100.8", 48000, None),
     ]
     external, internal = group_endpoints(endpoints)
-    assert [endpoint.uuid for endpoint in external] == ["external"]
+    assert [endpoint.uuid for endpoint in external] == ["external", "external-doc-range"]
     assert [endpoint.uuid for endpoint in internal] == ["internal-explicit", "internal-rfc1918"]
+    assert endpoint_is_internal(Endpoint("rfc1918-10", "station", "10.1.2.3", 48000)) is True
+    assert endpoint_is_internal(Endpoint("rfc1918-172", "station", "172.16.0.1", 48000)) is True
+    assert parse_endpoint_ip(Endpoint("bad", "station", "not-an-ip", 48000)) is None
 
 
 def test_station_sorting_and_display_badges(ui_stations: list[Station]) -> None:
@@ -66,4 +72,3 @@ def test_normalize_session_limit() -> None:
     assert normalize_session_limit("100") == 100
     assert normalize_session_limit(0) == 5
     assert normalize_session_limit("bad") == 5
-

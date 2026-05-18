@@ -4,6 +4,7 @@ from datetime import datetime
 
 from drova_bot.domain.models import ChatProfile, Endpoint, Session, Station, StationProduct
 from drova_bot.telegram.renderers import (
+    EndpointGeo,
     latest_sessions_by_station,
     render_current,
     render_disabled,
@@ -125,3 +126,47 @@ def test_stations_renderer_matches_fixture_intent(
     assert "Внутренние:\n192.168.1.10:48000" in message.text
     assert "Beta Test Station · скрыта · UNVERIFIED\nEndpoints не найдены." in message.text
     assert "Gamma Trial · Trial\nCity G\nВнешние:\n198.51.100.45:48100" in message.text
+
+
+def test_stations_renderer_handles_invalid_ip_and_best_effort_geo() -> None:
+    station = Station(
+        uuid="station-geo",
+        name="Geo Station",
+        state="LISTEN",
+        published=True,
+        latitude=56.838,
+        longitude=60.605,
+    )
+    endpoints = {
+        "station-geo": [
+            Endpoint("good", "station-geo", "8.8.8.8", 48000, True),
+            Endpoint("bad", "station-geo", "not-an-ip", 48001, True),
+        ],
+    }
+
+    def resolver(endpoint: Endpoint) -> EndpointGeo:
+        assert endpoint.uuid == "good"
+        return EndpointGeo(
+            city="Mountain View",
+            provider="Google",
+            latitude=37.386,
+            longitude=-122.084,
+        )
+
+    message = render_stations([station], endpoints, geo_resolver=resolver)
+
+    assert "8.8.8.8:48000 · Mountain View, Google," in message.text
+    assert "км" in message.text
+    assert "IP неизвестен:48001" in message.text
+
+
+def test_stations_renderer_ignores_geo_lookup_failure() -> None:
+    station = Station(uuid="station-geo", name="Geo Station", state="LISTEN", published=True)
+    endpoints = {"station-geo": [Endpoint("good", "station-geo", "8.8.8.8", 48000, True)]}
+
+    def resolver(endpoint: Endpoint) -> EndpointGeo:
+        raise RuntimeError("geo unavailable")
+
+    message = render_stations([station], endpoints, geo_resolver=resolver)
+
+    assert message.text == "Geo Station\nВнешние:\n8.8.8.8:48000"
