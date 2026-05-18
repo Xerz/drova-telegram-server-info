@@ -7,6 +7,7 @@ from aiogram.exceptions import TelegramBadRequest
 from aiogram.methods import SendMessage
 from aiogram.types import CallbackQuery, Message
 
+from drova_bot.drova.errors import TelegramDeliveryFailed
 from drova_bot.exports import ExportFile, ExportKind, ExportResult
 from drova_bot.telegram.callbacks import CallbackSpec
 from drova_bot.telegram.delivery import answer_rendered
@@ -14,6 +15,7 @@ from drova_bot.telegram.renderers import RenderedMessage
 from drova_bot.telegram.routers import build_router
 from drova_bot.telegram.routers.core import (
     callback_query,
+    deliver_export_job,
     export_command,
     export_kind_from_message,
     limit_command,
@@ -37,15 +39,26 @@ class FakeUser:
 
 
 class FakeMessage:
-    def __init__(self, text: str | None = None, *, fail_html_once: bool = False) -> None:
+    def __init__(
+        self,
+        text: str | None = None,
+        *,
+        fail_html_once: bool = False,
+        fail_html_always: bool = False,
+        fail_document: bool = False,
+    ) -> None:
         self.text = text
         self.chat = FakeChat()
         self.fail_html_once = fail_html_once
+        self.fail_html_always = fail_html_always
+        self.fail_document = fail_document
         self.answers: list[tuple[str, dict[str, Any]]] = []
         self.documents: list[tuple[Any, dict[str, Any]]] = []
         self.edits: list[tuple[str, dict[str, Any]]] = []
 
     async def answer(self, text: str, **kwargs: Any) -> FakeMessage:
+        if self.fail_html_always:
+            raise _telegram_bad_request()
         if self.fail_html_once and kwargs.get("parse_mode") == "HTML":
             self.fail_html_once = False
             raise _telegram_bad_request()
@@ -57,6 +70,8 @@ class FakeMessage:
         return self
 
     async def answer_document(self, document: Any, **kwargs: Any) -> FakeMessage:
+        if self.fail_document:
+            raise _telegram_bad_request()
         self.documents.append((document, kwargs))
         return self
 
@@ -121,6 +136,9 @@ class FakeService:
     ) -> ExportResult:
         self.calls.append(("run_export_job", (job_id, telegram_chat_id, kind), {}))
         return await self._export_result(kind)
+
+    async def fail_export_job(self, job_id: str, error_code: str) -> None:
+        self.calls.append(("fail_export_job", (job_id, error_code), {}))
 
     async def _export_result(self, kind: ExportKind) -> ExportResult:
         return ExportResult(
@@ -245,6 +263,36 @@ async def test_html_delivery_fallback_unescapes_text() -> None:
     )
 
     assert message.answers == [("Токен: <hidden>", {"parse_mode": None, "reply_markup": None})]
+
+
+@pytest.mark.asyncio
+async def test_html_delivery_failure_after_fallback_raises_safe_error() -> None:
+    message = FakeMessage(fail_html_always=True)
+
+    with pytest.raises(TelegramDeliveryFailed):
+        await answer_rendered(cast(Message, message), RenderedMessage("bad <b>html</b>"))
+
+
+@pytest.mark.asyncio
+async def test_export_delivery_failure_marks_job_failed() -> None:
+    service = FakeService()
+    message = FakeMessage("/dumpall", fail_document=True)
+
+    await deliver_export_job(
+        source_message=cast(Message, message),
+        progress_message=cast(Message, message),
+        bot_service=service,  # type: ignore[arg-type]
+        telegram_chat_id=10001,
+        job_id="job-1",
+        kind=ExportKind.SESSIONS_CSV,
+    )
+
+    assert service.calls[-1] == (
+        "fail_export_job",
+        ("job-1", "telegram_delivery_failed"),
+        {},
+    )
+    assert message.edits == []
 
 
 def _telegram_bad_request() -> TelegramBadRequest:

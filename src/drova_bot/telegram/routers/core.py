@@ -6,11 +6,13 @@ import asyncio
 from collections.abc import Coroutine
 from typing import Any
 
+import structlog
 from aiogram import F, Router
 from aiogram.filters import Command
 from aiogram.types import CallbackQuery, Message
 
 from drova_bot.application.services import BotService
+from drova_bot.drova.errors import TelegramDeliveryFailed
 from drova_bot.exports import ExportKind
 from drova_bot.telegram.callbacks import InvalidCallbackData, parse_callback_data
 from drova_bot.telegram.delivery import (
@@ -28,6 +30,7 @@ EXPORT_ALIASES = {
     "dumpStationsProductsWithTime",
     "dumpStationsProductsMonth",
 }
+logger = structlog.get_logger(__name__)
 
 
 def build_router() -> Router:
@@ -140,9 +143,13 @@ async def deliver_export_job(
         telegram_chat_id=telegram_chat_id,
         kind=kind,
     )
-    for export_file in result.files:
-        await send_export_file(source_message, export_file)
-    await edit_rendered_message(progress_message, RenderedMessage(result.message))
+    try:
+        for export_file in result.files:
+            await send_export_file(source_message, export_file)
+        await edit_rendered_message(progress_message, RenderedMessage(result.message))
+    except TelegramDeliveryFailed:
+        await bot_service.fail_export_job(job_id, "telegram_delivery_failed")
+        logger.warning("telegram_export_delivery_failed", export_job_id=job_id)
 
 
 def schedule_background_task(coro: Coroutine[Any, Any, None]) -> asyncio.Task[None]:

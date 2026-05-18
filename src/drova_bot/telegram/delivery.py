@@ -15,6 +15,7 @@ from aiogram.types import (
     Message,
 )
 
+from drova_bot.drova.errors import TelegramDeliveryFailed
 from drova_bot.exports import ExportFile
 from drova_bot.telegram.keyboards import KeyboardSpec
 from drova_bot.telegram.renderers import RenderedMessage
@@ -46,11 +47,14 @@ async def answer_rendered(message: Message, rendered: RenderedMessage) -> Any:
         )
     except TelegramBadRequest:
         logger.warning("telegram_html_fallback")
-        return await message.answer(
-            _plain_text(rendered.text),
-            parse_mode=None,
-            reply_markup=markup,
-        )
+        try:
+            return await message.answer(
+                _plain_text(rendered.text),
+                parse_mode=None,
+                reply_markup=markup,
+            )
+        except TelegramBadRequest as exc:
+            raise TelegramDeliveryFailed("telegram answer failed after fallback") from exc
 
 
 async def edit_rendered_message(message: Message, rendered: RenderedMessage) -> Any:
@@ -63,11 +67,14 @@ async def edit_rendered_message(message: Message, rendered: RenderedMessage) -> 
         )
     except TelegramBadRequest:
         logger.warning("telegram_html_fallback")
-        return await message.edit_text(
-            _plain_text(rendered.text),
-            parse_mode=None,
-            reply_markup=markup,
-        )
+        try:
+            return await message.edit_text(
+                _plain_text(rendered.text),
+                parse_mode=None,
+                reply_markup=markup,
+            )
+        except TelegramBadRequest as exc:
+            raise TelegramDeliveryFailed("telegram edit failed after fallback") from exc
 
 
 async def edit_or_answer_rendered(callback: CallbackQuery, rendered: RenderedMessage) -> Any:
@@ -83,17 +90,23 @@ async def edit_or_answer_rendered(callback: CallbackQuery, rendered: RenderedMes
         )
     except TelegramBadRequest:
         logger.warning("telegram_html_fallback")
-        return await message.edit_text(
-            _plain_text(rendered.text),
-            parse_mode=None,
-            reply_markup=markup,
-        )
+        try:
+            return await message.edit_text(
+                _plain_text(rendered.text),
+                parse_mode=None,
+                reply_markup=markup,
+            )
+        except TelegramBadRequest as exc:
+            raise TelegramDeliveryFailed("telegram callback edit failed after fallback") from exc
 
 
 async def send_export_file(message: Message, export_file: ExportFile) -> Any:
-    return await message.answer_document(
-        BufferedInputFile(export_file.payload, filename=export_file.filename),
-    )
+    try:
+        return await message.answer_document(
+            BufferedInputFile(export_file.payload, filename=export_file.filename),
+        )
+    except TelegramBadRequest as exc:
+        raise TelegramDeliveryFailed("telegram document delivery failed") from exc
 
 
 def _plain_text(text: str) -> str:

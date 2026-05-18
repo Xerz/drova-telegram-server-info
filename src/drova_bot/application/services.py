@@ -352,6 +352,10 @@ class BotService:
                 await uow.export_jobs.mark_failed(job_id, _export_error_code(result.message))
         return result
 
+    async def fail_export_job(self, job_id: str, error_code: str) -> None:
+        async with self._uow_factory() as uow:
+            await uow.export_jobs.mark_failed(job_id, error_code)
+
     async def publish_confirmation(
         self,
         telegram_chat_id: int,
