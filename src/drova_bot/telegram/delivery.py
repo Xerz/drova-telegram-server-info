@@ -53,6 +53,23 @@ async def answer_rendered(message: Message, rendered: RenderedMessage) -> Any:
         )
 
 
+async def edit_rendered_message(message: Message, rendered: RenderedMessage) -> Any:
+    markup = to_aiogram_keyboard(rendered.keyboard)
+    try:
+        return await message.edit_text(
+            rendered.text,
+            parse_mode=rendered.parse_mode,
+            reply_markup=markup,
+        )
+    except TelegramBadRequest:
+        logger.warning("telegram_html_fallback")
+        return await message.edit_text(
+            _plain_text(rendered.text),
+            parse_mode=None,
+            reply_markup=markup,
+        )
+
+
 async def edit_or_answer_rendered(callback: CallbackQuery, rendered: RenderedMessage) -> Any:
     markup = to_aiogram_keyboard(rendered.keyboard)
     if callback.message is None:

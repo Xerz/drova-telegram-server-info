@@ -10,7 +10,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from drova_bot.domain.formatters import normalize_session_limit
 from drova_bot.domain.models import DEFAULT_TIMEZONE, CatalogProduct, ChatProfile, Station
-from drova_bot.storage.database import ChatProfileRow, ProductCacheRow, StationCacheRow
+from drova_bot.storage.database import (
+    ChatProfileRow,
+    ExportJobRow,
+    ProductCacheRow,
+    StationCacheRow,
+)
 from drova_bot.storage.encryption import TokenEncryptor
 
 
@@ -185,3 +190,55 @@ class ProductCacheRepository:
     async def title_map(self) -> dict[str, str]:
         result = await self._session.execute(select(ProductCacheRow))
         return {row.product_id: row.title for row in result.scalars()}
+
+
+class ExportJobRepository:
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def create(
+        self,
+        *,
+        job_id: str,
+        telegram_chat_id: int,
+        kind: str,
+    ) -> ExportJobRow:
+        row = ExportJobRow(
+            id=job_id,
+            telegram_chat_id=telegram_chat_id,
+            kind=kind,
+            status="queued",
+            created_at=datetime.now(tz=UTC),
+        )
+        self._session.add(row)
+        await self._session.flush()
+        return row
+
+    async def get(self, job_id: str) -> ExportJobRow | None:
+        return await self._session.get(ExportJobRow, job_id)
+
+    async def mark_running(self, job_id: str) -> None:
+        row = await self._require(job_id)
+        row.status = "running"
+        row.error_code = None
+        await self._session.flush()
+
+    async def mark_done(self, job_id: str) -> None:
+        row = await self._require(job_id)
+        row.status = "done"
+        row.finished_at = datetime.now(tz=UTC)
+        row.error_code = None
+        await self._session.flush()
+
+    async def mark_failed(self, job_id: str, error_code: str) -> None:
+        row = await self._require(job_id)
+        row.status = "failed"
+        row.finished_at = datetime.now(tz=UTC)
+        row.error_code = error_code
+        await self._session.flush()
+
+    async def _require(self, job_id: str) -> ExportJobRow:
+        row = await self.get(job_id)
+        if row is None:
+            raise LookupError(f"export job not found: {job_id}")
+        return row

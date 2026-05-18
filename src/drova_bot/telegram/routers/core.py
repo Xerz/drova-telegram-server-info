@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 
+import asyncio
+from collections.abc import Coroutine
+from typing import Any
+
 from aiogram import F, Router
 from aiogram.filters import Command
 from aiogram.types import CallbackQuery, Message
@@ -9,7 +13,12 @@ from aiogram.types import CallbackQuery, Message
 from drova_bot.application.services import BotService
 from drova_bot.exports import ExportKind
 from drova_bot.telegram.callbacks import InvalidCallbackData, parse_callback_data
-from drova_bot.telegram.delivery import answer_rendered, edit_or_answer_rendered, send_export_file
+from drova_bot.telegram.delivery import (
+    answer_rendered,
+    edit_or_answer_rendered,
+    edit_rendered_message,
+    send_export_file,
+)
 from drova_bot.telegram.renderers import RenderedMessage, render_error, render_help
 
 EXPORT_ALIASES = {
@@ -102,11 +111,42 @@ async def export_command(message: Message, bot_service: BotService) -> None:
     if kind is None:
         await answer_rendered(message, render_error("unknown_command"))
         return
-    await answer_rendered(message, RenderedMessage("Готовлю файл..."))
-    result = await bot_service.export(message.chat.id, kind)
+    progress = await answer_rendered(message, RenderedMessage("Готовлю файл..."))
+    progress_message = progress if isinstance(progress, Message) else message
+    job = await bot_service.create_export_job(message.chat.id, kind)
+    schedule_background_task(
+        deliver_export_job(
+            source_message=message,
+            progress_message=progress_message,
+            bot_service=bot_service,
+            telegram_chat_id=message.chat.id,
+            job_id=job.id,
+            kind=kind,
+        )
+    )
+
+
+async def deliver_export_job(
+    *,
+    source_message: Message,
+    progress_message: Message,
+    bot_service: BotService,
+    telegram_chat_id: int,
+    job_id: str,
+    kind: ExportKind,
+) -> None:
+    result = await bot_service.run_export_job(
+        job_id=job_id,
+        telegram_chat_id=telegram_chat_id,
+        kind=kind,
+    )
     for export_file in result.files:
-        await send_export_file(message, export_file)
-    await answer_rendered(message, RenderedMessage(result.message))
+        await send_export_file(source_message, export_file)
+    await edit_rendered_message(progress_message, RenderedMessage(result.message))
+
+
+def schedule_background_task(coro: Coroutine[Any, Any, None]) -> asyncio.Task[None]:
+    return asyncio.create_task(coro)
 
 
 async def callback_query(callback: CallbackQuery, bot_service: BotService) -> None:

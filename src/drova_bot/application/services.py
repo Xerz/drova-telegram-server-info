@@ -5,7 +5,9 @@ from __future__ import annotations
 import asyncio
 from collections.abc import Callable, Sequence
 from datetime import UTC, datetime
+from uuid import uuid4
 
+from drova_bot.application.export_jobs import ExportJob
 from drova_bot.application.protocols import DrovaClientFactory, DrovaClientProtocol, TokenPersister
 from drova_bot.config import Settings
 from drova_bot.domain.formatters import normalize_session_limit
@@ -311,6 +313,45 @@ class BotService:
         finally:
             await client.aclose()
 
+    async def create_export_job(self, telegram_chat_id: int, kind: ExportKind) -> ExportJob:
+        job_id = uuid4().hex
+        async with self._uow_factory() as uow:
+            row = await uow.export_jobs.create(
+                job_id=job_id,
+                telegram_chat_id=telegram_chat_id,
+                kind=kind.value,
+            )
+            return ExportJob(
+                id=row.id,
+                telegram_chat_id=row.telegram_chat_id,
+                kind=kind,
+                status=row.status,
+                error_code=row.error_code,
+            )
+
+    async def run_export_job(
+        self,
+        *,
+        job_id: str,
+        telegram_chat_id: int,
+        kind: ExportKind,
+    ) -> ExportResult:
+        async with self._uow_factory() as uow:
+            await uow.export_jobs.mark_running(job_id)
+        try:
+            result = await self.export(telegram_chat_id, kind)
+        except Exception:
+            async with self._uow_factory() as uow:
+                await uow.export_jobs.mark_failed(job_id, "unexpected_export_error")
+            return ExportResult(files=[], message="Не удалось подготовить файл.")
+
+        async with self._uow_factory() as uow:
+            if result.files:
+                await uow.export_jobs.mark_done(job_id)
+            else:
+                await uow.export_jobs.mark_failed(job_id, _export_error_code(result.message))
+        return result
+
     async def publish_confirmation(
         self,
         telegram_chat_id: int,
@@ -569,3 +610,17 @@ def _export_ready_message(files: Sequence[object]) -> str:
     if len(files) == 1:
         return "Файл готов."
     return f"Файлы готовы: {len(files)}."
+
+
+def _export_error_code(message: str) -> str:
+    if "Сначала подключите" in message:
+        return "not_connected"
+    if "слишком большая" in message:
+        return "export_too_large"
+    if "отведенное время" in message:
+        return "export_timeout"
+    if "Токен недействителен" in message:
+        return "drova_unauthorized"
+    if "Drova" in message:
+        return "drova_unavailable"
+    return "export_failed"

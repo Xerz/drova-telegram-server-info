@@ -23,6 +23,7 @@ from drova_bot.drova.errors import DrovaUnauthorized, DrovaUnavailable
 from drova_bot.exports import ExportKind
 from drova_bot.storage import (
     ChatProfileRepository,
+    ExportJobRow,
     TokenEncryptor,
     create_database_engine,
     create_schema,
@@ -363,6 +364,52 @@ async def test_export_not_connected_returns_safe_message(service_engine: AsyncEn
 
     assert result.files == []
     assert "Сначала подключите" in result.message
+
+
+@pytest.mark.asyncio
+async def test_export_job_lifecycle_marks_success_and_failure(
+    service_engine: AsyncEngine,
+    ui_stations: list[Station],
+    ui_sessions: list[Session],
+    ui_catalog: dict[str, str],
+) -> None:
+    service = make_service(
+        service_engine,
+        FakeDrovaClientFactory(
+            FakeDrovaClient(stations=ui_stations, products=_catalog_products(ui_catalog)),
+            FakeDrovaClient(stations=ui_stations, sessions=ui_sessions),
+            FakeDrovaClient(stations=ui_stations, sessions=ui_sessions),
+        ),
+        export_row_limit=1,
+    )
+    await service.connect_token(10001, "token")
+
+    success_job = await service.create_export_job(10001, ExportKind.PRODUCTS)
+    failure_job = await service.create_export_job(10001, ExportKind.SESSIONS)
+    success = await service.run_export_job(
+        job_id=success_job.id,
+        telegram_chat_id=10001,
+        kind=ExportKind.PRODUCTS,
+    )
+    failure = await service.run_export_job(
+        job_id=failure_job.id,
+        telegram_chat_id=10001,
+        kind=ExportKind.SESSIONS,
+    )
+
+    session_factory = make_session_factory(service_engine)
+    async with session_factory() as session:
+        success_row = await session.get(ExportJobRow, success_job.id)
+        failure_row = await session.get(ExportJobRow, failure_job.id)
+
+    assert success.files
+    assert failure.files == []
+    assert success_row is not None
+    assert success_row.status == "done"
+    assert success_row.finished_at is not None
+    assert failure_row is not None
+    assert failure_row.status == "failed"
+    assert failure_row.error_code == "export_too_large"
 
 
 @pytest.mark.asyncio

@@ -45,17 +45,20 @@ class FakeMessage:
         self.documents: list[tuple[Any, dict[str, Any]]] = []
         self.edits: list[tuple[str, dict[str, Any]]] = []
 
-    async def answer(self, text: str, **kwargs: Any) -> None:
+    async def answer(self, text: str, **kwargs: Any) -> FakeMessage:
         if self.fail_html_once and kwargs.get("parse_mode") == "HTML":
             self.fail_html_once = False
             raise _telegram_bad_request()
         self.answers.append((text, kwargs))
+        return self
 
-    async def edit_text(self, text: str, **kwargs: Any) -> None:
+    async def edit_text(self, text: str, **kwargs: Any) -> FakeMessage:
         self.edits.append((text, kwargs))
+        return self
 
-    async def answer_document(self, document: Any, **kwargs: Any) -> None:
+    async def answer_document(self, document: Any, **kwargs: Any) -> FakeMessage:
         self.documents.append((document, kwargs))
+        return self
 
 
 class FakeCallback:
@@ -103,6 +106,23 @@ class FakeService:
 
     async def export(self, chat_id: int, kind: ExportKind) -> ExportResult:
         self.calls.append(("export", (chat_id, kind), {}))
+        return await self._export_result(kind)
+
+    async def create_export_job(self, chat_id: int, kind: ExportKind) -> object:
+        self.calls.append(("create_export_job", (chat_id, kind), {}))
+        return FakeExportJob("job-1")
+
+    async def run_export_job(
+        self,
+        *,
+        job_id: str,
+        telegram_chat_id: int,
+        kind: ExportKind,
+    ) -> ExportResult:
+        self.calls.append(("run_export_job", (job_id, telegram_chat_id, kind), {}))
+        return await self._export_result(kind)
+
+    async def _export_result(self, kind: ExportKind) -> ExportResult:
         return ExportResult(
             files=[
                 ExportFile(
@@ -113,6 +133,11 @@ class FakeService:
             ],
             message="Файл готов.",
         )
+
+
+class FakeExportJob:
+    def __init__(self, job_id: str) -> None:
+        self.id = job_id
 
 
 def test_build_router_exposes_aiogram_router() -> None:
@@ -140,21 +165,39 @@ async def test_token_limit_sessions_and_station_handlers_parse_arguments() -> No
 
 
 @pytest.mark.asyncio
-async def test_legacy_logout_and_export_command() -> None:
+async def test_legacy_logout_and_export_command(monkeypatch: pytest.MonkeyPatch) -> None:
+    from drova_bot.telegram.routers import core
+
     service = FakeService()
     logout_message = FakeMessage("/removeToken")
     export_message = FakeMessage("/dumpall")
+    scheduled: list[Any] = []
+
+    def capture_task(coro: Any) -> None:
+        scheduled.append(coro)
+
+    monkeypatch.setattr(core, "schedule_background_task", capture_task)
 
     await logout_command(cast(Message, logout_message), service)  # type: ignore[arg-type]
     await export_command(cast(Message, export_message), service)  # type: ignore[arg-type]
 
     assert service.calls == [
         ("logout", (10001,), {}),
-        ("export", (10001, ExportKind.SESSIONS_CSV), {}),
+        ("create_export_job", (10001, ExportKind.SESSIONS_CSV), {}),
     ]
     assert export_message.answers[0][0] == "Готовлю файл..."
+    assert export_message.documents == []
+    assert scheduled
+
+    await scheduled[0]
+
+    assert service.calls[-1] == (
+        "run_export_job",
+        ("job-1", 10001, ExportKind.SESSIONS_CSV),
+        {},
+    )
     assert export_message.documents[0][0].filename == "sessions_csv.xlsx"
-    assert export_message.answers[-1][0] == "Файл готов."
+    assert export_message.edits[-1][0] == "Файл готов."
 
 
 def test_export_kind_mapping() -> None:

@@ -14,6 +14,7 @@ from drova_bot.storage.encryption import TokenEncryptor
 from drova_bot.storage.migrations.runner import run_migrations
 from drova_bot.storage.repositories import (
     ChatProfileRepository,
+    ExportJobRepository,
     ProductCacheRepository,
     StationCacheRepository,
 )
@@ -23,6 +24,7 @@ __all__ = [
     "Base",
     "ChatProfileRepository",
     "ChatProfileRow",
+    "ExportJobRepository",
     "ExportJobRow",
     "ProductCacheRepository",
     "ProductCacheRow",
