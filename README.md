@@ -64,5 +64,5 @@ The compose file mounts `./data` as the SQLite data directory and reads secrets 
 `.env`; secrets are not baked into the image. Healthcheck uses
 `python -m drova_bot.tools.healthcheck` and does not call Telegram or Drova.
 
-Still separate follow-up slices: persisted export job lifecycle, deploy CI, and Geo
-enrichment.
+CI runs the normal network-free gates and verifies the Docker image builds. Live contract
+checks stay manual and opt-in.
