@@ -9,7 +9,7 @@ from aiogram.types import CallbackQuery, Message
 
 from drova_bot.drova.errors import TelegramDeliveryFailed
 from drova_bot.exports import ExportFile, ExportKind, ExportResult
-from drova_bot.telegram.callbacks import CallbackSpec
+from drova_bot.telegram.callbacks import CallbackSpec, parse_callback_data
 from drova_bot.telegram.delivery import answer_rendered
 from drova_bot.telegram.renderers import RenderedMessage
 from drova_bot.telegram.routers import build_router
@@ -246,6 +246,32 @@ def test_export_kind_mapping() -> None:
     assert export_kind_from_message("/dumpStationsProducts") == ExportKind.PRODUCTS
     assert export_kind_from_message("/dumpStationsProductsMonth") == ExportKind.PRODUCT_TIME
     assert export_kind_from_message("/export nope") is None
+
+
+def test_callback_payloads_fit_telegram_limit_and_parse_legacy_format() -> None:
+    station_uuid = "000019ee-2466-41ef-9ff8-4bfe7aa9fd4f"
+    select_payload = CallbackSpec(
+        action="publish_select",
+        station_id=station_uuid,
+        expected_published=True,
+    ).pack()
+    confirm_payload = CallbackSpec(
+        action="publish_confirm",
+        station_id=station_uuid,
+        expected_published=False,
+    ).pack()
+
+    assert len(select_payload.encode("utf-8")) <= 64
+    assert len(confirm_payload.encode("utf-8")) <= 64
+    assert parse_callback_data(select_payload).action == "publish_select"
+    assert parse_callback_data(select_payload).station_id == station_uuid
+    assert parse_callback_data(select_payload).expected_published is True
+
+    legacy = f"publish_select|station={station_uuid}|published=1"
+    parsed_legacy = parse_callback_data(legacy)
+    assert parsed_legacy.action == "publish_select"
+    assert parsed_legacy.station_id == station_uuid
+    assert parsed_legacy.expected_published is True
 
 
 @pytest.mark.asyncio

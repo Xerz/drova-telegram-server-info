@@ -9,6 +9,29 @@ class InvalidCallbackData(ValueError):
     """Callback payload does not match the stable V2 callback format."""
 
 
+ACTION_ALIASES = {
+    "station_all": "sa",
+    "station_select": "ss",
+    "station_page": "sp",
+    "sessions_refresh": "sr",
+    "sessions_short": "sh",
+    "sessions_all": "sl",
+    "current_refresh": "cr",
+    "publish_panel": "pp",
+    "publish_hide": "ph",
+    "publish_select": "ps",
+    "publish_confirm": "pc",
+    "publish_cancel": "px",
+}
+ACTION_BY_ALIAS = {alias: action for action, alias in ACTION_ALIASES.items()}
+KEY_ALIASES = {
+    "station": "s",
+    "page": "p",
+    "published": "e",
+}
+KEY_BY_ALIAS = {alias: key for key, alias in KEY_ALIASES.items()}
+
+
 @dataclass(frozen=True, slots=True)
 class CallbackSpec:
     action: str
@@ -17,13 +40,13 @@ class CallbackSpec:
     expected_published: bool | None = None
 
     def pack(self) -> str:
-        parts = [self.action]
+        parts = [_pack_action(self.action)]
         if self.station_id is not None:
-            parts.append(f"station={self.station_id}")
+            parts.append(f"{KEY_ALIASES['station']}={self.station_id}")
         if self.page is not None:
-            parts.append(f"page={self.page}")
+            parts.append(f"{KEY_ALIASES['page']}={self.page}")
         if self.expected_published is not None:
-            parts.append(f"published={int(self.expected_published)}")
+            parts.append(f"{KEY_ALIASES['published']}={int(self.expected_published)}")
         return "|".join(parts)
 
 
@@ -39,7 +62,7 @@ def parse_callback_data(data: str | None) -> ParsedCallback:
     if not data:
         raise InvalidCallbackData("empty callback data")
     raw_parts = data.split("|")
-    action = raw_parts[0]
+    action = _unpack_action(raw_parts[0])
     if not action:
         raise InvalidCallbackData("missing action")
 
@@ -48,7 +71,7 @@ def parse_callback_data(data: str | None) -> ParsedCallback:
         key, separator, value = raw_part.partition("=")
         if not separator or not key:
             raise InvalidCallbackData("invalid callback part")
-        values[key] = value
+        values[_unpack_key(key)] = value
 
     page: int | None = None
     if "page" in values:
@@ -69,3 +92,15 @@ def parse_callback_data(data: str | None) -> ParsedCallback:
         page=page,
         expected_published=expected_published,
     )
+
+
+def _pack_action(action: str) -> str:
+    return ACTION_ALIASES.get(action, action)
+
+
+def _unpack_action(value: str) -> str:
+    return ACTION_BY_ALIAS.get(value, value)
+
+
+def _unpack_key(value: str) -> str:
+    return KEY_BY_ALIAS.get(value, value)
