@@ -70,7 +70,10 @@ def test_sessions_renderer_matches_fixture_intent(
     assert "🧪 trial 🟢 active" in message.text
     assert "💳 prepaid ✅ finished" in message.text
     assert "🔁 subscription ✅ finished" in message.text
-    assert "16:40:00-🟢 now (20 мин)" in message.text
+    assert "16:40-🟢 now (20 мин)" in message.text
+    assert "16:00-16:10 (10 мин)" in message.text
+    assert "16:40:00" not in message.text
+    assert "16:00:00" not in message.text
     assert "Отзыв: ok" in message.text
     assert "<b>3. Desktop Mode</b>" in message.text
     assert message.keyboard is not None

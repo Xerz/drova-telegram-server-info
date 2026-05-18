@@ -50,7 +50,7 @@
   - station name when all stations selected;
   - masked/short client id in monospace;
   - city/provider when available;
-  - start-finish and compact duration;
+  - start-finish as `HH:MM-HH:MM` and compact duration;
   - billing/status with emoji labels;
   - feedback if present.
 - Buttons: `Обновить`, `Скрыть короткие` or `Показать все`.

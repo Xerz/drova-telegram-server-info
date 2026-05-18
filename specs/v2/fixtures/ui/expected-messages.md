@@ -11,22 +11,22 @@ These snapshots are intentionally high level. Exact punctuation may evolve, but 
 1. Space Farm
 Gamma Trial
 client ...abcdef
-trial active
-11:20:00-now (40 мин 0 сек)
+🧪 trial 🟢 active
+16:40-🟢 now (20 мин)
 
 2. Cyber Rally
 Alpha Station
 client ...222222
-prepaid finished
-10:40:00-10:50:00 (10 мин 0 сек)
+💳 prepaid ✅ finished
+16:00-16:10 (10 мин)
 Отзыв: ok
 
 2026-05-17
 3. Desktop Mode
 Alpha Station
 client ...111111
-subscription finished
-10:40:00-10:42:00 (2 мин 0 сек)
+🔁 subscription ✅ finished
+16:00-16:02 (2 мин)
 ```
 
 ## `/current`

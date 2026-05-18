@@ -14,7 +14,6 @@ from drova_bot.domain.formatters import (
     filter_sessions,
     format_date,
     format_session_duration,
-    format_time,
     format_time_short,
     group_endpoints,
     html_escape,
@@ -190,7 +189,7 @@ def render_sessions(
         finish_label = (
             "🟢 now"
             if session.finished_on_ms is None
-            else format_time(session.finished_on_ms, profile.timezone)
+            else format_time_short(session.finished_on_ms, profile.timezone)
         )
         duration = format_session_duration(session_duration_seconds(session, now))
         meta = " ".join(
@@ -208,7 +207,7 @@ def render_sessions(
                 f"<code>{html_escape(masked_client_id(session.client_id))}</code>",
                 html_escape(meta),
                 (
-                    f"{format_time(session.created_on_ms, profile.timezone)}-"
+                    f"{format_time_short(session.created_on_ms, profile.timezone)}-"
                     f"{finish_label} ({duration})"
                 ),
             ]
