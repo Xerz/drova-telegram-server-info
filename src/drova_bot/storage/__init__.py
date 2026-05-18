@@ -11,6 +11,7 @@ from drova_bot.storage.database import (
     make_session_factory,
 )
 from drova_bot.storage.encryption import TokenEncryptor
+from drova_bot.storage.migrations.runner import run_migrations
 from drova_bot.storage.repositories import (
     ChatProfileRepository,
     ProductCacheRepository,
@@ -33,4 +34,5 @@ __all__ = [
     "create_database_engine",
     "create_schema",
     "make_session_factory",
+    "run_migrations",
 ]

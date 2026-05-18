@@ -41,6 +41,7 @@ class DrovaClient:
         base_url: str = "https://services.drova.io",
         token_persister: TokenPersister | None = None,
         http_client: httpx.AsyncClient | None = None,
+        proxy: str | None = None,
         timeout: float = 10.0,
         read_attempts: int = 2,
     ) -> None:
@@ -51,6 +52,7 @@ class DrovaClient:
         self._client = http_client or httpx.AsyncClient(
             base_url=self._base_url,
             timeout=httpx.Timeout(timeout),
+            proxy=proxy,
         )
         self._read_attempts = max(1, read_attempts)
 

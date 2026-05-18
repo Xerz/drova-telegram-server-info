@@ -51,6 +51,7 @@ class DefaultDrovaClientFactory:
             proxy_token=proxy_token,
             base_url=self._settings.drova_base_url,
             token_persister=token_persister,
+            proxy=self._settings.https_proxy or self._settings.http_proxy,
         )
 
 
