@@ -1,0 +1,130 @@
+"""Core Telegram command and callback router."""
+
+from __future__ import annotations
+
+from aiogram import F, Router
+from aiogram.filters import Command
+from aiogram.types import CallbackQuery, Message
+
+from drova_bot.application.services import BotService
+from drova_bot.telegram.callbacks import InvalidCallbackData, parse_callback_data
+from drova_bot.telegram.delivery import answer_rendered, edit_or_answer_rendered
+from drova_bot.telegram.renderers import RenderedMessage, render_error, render_help
+
+EXPORT_ALIASES = {
+    "dumpall",
+    "dumpOnefile",
+    "dumpStationsProducts",
+    "dumpStationsProductsWithTime",
+    "dumpStationsProductsMonth",
+}
+
+
+def build_router() -> Router:
+    router = Router(name="drova_bot_core")
+    router.message.register(start_command, Command("start"))
+    router.message.register(help_command, Command("help"))
+    router.message.register(token_command, Command("token"))
+    router.message.register(logout_command, Command("logout", "removeToken"))
+    router.message.register(station_command, Command("station"))
+    router.message.register(limit_command, Command("limit"))
+    router.message.register(sessions_command, Command("sessions"))
+    router.message.register(current_command, Command("current"))
+    router.message.register(disabled_command, Command("disabled"))
+    router.message.register(stations_command, Command("stations", "stationsInfo"))
+    router.message.register(export_placeholder_command, Command("export", *EXPORT_ALIASES))
+    router.callback_query.register(callback_query)
+    router.message.register(unknown_command, F.text.startswith("/"))
+    router.message.register(unknown_text)
+    return router
+
+
+async def start_command(message: Message, bot_service: BotService) -> None:
+    await answer_rendered(message, await bot_service.start(message.chat.id))
+
+
+async def help_command(message: Message) -> None:
+    await answer_rendered(message, render_help())
+
+
+async def token_command(message: Message, bot_service: BotService) -> None:
+    await answer_rendered(
+        message,
+        await bot_service.connect_token(message.chat.id, _command_args(message.text)),
+    )
+
+
+async def logout_command(message: Message, bot_service: BotService) -> None:
+    await answer_rendered(message, await bot_service.logout(message.chat.id))
+
+
+async def station_command(message: Message, bot_service: BotService) -> None:
+    args = _command_args(message.text).strip()
+    if args == "all":
+        rendered = await bot_service.select_all_stations(message.chat.id)
+    else:
+        rendered = await bot_service.station_picker(message.chat.id)
+    await answer_rendered(message, rendered)
+
+
+async def limit_command(message: Message, bot_service: BotService) -> None:
+    await answer_rendered(
+        message,
+        await bot_service.set_limit(message.chat.id, _command_args(message.text)),
+    )
+
+
+async def sessions_command(message: Message, bot_service: BotService) -> None:
+    await answer_rendered(
+        message,
+        await bot_service.sessions(
+            message.chat.id,
+            short_mode=_command_args(message.text).strip() == "short",
+        ),
+    )
+
+
+async def current_command(message: Message, bot_service: BotService) -> None:
+    await answer_rendered(message, await bot_service.current(message.chat.id))
+
+
+async def disabled_command(message: Message, bot_service: BotService) -> None:
+    await answer_rendered(message, await bot_service.disabled(message.chat.id))
+
+
+async def stations_command(message: Message, bot_service: BotService) -> None:
+    await answer_rendered(message, await bot_service.stations(message.chat.id))
+
+
+async def export_placeholder_command(message: Message) -> None:
+    await answer_rendered(message, RenderedMessage("Готовлю файл..."))
+
+
+async def callback_query(callback: CallbackQuery, bot_service: BotService) -> None:
+    try:
+        parsed = parse_callback_data(callback.data)
+        chat_id = (
+            callback.message.chat.id if callback.message is not None else callback.from_user.id
+        )
+        rendered = await bot_service.handle_callback(chat_id, parsed)
+    except InvalidCallbackData:
+        rendered = render_error("unknown_command")
+    await edit_or_answer_rendered(callback, rendered)
+    await callback.answer()
+
+
+async def unknown_command(message: Message) -> None:
+    await answer_rendered(message, render_error("unknown_command"))
+
+
+async def unknown_text(message: Message) -> None:
+    await answer_rendered(message, render_error("unknown_text"))
+
+
+def _command_args(text: str | None) -> str:
+    if not text:
+        return ""
+    _, separator, tail = text.partition(" ")
+    if not separator:
+        return ""
+    return tail.strip()

@@ -11,18 +11,26 @@ from drova_bot.storage.database import (
     make_session_factory,
 )
 from drova_bot.storage.encryption import TokenEncryptor
-from drova_bot.storage.repositories import ChatProfileRepository
+from drova_bot.storage.repositories import (
+    ChatProfileRepository,
+    ProductCacheRepository,
+    StationCacheRepository,
+)
+from drova_bot.storage.uow import StorageUnitOfWork, StorageUnitOfWorkFactory
 
 __all__ = [
     "Base",
     "ChatProfileRepository",
     "ChatProfileRow",
     "ExportJobRow",
+    "ProductCacheRepository",
     "ProductCacheRow",
+    "StationCacheRepository",
     "StationCacheRow",
+    "StorageUnitOfWork",
+    "StorageUnitOfWorkFactory",
     "TokenEncryptor",
     "create_database_engine",
     "create_schema",
     "make_session_factory",
 ]
-

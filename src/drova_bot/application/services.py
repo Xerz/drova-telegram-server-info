@@ -1,0 +1,427 @@
+"""Application service layer for Telegram command behavior."""
+
+from __future__ import annotations
+
+from collections.abc import Callable
+from datetime import UTC, datetime
+
+from drova_bot.application.protocols import DrovaClientFactory, DrovaClientProtocol, TokenPersister
+from drova_bot.config import Settings
+from drova_bot.domain.formatters import normalize_session_limit
+from drova_bot.domain.models import ChatProfile, Session, Station
+from drova_bot.drova import DrovaClient
+from drova_bot.drova.errors import (
+    DrovaPermissionDenied,
+    DrovaUnauthorized,
+    DrovaUnavailable,
+)
+from drova_bot.storage.uow import StorageUnitOfWork
+from drova_bot.telegram.callbacks import ParsedCallback
+from drova_bot.telegram.renderers import (
+    RenderedMessage,
+    latest_sessions_by_station,
+    render_current,
+    render_disabled,
+    render_error,
+    render_publish_confirmation,
+    render_sessions,
+    render_start_connected,
+    render_start_not_connected,
+    render_station_picker,
+    render_stations,
+)
+
+UnitOfWorkFactory = Callable[[], StorageUnitOfWork]
+
+
+class DefaultDrovaClientFactory:
+    def __init__(self, settings: Settings) -> None:
+        self._settings = settings
+
+    def create(
+        self,
+        proxy_token: str,
+        *,
+        token_persister: TokenPersister | None = None,
+    ) -> DrovaClientProtocol:
+        return DrovaClient(
+            proxy_token=proxy_token,
+            base_url=self._settings.drova_base_url,
+            token_persister=token_persister,
+        )
+
+
+class BotService:
+    """Owns command behavior while Telegram handlers remain transport adapters."""
+
+    def __init__(
+        self,
+        *,
+        uow_factory: UnitOfWorkFactory,
+        client_factory: DrovaClientFactory,
+        clock: Callable[[], datetime] | None = None,
+    ) -> None:
+        self._uow_factory = uow_factory
+        self._client_factory = client_factory
+        self._clock = clock or (lambda: datetime.now(tz=UTC))
+
+    async def start(self, telegram_chat_id: int) -> RenderedMessage:
+        async with self._uow_factory() as uow:
+            profile = await uow.chat_profiles.get(telegram_chat_id)
+            if profile is None or profile.encrypted_proxy_token is None:
+                return render_start_not_connected()
+            station_names = await uow.station_cache.station_names(telegram_chat_id)
+            selected_name = (
+                station_names.get(profile.selected_station_id)
+                if profile.selected_station_id is not None
+                else None
+            )
+            return render_start_connected(
+                station_count=len(station_names),
+                selected_station_name=selected_name,
+                session_limit=profile.session_limit,
+            )
+
+    async def connect_token(self, telegram_chat_id: int, proxy_token: str) -> RenderedMessage:
+        if not proxy_token.strip():
+            return render_error("drova_unauthorized")
+        client = self._client_factory.create(proxy_token.strip())
+        try:
+            account = await client.get_account()
+            products = await client.get_products_full()
+            stations = await client.get_servers(account.uuid)
+        except DrovaUnauthorized:
+            return render_error("drova_unauthorized")
+        except (DrovaPermissionDenied, DrovaUnavailable):
+            return render_error("drova_unavailable")
+        finally:
+            await client.aclose()
+
+        async with self._uow_factory() as uow:
+            profile = await uow.chat_profiles.connect_token(
+                telegram_chat_id,
+                drova_user_id=account.uuid,
+                proxy_token=client.proxy_token,
+            )
+            await uow.product_cache.upsert_catalog(products)
+            await uow.station_cache.replace_for_chat(telegram_chat_id, stations)
+
+        return render_start_connected(
+            station_count=len(stations),
+            selected_station_name=None,
+            session_limit=profile.session_limit,
+        )
+
+    async def logout(self, telegram_chat_id: int) -> RenderedMessage:
+        async with self._uow_factory() as uow:
+            await uow.chat_profiles.logout(telegram_chat_id)
+        return RenderedMessage("Токен и настройки чата удалены.")
+
+    async def station_picker(self, telegram_chat_id: int, *, page: int = 0) -> RenderedMessage:
+        loaded = await self._load_client(telegram_chat_id)
+        if loaded is None:
+            return render_error("not_connected")
+        profile, client = loaded
+        try:
+            stations = await client.get_servers(profile.drova_user_id or "")
+            async with self._uow_factory() as uow:
+                await uow.station_cache.replace_for_chat(telegram_chat_id, stations)
+            return render_station_picker(stations, page=page)
+        except (DrovaUnauthorized, DrovaPermissionDenied):
+            return render_error("drova_unauthorized")
+        except DrovaUnavailable:
+            return render_error("drova_unavailable")
+        finally:
+            await client.aclose()
+
+    async def select_station(self, telegram_chat_id: int, station_id: str) -> RenderedMessage:
+        async with self._uow_factory() as uow:
+            station_name = await uow.station_cache.station_name(telegram_chat_id, station_id)
+            if station_name is None:
+                return render_error("station_not_found")
+            await uow.chat_profiles.set_selected_station(telegram_chat_id, station_id)
+        return RenderedMessage(f"Выбрана станция: {station_name}")
+
+    async def select_all_stations(self, telegram_chat_id: int) -> RenderedMessage:
+        async with self._uow_factory() as uow:
+            await uow.chat_profiles.set_selected_station(telegram_chat_id, None)
+        return RenderedMessage("Выбраны все станции.")
+
+    async def set_limit(self, telegram_chat_id: int, raw_limit: str | None) -> RenderedMessage:
+        if raw_limit is None:
+            return render_error("invalid_limit")
+        limit = normalize_session_limit(raw_limit)
+        if str(limit) != raw_limit.strip():
+            return render_error("invalid_limit")
+        async with self._uow_factory() as uow:
+            await uow.chat_profiles.set_session_limit(telegram_chat_id, limit)
+        return RenderedMessage(f"Лимит сессий: {limit}")
+
+    async def sessions(self, telegram_chat_id: int, *, short_mode: bool = False) -> RenderedMessage:
+        loaded = await self._load_client(telegram_chat_id)
+        if loaded is None:
+            return render_error("not_connected")
+        profile, client = loaded
+        try:
+            stations = await client.get_servers(profile.drova_user_id or "")
+            page = await client.get_sessions(
+                merchant_id=None if profile.selected_station_id else profile.drova_user_id,
+                server_id=profile.selected_station_id,
+                limit=profile.session_limit,
+            )
+            product_catalog = await self._product_catalog(telegram_chat_id, client)
+            async with self._uow_factory() as uow:
+                await uow.station_cache.replace_for_chat(telegram_chat_id, stations)
+            return render_sessions(
+                profile,
+                page.sessions,
+                stations,
+                product_catalog,
+                now=self._clock(),
+                short_mode=short_mode,
+            )
+        except (DrovaUnauthorized, DrovaPermissionDenied):
+            return render_error("drova_unauthorized")
+        except DrovaUnavailable:
+            return render_error("drova_unavailable")
+        finally:
+            await client.aclose()
+
+    async def current(
+        self,
+        telegram_chat_id: int,
+        *,
+        publish_panel_open: bool = False,
+    ) -> RenderedMessage:
+        loaded = await self._load_client(telegram_chat_id)
+        if loaded is None:
+            return render_error("not_connected")
+        profile, client = loaded
+        try:
+            stations = await client.get_servers(profile.drova_user_id or "")
+            product_catalog = await self._product_catalog(telegram_chat_id, client)
+            latest: dict[str, Session | None] = {}
+            failed_station_ids: set[str] = set()
+            for station in stations:
+                try:
+                    page = await client.get_sessions(server_id=station.uuid, limit=1)
+                    latest[station.uuid] = page.sessions[0] if page.sessions else None
+                except DrovaUnavailable:
+                    failed_station_ids.add(station.uuid)
+                    latest[station.uuid] = None
+            async with self._uow_factory() as uow:
+                await uow.station_cache.replace_for_chat(telegram_chat_id, stations)
+            return render_current(
+                profile,
+                stations,
+                latest,
+                product_catalog,
+                now=self._clock(),
+                publish_panel_open=publish_panel_open,
+                failed_station_ids=failed_station_ids,
+            )
+        except (DrovaUnauthorized, DrovaPermissionDenied):
+            return render_error("drova_unauthorized")
+        except DrovaUnavailable:
+            return render_error("drova_unavailable")
+        finally:
+            await client.aclose()
+
+    async def disabled(self, telegram_chat_id: int) -> RenderedMessage:
+        loaded = await self._load_client(telegram_chat_id)
+        if loaded is None:
+            return render_error("not_connected")
+        profile, client = loaded
+        try:
+            stations = await client.get_servers(profile.drova_user_id or "")
+            products_by_station = {
+                station.uuid: await client.get_server_products(
+                    profile.drova_user_id or "",
+                    station.uuid,
+                )
+                for station in stations
+            }
+            async with self._uow_factory() as uow:
+                await uow.station_cache.replace_for_chat(telegram_chat_id, stations)
+            return render_disabled(stations, products_by_station)
+        except (DrovaUnauthorized, DrovaPermissionDenied):
+            return render_error("drova_unauthorized")
+        except DrovaUnavailable:
+            return render_error("drova_unavailable")
+        finally:
+            await client.aclose()
+
+    async def stations(self, telegram_chat_id: int) -> RenderedMessage:
+        loaded = await self._load_client(telegram_chat_id)
+        if loaded is None:
+            return render_error("not_connected")
+        profile, client = loaded
+        try:
+            stations = await client.get_servers(profile.drova_user_id or "")
+            endpoints_by_station = {
+                station.uuid: await client.get_server_endpoints(station.uuid, limit=5)
+                for station in stations
+            }
+            async with self._uow_factory() as uow:
+                await uow.station_cache.replace_for_chat(telegram_chat_id, stations)
+            return render_stations(stations, endpoints_by_station)
+        except (DrovaUnauthorized, DrovaPermissionDenied):
+            return render_error("drova_unauthorized")
+        except DrovaUnavailable:
+            return render_error("drova_unavailable")
+        finally:
+            await client.aclose()
+
+    async def publish_confirmation(
+        self,
+        telegram_chat_id: int,
+        station_id: str | None,
+    ) -> RenderedMessage:
+        if station_id is None:
+            return render_error("station_not_found")
+        loaded = await self._load_client(telegram_chat_id)
+        if loaded is None:
+            return render_error("not_connected")
+        profile, client = loaded
+        try:
+            stations = await client.get_servers(profile.drova_user_id or "")
+            station = _find_station(stations, station_id)
+            if station is None:
+                return render_error("station_not_found")
+            return render_publish_confirmation(station, new_state=not station.published)
+        except (DrovaUnauthorized, DrovaPermissionDenied):
+            return render_error("drova_unauthorized")
+        except DrovaUnavailable:
+            return render_error("drova_unavailable")
+        finally:
+            await client.aclose()
+
+    async def confirm_publish(
+        self,
+        telegram_chat_id: int,
+        station_id: str | None,
+        expected_published: bool | None,
+    ) -> RenderedMessage:
+        if station_id is None or expected_published is None:
+            return render_error("station_not_found")
+        loaded = await self._load_client(telegram_chat_id)
+        if loaded is None:
+            return render_error("not_connected")
+        profile, client = loaded
+        try:
+            stations = await client.get_servers(profile.drova_user_id or "")
+            station = _find_station(stations, station_id)
+            if station is None:
+                return render_error("station_not_found")
+            if station.published != expected_published:
+                return render_error("stale_publish")
+            await client.set_server_published(station_id, not expected_published)
+            refreshed = await client.get_servers(profile.drova_user_id or "")
+            async with self._uow_factory() as uow:
+                await uow.station_cache.replace_for_chat(telegram_chat_id, refreshed)
+            product_catalog = await self._product_catalog(telegram_chat_id, client)
+            latest = await self._latest_for_stations(client, refreshed)
+            return render_current(
+                profile,
+                refreshed,
+                latest,
+                product_catalog,
+                now=self._clock(),
+                publish_panel_open=True,
+            )
+        except (DrovaUnauthorized, DrovaPermissionDenied):
+            return render_error("drova_unauthorized")
+        except DrovaUnavailable:
+            return render_error("drova_unavailable")
+        finally:
+            await client.aclose()
+
+    async def cancel_publish(self, telegram_chat_id: int) -> RenderedMessage:
+        return RenderedMessage("Отменено.")
+
+    async def handle_callback(
+        self,
+        telegram_chat_id: int,
+        callback: ParsedCallback,
+    ) -> RenderedMessage:
+        if callback.action == "station_all":
+            return await self.select_all_stations(telegram_chat_id)
+        if callback.action == "station_select" and callback.station_id is not None:
+            return await self.select_station(telegram_chat_id, callback.station_id)
+        if callback.action == "station_page":
+            return await self.station_picker(telegram_chat_id, page=callback.page or 0)
+        if callback.action == "sessions_refresh":
+            return await self.sessions(telegram_chat_id)
+        if callback.action == "sessions_short":
+            return await self.sessions(telegram_chat_id, short_mode=True)
+        if callback.action == "sessions_all":
+            return await self.sessions(telegram_chat_id)
+        if callback.action == "current_refresh":
+            return await self.current(telegram_chat_id)
+        if callback.action == "publish_panel":
+            return await self.current(telegram_chat_id, publish_panel_open=True)
+        if callback.action == "publish_hide":
+            return await self.current(telegram_chat_id)
+        if callback.action == "publish_select":
+            return await self.publish_confirmation(telegram_chat_id, callback.station_id)
+        if callback.action == "publish_confirm":
+            return await self.confirm_publish(
+                telegram_chat_id,
+                callback.station_id,
+                callback.expected_published,
+            )
+        if callback.action == "publish_cancel":
+            return await self.cancel_publish(telegram_chat_id)
+        return render_error("unknown_command")
+
+    async def _load_client(
+        self,
+        telegram_chat_id: int,
+    ) -> tuple[ChatProfile, DrovaClientProtocol] | None:
+        async with self._uow_factory() as uow:
+            profile = await uow.chat_profiles.get(telegram_chat_id)
+            token = await uow.chat_profiles.decrypt_token(telegram_chat_id)
+        if profile is None or not profile.drova_user_id or token is None:
+            return None
+
+        async def persist_token(new_token: str) -> None:
+            async with self._uow_factory() as token_uow:
+                await token_uow.chat_profiles.update_token(telegram_chat_id, new_token)
+
+        return profile, self._client_factory.create(token, token_persister=persist_token)
+
+    async def _product_catalog(
+        self,
+        telegram_chat_id: int,
+        client: DrovaClientProtocol,
+    ) -> dict[str, str]:
+        async with self._uow_factory() as uow:
+            catalog = await uow.product_cache.title_map()
+        if catalog:
+            return catalog
+        products = await client.get_products_full()
+        async with self._uow_factory() as uow:
+            await uow.product_cache.upsert_catalog(products)
+        return {product.product_id: product.title for product in products}
+
+    async def _latest_for_stations(
+        self,
+        client: DrovaClientProtocol,
+        stations: list[Station],
+    ) -> dict[str, Session | None]:
+        sessions: list[Session] = []
+        latest: dict[str, Session | None] = {}
+        for station in stations:
+            page = await client.get_sessions(server_id=station.uuid, limit=1)
+            if page.sessions:
+                sessions.extend(page.sessions)
+            latest[station.uuid] = page.sessions[0] if page.sessions else None
+        return latest_sessions_by_station(sessions) | {
+            station.uuid: latest.get(station.uuid)
+            for station in stations
+            if station.uuid not in latest
+        }
+
+
+def _find_station(stations: list[Station], station_id: str) -> Station | None:
+    return next((station for station in stations if station.uuid == station_id), None)

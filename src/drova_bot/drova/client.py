@@ -54,6 +54,10 @@ class DrovaClient:
         )
         self._read_attempts = max(1, read_attempts)
 
+    @property
+    def proxy_token(self) -> str:
+        return self._proxy_token
+
     async def aclose(self) -> None:
         if self._owns_client:
             await self._client.aclose()

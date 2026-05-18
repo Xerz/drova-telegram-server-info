@@ -88,6 +88,8 @@ def render_error(code: str) -> RenderedMessage:
         "invalid_limit": "Лимит должен быть числом от 1 до 100.",
         "drova_unavailable": "Drova временно недоступен. Попробуйте позже.",
         "drova_unauthorized": "Токен недействителен. Подключите новый через /token.",
+        "stale_publish": "Состояние станции изменилось. Обновите панель публикации.",
+        "station_not_found": "Станция не найдена. Обновите список станций.",
     }
     return RenderedMessage(messages.get(code, "Не удалось выполнить команду."))
 
@@ -214,12 +216,17 @@ def render_current(
     *,
     now: datetime,
     publish_panel_open: bool = False,
+    failed_station_ids: set[str] | None = None,
 ) -> RenderedMessage:
     lines: list[str] = []
+    failures = failed_station_ids or set()
     ordered = sort_stations(stations)
     for index, station in enumerate(ordered, start=1):
         session = latest_sessions_by_station.get(station.uuid)
         station_label = station_display_name(station)
+        if station.uuid in failures:
+            lines.append(f"{index}. {html_escape(station_label)} · ошибка загрузки")
+            continue
         if session is None:
             lines.append(f"{index}. {html_escape(station_label)} · нет сессий")
             continue

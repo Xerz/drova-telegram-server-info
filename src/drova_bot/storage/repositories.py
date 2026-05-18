@@ -2,11 +2,15 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable, Mapping
+from datetime import UTC, datetime
+
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from drova_bot.domain.formatters import normalize_session_limit
-from drova_bot.domain.models import DEFAULT_TIMEZONE, ChatProfile
-from drova_bot.storage.database import ChatProfileRow
+from drova_bot.domain.models import DEFAULT_TIMEZONE, CatalogProduct, ChatProfile, Station
+from drova_bot.storage.database import ChatProfileRow, ProductCacheRow, StationCacheRow
 from drova_bot.storage.encryption import TokenEncryptor
 
 
@@ -110,3 +114,74 @@ class ChatProfileRepository:
             session_limit=row.session_limit,
             timezone=row.timezone,
         )
+
+
+class StationCacheRepository:
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def replace_for_chat(self, telegram_chat_id: int, stations: Iterable[Station]) -> None:
+        await self._session.execute(
+            delete(StationCacheRow).where(StationCacheRow.telegram_chat_id == telegram_chat_id)
+        )
+        updated_at = datetime.now(tz=UTC)
+        for station in stations:
+            self._session.add(
+                StationCacheRow(
+                    telegram_chat_id=telegram_chat_id,
+                    station_id=station.uuid,
+                    station_name=station.name,
+                    updated_at=updated_at,
+                )
+            )
+        await self._session.flush()
+
+    async def station_names(self, telegram_chat_id: int) -> dict[str, str]:
+        result = await self._session.execute(
+            select(StationCacheRow).where(StationCacheRow.telegram_chat_id == telegram_chat_id)
+        )
+        return {row.station_id: row.station_name for row in result.scalars()}
+
+    async def station_name(self, telegram_chat_id: int, station_id: str) -> str | None:
+        row = await self._session.get(
+            StationCacheRow,
+            {"telegram_chat_id": telegram_chat_id, "station_id": station_id},
+        )
+        return row.station_name if row is not None else None
+
+
+class ProductCacheRepository:
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def upsert_catalog(
+        self,
+        products: Iterable[CatalogProduct],
+        *,
+        payload_by_product_id: Mapping[str, str] | None = None,
+    ) -> None:
+        updated_at = datetime.now(tz=UTC)
+        for product in products:
+            row = await self._session.get(ProductCacheRow, product.product_id)
+            payload_json = (
+                payload_by_product_id.get(product.product_id) if payload_by_product_id else None
+            )
+            if row is None:
+                self._session.add(
+                    ProductCacheRow(
+                        product_id=product.product_id,
+                        title=product.title,
+                        payload_json=payload_json,
+                        updated_at=updated_at,
+                    )
+                )
+            else:
+                row.title = product.title
+                if payload_json is not None:
+                    row.payload_json = payload_json
+                row.updated_at = updated_at
+        await self._session.flush()
+
+    async def title_map(self) -> dict[str, str]:
+        result = await self._session.execute(select(ProductCacheRow))
+        return {row.product_id: row.title for row in result.scalars()}
