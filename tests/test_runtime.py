@@ -65,12 +65,17 @@ async def test_register_bot_commands_uses_runtime_command_list() -> None:
         "token",
         "logout",
         "station",
+        "station_all",
         "limit",
         "sessions",
+        "sessions_short",
         "current",
         "disabled",
         "stations",
-        "export",
+        "export_sessions",
+        "export_sessions_csv",
+        "export_products",
+        "export_product_time",
     ]
 
 

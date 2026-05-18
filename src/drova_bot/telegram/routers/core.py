@@ -40,12 +40,24 @@ def build_router() -> Router:
     router.message.register(token_command, Command("token"))
     router.message.register(logout_command, Command("logout", "removeToken"))
     router.message.register(station_command, Command("station"))
+    router.message.register(station_all_command, Command("station_all"))
     router.message.register(limit_command, Command("limit"))
     router.message.register(sessions_command, Command("sessions"))
+    router.message.register(sessions_short_command, Command("sessions_short"))
     router.message.register(current_command, Command("current"))
     router.message.register(disabled_command, Command("disabled"))
     router.message.register(stations_command, Command("stations", "stationsInfo"))
-    router.message.register(export_command, Command("export", *EXPORT_ALIASES))
+    router.message.register(
+        export_command,
+        Command(
+            "export",
+            "export_sessions",
+            "export_sessions_csv",
+            "export_products",
+            "export_product_time",
+            *EXPORT_ALIASES,
+        ),
+    )
     router.callback_query.register(callback_query)
     router.message.register(unknown_command, F.text.startswith("/"))
     router.message.register(unknown_text)
@@ -80,6 +92,10 @@ async def station_command(message: Message, bot_service: BotService) -> None:
     await answer_rendered(message, rendered)
 
 
+async def station_all_command(message: Message, bot_service: BotService) -> None:
+    await answer_rendered(message, await bot_service.select_all_stations(message.chat.id))
+
+
 async def limit_command(message: Message, bot_service: BotService) -> None:
     await answer_rendered(
         message,
@@ -94,6 +110,13 @@ async def sessions_command(message: Message, bot_service: BotService) -> None:
             message.chat.id,
             short_mode=_command_args(message.text).strip() == "short",
         ),
+    )
+
+
+async def sessions_short_command(message: Message, bot_service: BotService) -> None:
+    await answer_rendered(
+        message,
+        await bot_service.sessions(message.chat.id, short_mode=True),
     )
 
 
@@ -191,6 +214,14 @@ def export_kind_from_message(text: str | None) -> ExportKind | None:
         return None
     command = text.split(maxsplit=1)[0].removeprefix("/").split("@", maxsplit=1)[0]
     args = _command_args(text)
+    one_word_mapping = {
+        "export_sessions": ExportKind.SESSIONS,
+        "export_sessions_csv": ExportKind.SESSIONS_CSV,
+        "export_products": ExportKind.PRODUCTS,
+        "export_product_time": ExportKind.PRODUCT_TIME,
+    }
+    if command in one_word_mapping:
+        return one_word_mapping[command]
     if command == "export":
         if args == "sessions":
             return ExportKind.SESSIONS

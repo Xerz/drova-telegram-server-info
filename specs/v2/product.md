@@ -25,18 +25,19 @@
 | `/token <token>` | Подключить или заменить Drova proxy token. |
 | `/logout` | Удалить токен, user id, выбранную станцию и приватные настройки чата. |
 | `/station` | Открыть выбор станции через paginated inline UI. |
-| `/station all` | Выбрать все станции. |
+| `/station_all` | Выбрать все станции. |
 | `/limit <N>` | Установить лимит последних сессий, допустимо `1..100`. |
 | `/sessions` | Последние сессии по выбранной станции или всем станциям. |
-| `/sessions short` | Последние сессии дольше 5 минут. |
+| `/sessions_short` | Последние сессии дольше 5 минут. |
 | `/current` | Dashboard состояния всех станций. |
 | `/disabled` | Проблемные продукты по станциям. |
 | `/stations` | Список станций и endpoints. |
-| `/export sessions` | Запустить выгрузку сессий. |
-| `/export products` | Выгрузить матрицу продуктов. |
-| `/export product-time` | Выгрузить время по продуктам за период. |
+| `/export_sessions` | Выгрузить сессии одним XLSX-файлом. |
+| `/export_sessions_csv` | Выгрузить сессии CSV-файлами по станциям. |
+| `/export_products` | Выгрузить XLSX-матрицу состояния продуктов. |
+| `/export_product_time` | Выгрузить XLSX времени использования продуктов. |
 
-Legacy aliases должны поддерживаться в V2: `/removeToken`, `/stationsInfo`, `/dumpall`, `/dumpOnefile`, `/dumpStationsProducts`, `/dumpStationsProductsWithTime`, `/dumpStationsProductsMonth`.
+Backward-compatible aliases должны поддерживаться в V2: `/station all`, `/sessions short`, `/export sessions`, `/export products`, `/export product-time`, `/removeToken`, `/stationsInfo`, `/dumpall`, `/dumpOnefile`, `/dumpStationsProducts`, `/dumpStationsProductsWithTime`, `/dumpStationsProductsMonth`.
 
 ## UX Defaults
 

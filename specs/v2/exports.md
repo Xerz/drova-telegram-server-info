@@ -2,10 +2,13 @@
 
 ## Commands
 
-- `/export sessions`
-- `/export products`
-- `/export product-time`
-- Legacy aliases map to these commands.
+- `/export_sessions`
+- `/export_sessions_csv`
+- `/export_products`
+- `/export_product_time`
+- Backward-compatible aliases map to these commands: `/export sessions`, `/export products`,
+  `/export product-time`, `/dumpall`, `/dumpOnefile`, `/dumpStationsProducts`,
+  `/dumpStationsProductsWithTime`, `/dumpStationsProductsMonth`.
 
 ## Execution
 
@@ -19,8 +22,8 @@
 
 Formats:
 
-- CSV per station for legacy `/dumpall`.
-- Single XLSX for `/export sessions` and legacy `/dumpOnefile`.
+- CSV per station for `/export_sessions_csv` and legacy `/dumpall`.
+- Single XLSX for `/export_sessions`, legacy `/export sessions` and `/dumpOnefile`.
 
 Columns:
 

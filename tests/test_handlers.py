@@ -21,6 +21,8 @@ from drova_bot.telegram.routers.core import (
     limit_command,
     logout_command,
     sessions_command,
+    sessions_short_command,
+    station_all_command,
     station_command,
     token_command,
     unknown_command,
@@ -170,8 +172,8 @@ async def test_token_limit_sessions_and_station_handlers_parse_arguments() -> No
     token_message = FakeMessage("/token proxy-token")
     await token_command(cast(Message, token_message), service)  # type: ignore[arg-type]
     await limit_command(cast(Message, FakeMessage("/limit 25")), service)  # type: ignore[arg-type]
-    await sessions_command(cast(Message, FakeMessage("/sessions short")), service)  # type: ignore[arg-type]
-    await station_command(cast(Message, FakeMessage("/station all")), service)  # type: ignore[arg-type]
+    await sessions_short_command(cast(Message, FakeMessage("/sessions_short")), service)  # type: ignore[arg-type]
+    await station_all_command(cast(Message, FakeMessage("/station_all")), service)  # type: ignore[arg-type]
 
     assert service.calls == [
         ("connect_token", (10001, "proxy-token"), {}),
@@ -183,12 +185,25 @@ async def test_token_limit_sessions_and_station_handlers_parse_arguments() -> No
 
 
 @pytest.mark.asyncio
-async def test_legacy_logout_and_export_command(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_legacy_multiword_command_aliases_still_work() -> None:
+    service = FakeService()
+
+    await sessions_command(cast(Message, FakeMessage("/sessions short")), service)  # type: ignore[arg-type]
+    await station_command(cast(Message, FakeMessage("/station all")), service)  # type: ignore[arg-type]
+
+    assert service.calls == [
+        ("sessions", (10001,), {"short_mode": True}),
+        ("select_all_stations", (10001,), {}),
+    ]
+
+
+@pytest.mark.asyncio
+async def test_legacy_logout_and_one_word_export_command(monkeypatch: pytest.MonkeyPatch) -> None:
     from drova_bot.telegram.routers import core
 
     service = FakeService()
     logout_message = FakeMessage("/removeToken")
-    export_message = FakeMessage("/dumpall")
+    export_message = FakeMessage("/export_sessions_csv")
     scheduled: list[Any] = []
 
     def capture_task(coro: Any) -> None:
@@ -219,6 +234,10 @@ async def test_legacy_logout_and_export_command(monkeypatch: pytest.MonkeyPatch)
 
 
 def test_export_kind_mapping() -> None:
+    assert export_kind_from_message("/export_sessions") == ExportKind.SESSIONS
+    assert export_kind_from_message("/export_sessions_csv") == ExportKind.SESSIONS_CSV
+    assert export_kind_from_message("/export_products") == ExportKind.PRODUCTS
+    assert export_kind_from_message("/export_product_time") == ExportKind.PRODUCT_TIME
     assert export_kind_from_message("/export sessions") == ExportKind.SESSIONS
     assert export_kind_from_message("/export products") == ExportKind.PRODUCTS
     assert export_kind_from_message("/export product-time") == ExportKind.PRODUCT_TIME

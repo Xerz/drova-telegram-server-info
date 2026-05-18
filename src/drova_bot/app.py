@@ -32,12 +32,17 @@ BOT_COMMANDS = [
     BotCommand(command="token", description="Подключить Drova proxy token"),
     BotCommand(command="logout", description="Удалить токен и настройки"),
     BotCommand(command="station", description="Выбрать станцию"),
+    BotCommand(command="station_all", description="Выбрать все станции"),
     BotCommand(command="limit", description="Настроить лимит сессий"),
     BotCommand(command="sessions", description="Последние сессии"),
+    BotCommand(command="sessions_short", description="Сессии дольше 5 минут"),
     BotCommand(command="current", description="Текущее состояние станций"),
     BotCommand(command="disabled", description="Проблемы с продуктами"),
     BotCommand(command="stations", description="Станции и эндпоинты"),
-    BotCommand(command="export", description="Выгрузки XLSX/CSV"),
+    BotCommand(command="export_sessions", description="Сессии одним XLSX"),
+    BotCommand(command="export_sessions_csv", description="Сессии CSV по станциям"),
+    BotCommand(command="export_products", description="Матрица продуктов XLSX"),
+    BotCommand(command="export_product_time", description="Время по продуктам XLSX"),
 ]
 
 

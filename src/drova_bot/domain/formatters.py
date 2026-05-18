@@ -78,6 +78,20 @@ def format_duration(seconds: int) -> str:
     return f"{minutes} мин {remaining_seconds} сек"
 
 
+def format_session_duration(seconds: int) -> str:
+    seconds = max(0, seconds)
+    if seconds < 60:
+        return f"{seconds} сек"
+    minutes, _ = divmod(seconds, 60)
+    hours, minutes = divmod(minutes, 60)
+    days, hours = divmod(hours, 24)
+    if days:
+        return f"{days} д {hours} ч {minutes} мин"
+    if hours:
+        return f"{hours} ч {minutes} мин"
+    return f"{minutes} мин"
+
+
 def format_duration_compact(seconds: int) -> str:
     seconds = max(0, seconds)
     minutes, _ = divmod(seconds, 60)

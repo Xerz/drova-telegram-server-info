@@ -19,13 +19,21 @@ from drova_bot.telegram.renderers import (
 
 
 def test_start_and_help_messages_are_russian_and_safe() -> None:
+    help_text = render_help().text
     assert "/token &lt;proxy_token&gt;" in render_start_not_connected().text
     assert "Станций: 3" in render_start_connected(
         station_count=3,
         selected_station_name=None,
         session_limit=5,
     ).text
-    assert "/sessions short" in render_help().text
+    assert "/station_all - выбрать все станции" in help_text
+    assert "/sessions_short - последние сессии дольше 5 минут" in help_text
+    assert "/export_sessions - один XLSX со всеми сессиями" in help_text
+    assert "/export_sessions_csv - CSV-файлы по каждой станции" in help_text
+    assert "/export_products - XLSX-матрица состояния продуктов по станциям" in help_text
+    assert "/export_product_time - XLSX по времени использования продуктов" in help_text
+    assert "/sessions short -" not in help_text
+    assert "/export sessions -" not in help_text
     assert render_error("unknown_command").text == "Команда не найдена. Используйте /help."
 
 
@@ -56,14 +64,56 @@ def test_sessions_renderer_matches_fixture_intent(
     )
     assert "Последние 5 сессий · все станции" in message.text
     assert "2026-05-18" in message.text
-    assert "1. Space Farm" in message.text
+    assert "<b>1. Space Farm</b>" in message.text
     assert "Gamma Trial" in message.text
-    assert "client ...abcdef" in message.text
-    assert "trial active" in message.text
-    assert "16:40:00-now (20 мин 0 сек)" in message.text
+    assert "<code>client ...abcdef</code>" in message.text
+    assert "🧪 trial 🟢 active" in message.text
+    assert "💳 prepaid ✅ finished" in message.text
+    assert "🔁 subscription ✅ finished" in message.text
+    assert "16:40:00-🟢 now (20 мин)" in message.text
     assert "Отзыв: ok" in message.text
-    assert "3. Desktop Mode" in message.text
+    assert "<b>3. Desktop Mode</b>" in message.text
     assert message.keyboard is not None
+
+
+def test_sessions_renderer_formats_unknown_meta_and_duration_edges(
+    ui_profile: ChatProfile,
+    ui_stations: list[Station],
+) -> None:
+    now = datetime.fromisoformat("2026-05-18T12:00:00+00:00")
+    sessions = [
+        Session(
+            uuid="session-seconds",
+            server_id="station-online",
+            merchant_id="user-1",
+            product_id="unknown-product",
+            client_id="client-short",
+            creator_ip=None,
+            created_on_ms=1779105555000,
+            finished_on_ms=1779105600000,
+            billing_type="promo",
+            status="ABORTED",
+        ),
+        Session(
+            uuid="session-hour",
+            server_id="station-online",
+            merchant_id="user-1",
+            product_id="unknown-product",
+            client_id="client-hour",
+            creator_ip=None,
+            created_on_ms=1779100000000,
+            finished_on_ms=1779103900000,
+            billing_type=None,
+            status="QUEUED",
+        ),
+    ]
+
+    message = render_sessions(ui_profile, sessions, ui_stations, {}, now=now)
+
+    assert "💰 promo ⛔ aborted" in message.text
+    assert "ℹ️ queued" in message.text
+    assert "(45 сек)" in message.text
+    assert "(1 ч 5 мин)" in message.text
 
 
 def test_sessions_short_mode_hides_short_session(

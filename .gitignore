@@ -1,6 +1,8 @@
 # Local secrets and legacy runtime data
 persistentData.json
 xray-config/config.json
+data/
+*.swp
 
 # GeoLite2 IP databases
 GeoLite2-City.mmdb

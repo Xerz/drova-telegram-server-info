@@ -13,8 +13,8 @@ import structlog
 from drova_bot.domain.formatters import (
     filter_sessions,
     format_date,
-    format_duration,
     format_duration_compact,
+    format_session_duration,
     format_time,
     format_time_short,
     group_endpoints,
@@ -83,16 +83,18 @@ def render_help() -> RenderedMessage:
         "/token &lt;token&gt; - подключить Drova proxy token",
         "/logout - удалить токен и настройки чата",
         "/station - выбрать станцию",
-        "/station all - выбрать все станции",
+        "/station_all - выбрать все станции",
         "/limit &lt;N&gt; - лимит сессий 1..100",
         "/sessions - последние сессии",
-        "/sessions short - скрыть короткие сессии",
+        "/sessions_short - последние сессии дольше 5 минут",
         "/current - состояние станций",
         "/disabled - проблемные продукты",
         "/stations - станции и endpoints",
-        "/export sessions - выгрузка сессий",
-        "/export products - матрица продуктов",
-        "/export product-time - время по продуктам",
+        "/export_sessions - один XLSX со всеми сессиями",
+        "/export_sessions_csv - CSV-файлы по каждой станции",
+        "/export_products - XLSX-матрица состояния продуктов по станциям",
+        "/export_product_time - XLSX по времени использования продуктов",
+        "Совместимость: /station all, /sessions short, /export ..., /dump...",
     ]
     return RenderedMessage("Команды:\n" + "\n".join(commands))
 
@@ -187,19 +189,25 @@ def render_sessions(
         station = station_by_id.get(session.server_id)
         station_name = station.name if station is not None else None
         finish_label = (
-            "now"
+            "🟢 now"
             if session.finished_on_ms is None
             else format_time(session.finished_on_ms, profile.timezone)
         )
-        duration = format_duration(session_duration_seconds(session, now))
-        status = (session.status or "").lower()
-        billing = (session.billing_type or "").lower()
+        duration = format_session_duration(session_duration_seconds(session, now))
+        meta = " ".join(
+            part
+            for part in [
+                _billing_label(session.billing_type),
+                _status_label(session.status),
+            ]
+            if part
+        )
         lines.extend(
             [
-                f"{index}. {html_escape(title)}",
+                f"<b>{index}. {html_escape(title)}</b>",
                 html_escape(station_name or "станция неизвестна"),
-                html_escape(masked_client_id(session.client_id)),
-                html_escape(" ".join(part for part in [billing, status] if part)),
+                f"<code>{html_escape(masked_client_id(session.client_id))}</code>",
+                html_escape(meta),
                 (
                     f"{format_time(session.created_on_ms, profile.timezone)}-"
                     f"{finish_label} ({duration})"
@@ -223,6 +231,30 @@ def render_sessions(
         ]
     )
     return RenderedMessage("\n".join(lines).rstrip(), keyboard)
+
+
+def _billing_label(billing_type: str | None) -> str:
+    billing = (billing_type or "").lower()
+    if not billing:
+        return ""
+    emoji_by_billing = {
+        "trial": "🧪",
+        "prepaid": "💳",
+        "subscription": "🔁",
+    }
+    return f"{emoji_by_billing.get(billing, '💰')} {billing}"
+
+
+def _status_label(status: str | None) -> str:
+    value = (status or "").lower()
+    if not value:
+        return ""
+    emoji_by_status = {
+        "active": "🟢",
+        "finished": "✅",
+        "aborted": "⛔",
+    }
+    return f"{emoji_by_status.get(value, 'ℹ️')} {value}"
 
 
 def render_current(

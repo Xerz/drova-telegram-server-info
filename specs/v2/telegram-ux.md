@@ -46,12 +46,12 @@
 - Header: `Последние {limit} сессий` plus selected station name if set.
 - Group by date.
 - Per session line group:
-  - game title;
+  - bold numbered game title;
   - station name when all stations selected;
-  - masked/short client id;
+  - masked/short client id in monospace;
   - city/provider when available;
-  - start-finish and duration;
-  - billing/status;
+  - start-finish and compact duration;
+  - billing/status with emoji labels;
   - feedback if present.
 - Buttons: `Обновить`, `Скрыть короткие` or `Показать все`.
 
