@@ -1,0 +1,30 @@
+{
+  "elapsed_ms": 242.2,
+  "label": "account",
+  "method": "GET",
+  "params": {},
+  "path": "/accounting/myaccount",
+  "response": {
+    "balance": "<balance:redacted>",
+    "created_on": 1660894469386,
+    "disabled": false,
+    "emails": "<emails:redacted>",
+    "exportable_money": "<exportable_money:redacted>",
+    "mts_msisdn": "<mts_msisdn:redacted>",
+    "mts_pcr": "<mts_pcr:redacted>",
+    "name": "<name:redacted>",
+    "primary_qiwi_bankcard_id": "<primary_qiwi_bankcard_id:redacted>",
+    "qiwi_wallet": "<qiwi_wallet:redacted>",
+    "roles": [
+      "client",
+      "merchant"
+    ],
+    "trial_msecs_left": "<trial_msecs_left:redacted>",
+    "unlimited_credit": true,
+    "use_mts_billing": false,
+    "use_prepaid": true,
+    "use_subscription": false,
+    "uuid": "<uuid:1>"
+  },
+  "status": 200
+}

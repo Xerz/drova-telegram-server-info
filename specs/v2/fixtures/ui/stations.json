@@ -1,0 +1,35 @@
+[
+  {
+    "uuid": "station-online",
+    "name": "Alpha Station",
+    "state": "LISTEN",
+    "published": true,
+    "verified": "READY",
+    "city_name": "City A",
+    "groups_list": [],
+    "latitude": 57.15,
+    "longitude": 65.52
+  },
+  {
+    "uuid": "station-hidden",
+    "name": "Beta Test Station",
+    "state": "UNVERIFIED",
+    "published": false,
+    "verified": "READY",
+    "city_name": null,
+    "groups_list": [],
+    "latitude": null,
+    "longitude": null
+  },
+  {
+    "uuid": "station-busy",
+    "name": "Gamma Trial",
+    "state": "BUSY",
+    "published": true,
+    "verified": "READY",
+    "city_name": "City G",
+    "groups_list": ["Free trial volunteers"],
+    "latitude": 56.83,
+    "longitude": 60.60
+  }
+]

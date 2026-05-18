@@ -1,0 +1,140 @@
+{
+  "requests": [
+    {
+      "elapsed_ms": 242.2,
+      "label": "account",
+      "method": "GET",
+      "path": "/accounting/myaccount",
+      "proxy_fallback_used": true,
+      "status": 200
+    },
+    {
+      "elapsed_ms": 418.2,
+      "label": "products_full",
+      "method": "GET",
+      "path": "/product-manager/product/listfull2",
+      "proxy_fallback_used": true,
+      "status": 200
+    },
+    {
+      "elapsed_ms": 58.2,
+      "label": "servers",
+      "method": "GET",
+      "path": "/server-manager/servers",
+      "proxy_fallback_used": true,
+      "status": 200
+    },
+    {
+      "elapsed_ms": 318.7,
+      "label": "sessions_all_limit_5",
+      "method": "GET",
+      "path": "/session-manager/sessions",
+      "proxy_fallback_used": true,
+      "status": 200
+    },
+    {
+      "elapsed_ms": 53.7,
+      "label": "server_1_sessions_limit_5",
+      "method": "GET",
+      "path": "/session-manager/sessions",
+      "proxy_fallback_used": true,
+      "status": 200
+    },
+    {
+      "elapsed_ms": 54.1,
+      "label": "server_1_products",
+      "method": "GET",
+      "path": "/server-manager/serverproduct/list4edit2/<uuid:954>",
+      "proxy_fallback_used": true,
+      "status": 200
+    },
+    {
+      "elapsed_ms": 54.8,
+      "label": "server_1_endpoints_limit_5",
+      "method": "GET",
+      "path": "/server-manager/serverendpoint/list/<uuid:954>",
+      "proxy_fallback_used": true,
+      "status": 200
+    },
+    {
+      "elapsed_ms": 52.5,
+      "label": "server_2_sessions_limit_5",
+      "method": "GET",
+      "path": "/session-manager/sessions",
+      "proxy_fallback_used": true,
+      "status": 200
+    },
+    {
+      "elapsed_ms": 53.3,
+      "label": "server_2_products",
+      "method": "GET",
+      "path": "/server-manager/serverproduct/list4edit2/<uuid:955>",
+      "proxy_fallback_used": true,
+      "status": 200
+    },
+    {
+      "elapsed_ms": 53.2,
+      "label": "server_2_endpoints_limit_5",
+      "method": "GET",
+      "path": "/server-manager/serverendpoint/list/<uuid:955>",
+      "proxy_fallback_used": true,
+      "status": 200
+    },
+    {
+      "elapsed_ms": 108.6,
+      "label": "server_3_sessions_limit_5",
+      "method": "GET",
+      "path": "/session-manager/sessions",
+      "proxy_fallback_used": true,
+      "status": 200
+    },
+    {
+      "elapsed_ms": 55.9,
+      "label": "server_3_products",
+      "method": "GET",
+      "path": "/server-manager/serverproduct/list4edit2/<uuid:956>",
+      "proxy_fallback_used": true,
+      "status": 200
+    },
+    {
+      "elapsed_ms": 53.9,
+      "label": "server_3_endpoints_limit_5",
+      "method": "GET",
+      "path": "/server-manager/serverendpoint/list/<uuid:956>",
+      "proxy_fallback_used": true,
+      "status": 200
+    },
+    {
+      "elapsed_ms": 85.4,
+      "label": "test_station_publish_toggle",
+      "method": "POST",
+      "path": "/server-manager/servers/<uuid:955>/set_published/true",
+      "proxy_fallback_used": true,
+      "status": 200
+    },
+    {
+      "elapsed_ms": 61.6,
+      "label": "test_station_publish_toggle_confirm",
+      "method": "GET",
+      "path": "/server-manager/servers",
+      "proxy_fallback_used": true,
+      "status": 200
+    },
+    {
+      "elapsed_ms": 52.1,
+      "label": "test_station_publish_rollback",
+      "method": "POST",
+      "path": "/server-manager/servers/<uuid:955>/set_published/false",
+      "proxy_fallback_used": true,
+      "status": 200
+    },
+    {
+      "elapsed_ms": 57.4,
+      "label": "test_station_publish_rollback_confirm",
+      "method": "GET",
+      "path": "/server-manager/servers",
+      "proxy_fallback_used": true,
+      "status": 200
+    }
+  ]
+}

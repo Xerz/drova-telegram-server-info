@@ -1,0 +1,1197 @@
+{
+  "account": {
+    "fields": {
+      "elapsed_ms": {
+        "type": "number"
+      },
+      "label": {
+        "type": "string"
+      },
+      "method": {
+        "type": "string"
+      },
+      "params": {
+        "fields": {},
+        "type": "object"
+      },
+      "path": {
+        "type": "string"
+      },
+      "response": {
+        "fields": {
+          "balance": {
+            "type": "string"
+          },
+          "created_on": {
+            "type": "integer"
+          },
+          "disabled": {
+            "type": "boolean"
+          },
+          "emails": {
+            "type": "string"
+          },
+          "exportable_money": {
+            "type": "string"
+          },
+          "mts_msisdn": {
+            "type": "string"
+          },
+          "mts_pcr": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "primary_qiwi_bankcard_id": {
+            "type": "string"
+          },
+          "qiwi_wallet": {
+            "type": "string"
+          },
+          "roles": {
+            "count": 2,
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "trial_msecs_left": {
+            "type": "string"
+          },
+          "unlimited_credit": {
+            "type": "boolean"
+          },
+          "use_mts_billing": {
+            "type": "boolean"
+          },
+          "use_prepaid": {
+            "type": "boolean"
+          },
+          "use_subscription": {
+            "type": "boolean"
+          },
+          "uuid": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "status": {
+        "type": "integer"
+      }
+    },
+    "type": "object"
+  },
+  "products_full": {
+    "fields": {
+      "elapsed_ms": {
+        "type": "number"
+      },
+      "label": {
+        "type": "string"
+      },
+      "method": {
+        "type": "string"
+      },
+      "params": {
+        "fields": {},
+        "type": "object"
+      },
+      "path": {
+        "type": "string"
+      },
+      "response": {
+        "count": 993,
+        "items": {
+          "fields": {
+            "ageGroup": {
+              "type": [
+                "null",
+                "string"
+              ]
+            },
+            "aliases": {
+              "type": "string"
+            },
+            "cardPicture": {
+              "type": "string"
+            },
+            "descriptionEn": {
+              "type": "string"
+            },
+            "descriptionRu": {
+              "type": "string"
+            },
+            "developer": {
+              "type": "string"
+            },
+            "displayName": {
+              "type": "string"
+            },
+            "inShopUrl": {
+              "type": "string"
+            },
+            "licenseType": {
+              "type": "string"
+            },
+            "metacriticScore": {
+              "type": [
+                "null",
+                "string"
+              ]
+            },
+            "needVpn": {
+              "type": "boolean"
+            },
+            "noLicenseRequred": {
+              "type": "boolean"
+            },
+            "pagePicture": {
+              "type": "string"
+            },
+            "productId": {
+              "type": "string"
+            },
+            "publisher": {
+              "type": "string"
+            },
+            "requiredAccount": {
+              "type": "string"
+            },
+            "title": {
+              "type": "string"
+            },
+            "useDefaultDesktop": {
+              "type": "boolean"
+            }
+          },
+          "type": "object"
+        },
+        "type": "array"
+      },
+      "status": {
+        "type": "integer"
+      }
+    },
+    "type": "object"
+  },
+  "server_1_endpoints_limit_5": {
+    "fields": {
+      "elapsed_ms": {
+        "type": "number"
+      },
+      "label": {
+        "type": "string"
+      },
+      "method": {
+        "type": "string"
+      },
+      "params": {
+        "fields": {
+          "limit": {
+            "type": "integer"
+          },
+          "server_id": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "path": {
+        "type": "string"
+      },
+      "response": {
+        "count": 2,
+        "items": {
+          "fields": {
+            "base_port": {
+              "type": "integer"
+            },
+            "externally_routable": {
+              "type": "boolean"
+            },
+            "ip": {
+              "type": "string"
+            },
+            "priority": {
+              "type": "integer"
+            },
+            "server_id": {
+              "type": "string"
+            },
+            "updated_on": {
+              "type": "integer"
+            },
+            "user_defined": {
+              "type": "boolean"
+            },
+            "uuid": {
+              "type": "string"
+            }
+          },
+          "type": "object"
+        },
+        "type": "array"
+      },
+      "status": {
+        "type": "integer"
+      }
+    },
+    "type": "object"
+  },
+  "server_1_products": {
+    "fields": {
+      "elapsed_ms": {
+        "type": "number"
+      },
+      "label": {
+        "type": "string"
+      },
+      "method": {
+        "type": "string"
+      },
+      "params": {
+        "fields": {
+          "user_id": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "path": {
+        "type": "string"
+      },
+      "response": {
+        "count": 32,
+        "items": {
+          "fields": {
+            "available": {
+              "type": "boolean"
+            },
+            "enabled": {
+              "type": "boolean"
+            },
+            "needVpn": {
+              "type": "boolean"
+            },
+            "productId": {
+              "type": "string"
+            },
+            "published": {
+              "type": "boolean"
+            },
+            "title": {
+              "type": "string"
+            },
+            "useDefaultDesktop": {
+              "type": "boolean"
+            },
+            "verified": {
+              "type": "integer"
+            }
+          },
+          "type": "object"
+        },
+        "type": "array"
+      },
+      "status": {
+        "type": "integer"
+      }
+    },
+    "type": "object"
+  },
+  "server_1_sessions_limit_5": {
+    "fields": {
+      "elapsed_ms": {
+        "type": "number"
+      },
+      "label": {
+        "type": "string"
+      },
+      "method": {
+        "type": "string"
+      },
+      "params": {
+        "fields": {
+          "limit": {
+            "type": "integer"
+          },
+          "server_id": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "path": {
+        "type": "string"
+      },
+      "response": {
+        "fields": {
+          "sessions": {
+            "count": 5,
+            "items": {
+              "fields": {
+                "abort_comment": {
+                  "type": "string"
+                },
+                "billing_type": {
+                  "type": "string"
+                },
+                "client_id": {
+                  "type": "string"
+                },
+                "created_on": {
+                  "type": "integer"
+                },
+                "creator_ip": {
+                  "type": "string"
+                },
+                "finished_on": {
+                  "type": "integer"
+                },
+                "merchant_id": {
+                  "type": "string"
+                },
+                "product_id": {
+                  "type": "string"
+                },
+                "server_id": {
+                  "type": "string"
+                },
+                "status": {
+                  "type": "string"
+                },
+                "uuid": {
+                  "type": "string"
+                }
+              },
+              "type": "object"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
+      "status": {
+        "type": "integer"
+      }
+    },
+    "type": "object"
+  },
+  "server_2_endpoints_limit_5": {
+    "fields": {
+      "elapsed_ms": {
+        "type": "number"
+      },
+      "label": {
+        "type": "string"
+      },
+      "method": {
+        "type": "string"
+      },
+      "params": {
+        "fields": {
+          "limit": {
+            "type": "integer"
+          },
+          "server_id": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "path": {
+        "type": "string"
+      },
+      "response": {
+        "count": 0,
+        "items": null,
+        "type": "array"
+      },
+      "status": {
+        "type": "integer"
+      }
+    },
+    "type": "object"
+  },
+  "server_2_products": {
+    "fields": {
+      "elapsed_ms": {
+        "type": "number"
+      },
+      "label": {
+        "type": "string"
+      },
+      "method": {
+        "type": "string"
+      },
+      "params": {
+        "fields": {
+          "user_id": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "path": {
+        "type": "string"
+      },
+      "response": {
+        "count": 3,
+        "items": {
+          "fields": {
+            "available": {
+              "type": "boolean"
+            },
+            "enabled": {
+              "type": "boolean"
+            },
+            "needVpn": {
+              "type": "boolean"
+            },
+            "productId": {
+              "type": "string"
+            },
+            "published": {
+              "type": "boolean"
+            },
+            "title": {
+              "type": "string"
+            },
+            "useDefaultDesktop": {
+              "type": "boolean"
+            },
+            "verified": {
+              "type": "integer"
+            }
+          },
+          "type": "object"
+        },
+        "type": "array"
+      },
+      "status": {
+        "type": "integer"
+      }
+    },
+    "type": "object"
+  },
+  "server_2_sessions_limit_5": {
+    "fields": {
+      "elapsed_ms": {
+        "type": "number"
+      },
+      "label": {
+        "type": "string"
+      },
+      "method": {
+        "type": "string"
+      },
+      "params": {
+        "fields": {
+          "limit": {
+            "type": "integer"
+          },
+          "server_id": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "path": {
+        "type": "string"
+      },
+      "response": {
+        "fields": {
+          "sessions": {
+            "count": 0,
+            "items": null,
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
+      "status": {
+        "type": "integer"
+      }
+    },
+    "type": "object"
+  },
+  "server_3_endpoints_limit_5": {
+    "fields": {
+      "elapsed_ms": {
+        "type": "number"
+      },
+      "label": {
+        "type": "string"
+      },
+      "method": {
+        "type": "string"
+      },
+      "params": {
+        "fields": {
+          "limit": {
+            "type": "integer"
+          },
+          "server_id": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "path": {
+        "type": "string"
+      },
+      "response": {
+        "count": 3,
+        "items": {
+          "fields": {
+            "base_port": {
+              "type": "integer"
+            },
+            "externally_routable": {
+              "type": "boolean"
+            },
+            "ip": {
+              "type": "string"
+            },
+            "priority": {
+              "type": "integer"
+            },
+            "server_id": {
+              "type": "string"
+            },
+            "updated_on": {
+              "type": "integer"
+            },
+            "user_defined": {
+              "type": "boolean"
+            },
+            "uuid": {
+              "type": "string"
+            }
+          },
+          "type": "object"
+        },
+        "type": "array"
+      },
+      "status": {
+        "type": "integer"
+      }
+    },
+    "type": "object"
+  },
+  "server_3_products": {
+    "fields": {
+      "elapsed_ms": {
+        "type": "number"
+      },
+      "label": {
+        "type": "string"
+      },
+      "method": {
+        "type": "string"
+      },
+      "params": {
+        "fields": {
+          "user_id": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "path": {
+        "type": "string"
+      },
+      "response": {
+        "count": 40,
+        "items": {
+          "fields": {
+            "available": {
+              "type": "boolean"
+            },
+            "enabled": {
+              "type": "boolean"
+            },
+            "needVpn": {
+              "type": "boolean"
+            },
+            "productId": {
+              "type": "string"
+            },
+            "published": {
+              "type": "boolean"
+            },
+            "title": {
+              "type": "string"
+            },
+            "useDefaultDesktop": {
+              "type": "boolean"
+            },
+            "verified": {
+              "type": "integer"
+            }
+          },
+          "type": "object"
+        },
+        "type": "array"
+      },
+      "status": {
+        "type": "integer"
+      }
+    },
+    "type": "object"
+  },
+  "server_3_sessions_limit_5": {
+    "fields": {
+      "elapsed_ms": {
+        "type": "number"
+      },
+      "label": {
+        "type": "string"
+      },
+      "method": {
+        "type": "string"
+      },
+      "params": {
+        "fields": {
+          "limit": {
+            "type": "integer"
+          },
+          "server_id": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "path": {
+        "type": "string"
+      },
+      "response": {
+        "fields": {
+          "sessions": {
+            "count": 5,
+            "items": {
+              "fields": {
+                "billing_type": {
+                  "type": "string"
+                },
+                "client_id": {
+                  "type": "string"
+                },
+                "created_on": {
+                  "type": "integer"
+                },
+                "creator_ip": {
+                  "type": "string"
+                },
+                "finished_on": {
+                  "type": "integer"
+                },
+                "merchant_id": {
+                  "type": "string"
+                },
+                "product_id": {
+                  "type": "string"
+                },
+                "server_id": {
+                  "type": "string"
+                },
+                "status": {
+                  "type": "string"
+                },
+                "uuid": {
+                  "type": "string"
+                }
+              },
+              "type": "object"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
+      "status": {
+        "type": "integer"
+      }
+    },
+    "type": "object"
+  },
+  "servers": {
+    "fields": {
+      "elapsed_ms": {
+        "type": "number"
+      },
+      "label": {
+        "type": "string"
+      },
+      "method": {
+        "type": "string"
+      },
+      "params": {
+        "fields": {
+          "user_id": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "path": {
+        "type": "string"
+      },
+      "response": {
+        "count": 3,
+        "items": {
+          "fields": {
+            "alive_since": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "allow_desktop": {
+              "type": "boolean"
+            },
+            "city_name": {
+              "type": [
+                "null",
+                "string"
+              ]
+            },
+            "created_on": {
+              "type": "integer"
+            },
+            "deleted": {
+              "type": "boolean"
+            },
+            "description": {
+              "type": "string"
+            },
+            "disable_updates": {
+              "type": "boolean"
+            },
+            "distance": {
+              "type": "null"
+            },
+            "groups_list": {
+              "count": 0,
+              "items": null,
+              "type": "array"
+            },
+            "last_heartbeat": {
+              "type": "integer"
+            },
+            "latitude": {
+              "type": "string"
+            },
+            "longitude": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            },
+            "options_mask": {
+              "type": "integer"
+            },
+            "product_id": {
+              "type": "null"
+            },
+            "product_list": {
+              "count": 27,
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "published": {
+              "type": "boolean"
+            },
+            "session_id": {
+              "type": "null"
+            },
+            "state": {
+              "type": "string"
+            },
+            "user_id": {
+              "type": "string"
+            },
+            "uuid": {
+              "type": "string"
+            },
+            "verified": {
+              "type": "string"
+            }
+          },
+          "type": "object"
+        },
+        "type": "array"
+      },
+      "status": {
+        "type": "integer"
+      }
+    },
+    "type": "object"
+  },
+  "sessions_all_limit_5": {
+    "fields": {
+      "elapsed_ms": {
+        "type": "number"
+      },
+      "label": {
+        "type": "string"
+      },
+      "method": {
+        "type": "string"
+      },
+      "params": {
+        "fields": {
+          "limit": {
+            "type": "integer"
+          },
+          "merchant_id": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "path": {
+        "type": "string"
+      },
+      "response": {
+        "fields": {
+          "sessions": {
+            "count": 5,
+            "items": {
+              "fields": {
+                "abort_comment": {
+                  "type": "string"
+                },
+                "billing_type": {
+                  "type": "string"
+                },
+                "client_id": {
+                  "type": "string"
+                },
+                "created_on": {
+                  "type": "integer"
+                },
+                "creator_ip": {
+                  "type": "string"
+                },
+                "finished_on": {
+                  "type": "integer"
+                },
+                "merchant_id": {
+                  "type": "string"
+                },
+                "product_id": {
+                  "type": "string"
+                },
+                "server_id": {
+                  "type": "string"
+                },
+                "status": {
+                  "type": "string"
+                },
+                "uuid": {
+                  "type": "string"
+                }
+              },
+              "type": "object"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
+      "status": {
+        "type": "integer"
+      }
+    },
+    "type": "object"
+  },
+  "test_station_publish_rollback": {
+    "fields": {
+      "elapsed_ms": {
+        "type": "number"
+      },
+      "label": {
+        "type": "string"
+      },
+      "method": {
+        "type": "string"
+      },
+      "params": {
+        "fields": {},
+        "type": "object"
+      },
+      "path": {
+        "type": "string"
+      },
+      "response": {
+        "type": "string"
+      },
+      "status": {
+        "type": "integer"
+      }
+    },
+    "type": "object"
+  },
+  "test_station_publish_rollback_confirm": {
+    "fields": {
+      "elapsed_ms": {
+        "type": "number"
+      },
+      "label": {
+        "type": "string"
+      },
+      "method": {
+        "type": "string"
+      },
+      "params": {
+        "fields": {
+          "user_id": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "path": {
+        "type": "string"
+      },
+      "response": {
+        "count": 3,
+        "items": {
+          "fields": {
+            "alive_since": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "allow_desktop": {
+              "type": "boolean"
+            },
+            "city_name": {
+              "type": [
+                "null",
+                "string"
+              ]
+            },
+            "created_on": {
+              "type": "integer"
+            },
+            "deleted": {
+              "type": "boolean"
+            },
+            "description": {
+              "type": "string"
+            },
+            "disable_updates": {
+              "type": "boolean"
+            },
+            "distance": {
+              "type": "null"
+            },
+            "groups_list": {
+              "count": 0,
+              "items": null,
+              "type": "array"
+            },
+            "last_heartbeat": {
+              "type": "integer"
+            },
+            "latitude": {
+              "type": "string"
+            },
+            "longitude": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            },
+            "options_mask": {
+              "type": "integer"
+            },
+            "product_id": {
+              "type": "null"
+            },
+            "product_list": {
+              "count": 27,
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "published": {
+              "type": "boolean"
+            },
+            "session_id": {
+              "type": "null"
+            },
+            "state": {
+              "type": "string"
+            },
+            "user_id": {
+              "type": "string"
+            },
+            "uuid": {
+              "type": "string"
+            },
+            "verified": {
+              "type": "string"
+            }
+          },
+          "type": "object"
+        },
+        "type": "array"
+      },
+      "status": {
+        "type": "integer"
+      }
+    },
+    "type": "object"
+  },
+  "test_station_publish_toggle": {
+    "fields": {
+      "elapsed_ms": {
+        "type": "number"
+      },
+      "label": {
+        "type": "string"
+      },
+      "method": {
+        "type": "string"
+      },
+      "params": {
+        "fields": {},
+        "type": "object"
+      },
+      "path": {
+        "type": "string"
+      },
+      "response": {
+        "type": "string"
+      },
+      "status": {
+        "type": "integer"
+      }
+    },
+    "type": "object"
+  },
+  "test_station_publish_toggle_confirm": {
+    "fields": {
+      "elapsed_ms": {
+        "type": "number"
+      },
+      "label": {
+        "type": "string"
+      },
+      "method": {
+        "type": "string"
+      },
+      "params": {
+        "fields": {
+          "user_id": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "path": {
+        "type": "string"
+      },
+      "response": {
+        "count": 3,
+        "items": {
+          "fields": {
+            "alive_since": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "allow_desktop": {
+              "type": "boolean"
+            },
+            "city_name": {
+              "type": [
+                "null",
+                "string"
+              ]
+            },
+            "created_on": {
+              "type": "integer"
+            },
+            "deleted": {
+              "type": "boolean"
+            },
+            "description": {
+              "type": "string"
+            },
+            "disable_updates": {
+              "type": "boolean"
+            },
+            "distance": {
+              "type": "null"
+            },
+            "groups_list": {
+              "count": 0,
+              "items": null,
+              "type": "array"
+            },
+            "last_heartbeat": {
+              "type": "integer"
+            },
+            "latitude": {
+              "type": "string"
+            },
+            "longitude": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            },
+            "options_mask": {
+              "type": "integer"
+            },
+            "product_id": {
+              "type": "null"
+            },
+            "product_list": {
+              "count": 27,
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "published": {
+              "type": "boolean"
+            },
+            "session_id": {
+              "type": "null"
+            },
+            "state": {
+              "type": "string"
+            },
+            "user_id": {
+              "type": "string"
+            },
+            "uuid": {
+              "type": "string"
+            },
+            "verified": {
+              "type": "string"
+            }
+          },
+          "type": "object"
+        },
+        "type": "array"
+      },
+      "status": {
+        "type": "integer"
+      }
+    },
+    "type": "object"
+  }
+}

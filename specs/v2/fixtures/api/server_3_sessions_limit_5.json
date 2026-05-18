@@ -1,0 +1,74 @@
+{
+  "elapsed_ms": 108.6,
+  "label": "server_3_sessions_limit_5",
+  "method": "GET",
+  "params": {
+    "limit": 5,
+    "server_id": "<server_id:1>"
+  },
+  "path": "/session-manager/sessions",
+  "response": {
+    "sessions": [
+      {
+        "billing_type": "prepaid",
+        "client_id": "<client_id:1>",
+        "created_on": 1779106845662,
+        "creator_ip": "<ip:1>",
+        "finished_on": 1779107457816,
+        "merchant_id": "<merchant_id:1>",
+        "product_id": "39e835b0-44a1-4bc9-9fb5-98bad5fdc959",
+        "server_id": "<server_id:1>",
+        "status": "FINISHED",
+        "uuid": "<uuid:5>"
+      },
+      {
+        "billing_type": "subscription",
+        "client_id": "<client_id:2>",
+        "created_on": 1779098193950,
+        "creator_ip": "<ip:2>",
+        "finished_on": 1779104536922,
+        "merchant_id": "<merchant_id:1>",
+        "product_id": "9fd0eb43-b2bb-4ce3-93b8-9df63f209098",
+        "server_id": "<server_id:1>",
+        "status": "FINISHED",
+        "uuid": "<uuid:8>"
+      },
+      {
+        "billing_type": "prepaid",
+        "client_id": "<client_id:6>",
+        "created_on": 1779091825351,
+        "creator_ip": "<ip:7>",
+        "finished_on": 1779091998217,
+        "merchant_id": "<merchant_id:1>",
+        "product_id": "c857c1c2-84ea-416c-8640-ab7712f19b59",
+        "server_id": "<server_id:1>",
+        "status": "FINISHED",
+        "uuid": "<uuid:14>"
+      },
+      {
+        "client_id": "<client_id:4>",
+        "created_on": 1779090861643,
+        "creator_ip": "<ip:4>",
+        "finished_on": 1779091138868,
+        "merchant_id": "<merchant_id:1>",
+        "product_id": "ce6bc498-ad54-4c84-b999-b7406c2e86ce",
+        "server_id": "<server_id:1>",
+        "status": "FINISHED",
+        "uuid": "<uuid:15>"
+      },
+      {
+        "billing_type": "subscription",
+        "client_id": "<client_id:2>",
+        "created_on": 1779062615099,
+        "creator_ip": "<ip:2>",
+        "finished_on": 1779066646460,
+        "merchant_id": "<merchant_id:1>",
+        "product_id": "9fd0eb43-b2bb-4ce3-93b8-9df63f209098",
+        "server_id": "<server_id:1>",
+        "status": "FINISHED",
+        "uuid": "<uuid:16>"
+      }
+    ]
+  },
+  "status": 200
+}

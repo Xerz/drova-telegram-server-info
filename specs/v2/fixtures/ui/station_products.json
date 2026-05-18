@@ -1,0 +1,36 @@
+{
+  "station-online": [
+    {
+      "productId": "product-a",
+      "title": "Cyber Rally",
+      "enabled": true,
+      "published": true,
+      "available": true
+    },
+    {
+      "productId": "product-b",
+      "title": "Space Farm",
+      "enabled": false,
+      "published": true,
+      "available": true
+    }
+  ],
+  "station-hidden": [
+    {
+      "productId": "product-c",
+      "title": "Desktop Mode",
+      "enabled": true,
+      "published": false,
+      "available": true
+    }
+  ],
+  "station-busy": [
+    {
+      "productId": "product-b",
+      "title": "Space Farm",
+      "enabled": true,
+      "published": true,
+      "available": false
+    }
+  ]
+}

@@ -1,0 +1,43 @@
+{
+  "elapsed_ms": 53.9,
+  "label": "server_3_endpoints_limit_5",
+  "method": "GET",
+  "params": {
+    "limit": 5,
+    "server_id": "<server_id:1>"
+  },
+  "path": "/server-manager/serverendpoint/list/<uuid:956>",
+  "response": [
+    {
+      "base_port": 8005,
+      "externally_routable": true,
+      "ip": "<ip:8>",
+      "priority": 0,
+      "server_id": "<server_id:1>",
+      "updated_on": 1761510270296,
+      "user_defined": true,
+      "uuid": "<uuid:17>"
+    },
+    {
+      "base_port": 8005,
+      "externally_routable": true,
+      "ip": "<ip:6>",
+      "priority": 0,
+      "server_id": "<server_id:1>",
+      "updated_on": 1769507459608,
+      "user_defined": true,
+      "uuid": "<uuid:18>"
+    },
+    {
+      "base_port": 7985,
+      "externally_routable": false,
+      "ip": "<ip:6>",
+      "priority": 0,
+      "server_id": "<server_id:1>",
+      "updated_on": 1779109699276,
+      "user_defined": false,
+      "uuid": "<uuid:19>"
+    }
+  ],
+  "status": 200
+}
