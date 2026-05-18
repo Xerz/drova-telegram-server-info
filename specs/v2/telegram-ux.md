@@ -67,6 +67,14 @@
   - `Публикация`
   - when publish panel is open: numbered station buttons and `Скрыть панель`
 
+## Promocodes
+
+- `/promocode <minutes>` issues one prepaid promocode for a positive integer number of minutes.
+- `/promocodes` lists prepaid promocodes that are not activated yet.
+- Promocode values are always rendered as `<code>...</code>` for tap-to-copy.
+- Promocode output includes playtime minutes and expiry date/time when available.
+- Invalid minutes render a user-safe validation error and do not call Drova.
+
 ## Publish Confirmation
 
 Flow:

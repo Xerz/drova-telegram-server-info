@@ -2,7 +2,14 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from drova_bot.domain.models import ChatProfile, Endpoint, Session, Station, StationProduct
+from drova_bot.domain.models import (
+    ChatProfile,
+    Endpoint,
+    Promocode,
+    Session,
+    Station,
+    StationProduct,
+)
 from drova_bot.telegram.renderers import (
     EndpointGeo,
     latest_sessions_by_station,
@@ -10,11 +17,13 @@ from drova_bot.telegram.renderers import (
     render_disabled,
     render_error,
     render_help,
+    render_promocode_issued,
     render_sessions,
     render_start_connected,
     render_start_not_connected,
     render_station_picker,
     render_stations,
+    render_unused_promocodes,
 )
 
 
@@ -28,6 +37,8 @@ def test_start_and_help_messages_are_russian_and_safe() -> None:
     ).text
     assert "/station_all - выбрать все станции" in help_text
     assert "/sessions_short - последние сессии дольше 5 минут" in help_text
+    assert "/promocode &lt;minutes&gt; - выпустить prepaid-промокод" in help_text
+    assert "/promocodes - неактивированные prepaid-промокоды" in help_text
     assert "/export_sessions - один XLSX со всеми сессиями" in help_text
     assert "/export_sessions_csv - CSV-файлы по каждой станции" in help_text
     assert "/export_products - XLSX-матрица состояния продуктов по станциям" in help_text
@@ -35,6 +46,35 @@ def test_start_and_help_messages_are_russian_and_safe() -> None:
     assert "/sessions short -" not in help_text
     assert "/export sessions -" not in help_text
     assert render_error("unknown_command").text == "Команда не найдена. Используйте /help."
+    assert "целым числом больше 0" in render_error("invalid_promocode_minutes").text
+
+
+def test_promocode_renderers_use_monospace_codes() -> None:
+    promocodes = [
+        Promocode(
+            id=14035,
+            promocode="27400125",
+            created_on_ms=1779132366809,
+            expired_on_ms=1781810766809,
+            expired=False,
+            merchant_id="merchant-1",
+            playtime_msecs=3_600_000,
+        )
+    ]
+
+    issued = render_promocode_issued(
+        promocodes,
+        requested_minutes=60,
+        timezone="Asia/Yekaterinburg",
+    )
+    unused = render_unused_promocodes(promocodes, timezone="Asia/Yekaterinburg")
+    empty = render_unused_promocodes([], timezone="Asia/Yekaterinburg")
+
+    assert "Выпущен промокод на 60 мин" in issued.text
+    assert "<code>27400125</code> · 60 мин · до 2026-06-19 00:26" in issued.text
+    assert "Неактивированные промокоды:" in unused.text
+    assert "<code>27400125</code> · 60 мин · до 2026-06-19 00:26" in unused.text
+    assert empty.text == "Неактивированных промокодов нет."
 
 
 def test_station_picker_uses_one_station_per_row(ui_stations: list[Station]) -> None:

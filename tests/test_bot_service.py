@@ -14,6 +14,7 @@ from drova_bot.domain.models import (
     Account,
     CatalogProduct,
     Endpoint,
+    Promocode,
     Session,
     SessionPage,
     Station,
@@ -44,6 +45,7 @@ class FakeDrovaClient:
         stations: list[Station] | None = None,
         products: list[CatalogProduct] | None = None,
         sessions: list[Session] | None = None,
+        promocodes: list[Promocode] | None = None,
         station_products: dict[str, list[StationProduct]] | None = None,
         endpoints: dict[str, list[Endpoint]] | None = None,
         unauthorized: bool = False,
@@ -54,12 +56,14 @@ class FakeDrovaClient:
         self.stations = stations or []
         self.products = products or []
         self.sessions_data = sessions or []
+        self.promocodes = promocodes or []
         self.station_products = station_products or {}
         self.endpoints = endpoints or {}
         self.unauthorized = unauthorized
         self.session_failures = session_failures or set()
         self.closed = False
         self.published_calls: list[tuple[str, bool]] = []
+        self.issued_promocode_minutes: list[int] = []
 
     @property
     def proxy_token(self) -> str:
@@ -113,6 +117,13 @@ class FakeDrovaClient:
             replace(station, published=published) if station.uuid == server_id else station
             for station in self.stations
         ]
+
+    async def issue_promocode(self, minutes: int) -> list[Promocode]:
+        self.issued_promocode_minutes.append(minutes)
+        return self.promocodes
+
+    async def get_unused_promocodes(self) -> list[Promocode]:
+        return self.promocodes
 
 
 class FakeDrovaClientFactory:
@@ -280,6 +291,43 @@ async def test_current_renders_partial_station_failure(
 
     assert "🌐 Alpha Station · <b>Cyber Rally</b>" in message.text
     assert "🔒 Beta Test Station · скрыта · UNVERIFIED · ошибка загрузки" in message.text
+
+
+@pytest.mark.asyncio
+async def test_promocode_issue_and_unused_list_use_saved_token(
+    service_engine: AsyncEngine,
+    ui_stations: list[Station],
+) -> None:
+    promocodes = [_promocode("27400125", 3_600_000)]
+    issue_client = FakeDrovaClient(promocodes=promocodes)
+    service = make_service(
+        service_engine,
+        FakeDrovaClientFactory(
+            FakeDrovaClient(stations=ui_stations),
+            issue_client,
+            FakeDrovaClient(promocodes=promocodes),
+        ),
+    )
+    await service.connect_token(10001, "token")
+
+    issued = await service.issue_promocode(10001, "60")
+    unused = await service.unused_promocodes(10001)
+
+    assert issue_client.issued_promocode_minutes == [60]
+    assert "<code>27400125</code> · 60 мин" in issued.text
+    assert "Неактивированные промокоды:" in unused.text
+    assert "<code>27400125</code> · 60 мин" in unused.text
+
+
+@pytest.mark.asyncio
+async def test_promocode_issue_rejects_invalid_minutes_without_client(
+    service_engine: AsyncEngine,
+) -> None:
+    service = make_service(service_engine, FakeDrovaClientFactory())
+
+    message = await service.issue_promocode(10001, "1.5")
+
+    assert "целым числом больше 0" in message.text
 
 
 @pytest.mark.asyncio
@@ -581,3 +629,15 @@ async def test_export_row_limit_returns_safe_failure(
 
 def _catalog_products(catalog: dict[str, str]) -> list[CatalogProduct]:
     return [CatalogProduct(product_id, title) for product_id, title in catalog.items()]
+
+
+def _promocode(code: str, playtime_msecs: int) -> Promocode:
+    return Promocode(
+        id=14035,
+        promocode=code,
+        created_on_ms=1779132366809,
+        expired_on_ms=1781810766809,
+        expired=False,
+        merchant_id="merchant-1",
+        playtime_msecs=playtime_msecs,
+    )

@@ -53,6 +53,15 @@ Endpoint
   ip: str
   base_port: int
   externally_routable: bool | None
+
+Promocode
+  id: int
+  promocode: str
+  created_on_ms: int
+  expired_on_ms: int
+  expired: bool
+  merchant_id: str
+  playtime_msecs: int
 ```
 
 ## Station State Presentation

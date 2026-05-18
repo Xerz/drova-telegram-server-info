@@ -72,6 +72,8 @@ async def test_register_bot_commands_uses_runtime_command_list() -> None:
         "current",
         "disabled",
         "stations",
+        "promocode",
+        "promocodes",
         "export_sessions",
         "export_sessions_csv",
         "export_products",

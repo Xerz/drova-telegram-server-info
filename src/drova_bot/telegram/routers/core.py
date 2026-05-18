@@ -47,6 +47,8 @@ def build_router() -> Router:
     router.message.register(current_command, Command("current"))
     router.message.register(disabled_command, Command("disabled"))
     router.message.register(stations_command, Command("stations", "stationsInfo"))
+    router.message.register(promocode_command, Command("promocode"))
+    router.message.register(promocodes_command, Command("promocodes"))
     router.message.register(
         export_command,
         Command(
@@ -130,6 +132,17 @@ async def disabled_command(message: Message, bot_service: BotService) -> None:
 
 async def stations_command(message: Message, bot_service: BotService) -> None:
     await answer_rendered(message, await bot_service.stations(message.chat.id))
+
+
+async def promocode_command(message: Message, bot_service: BotService) -> None:
+    await answer_rendered(
+        message,
+        await bot_service.issue_promocode(message.chat.id, _command_args(message.text)),
+    )
+
+
+async def promocodes_command(message: Message, bot_service: BotService) -> None:
+    await answer_rendered(message, await bot_service.unused_promocodes(message.chat.id))
 
 
 async def export_command(message: Message, bot_service: BotService) -> None:

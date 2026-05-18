@@ -10,6 +10,7 @@ from drova_bot.domain.models import (
     Account,
     CatalogProduct,
     Endpoint,
+    Promocode,
     Session,
     SessionPage,
     Station,
@@ -151,3 +152,23 @@ class EndpointResponse(DrovaApiModel):
             externally_routable=self.externally_routable,
         )
 
+
+class PromocodeResponse(DrovaApiModel):
+    id: int
+    promocode: str
+    created_on_ms: int = Field(alias="created_on")
+    expired_on_ms: int = Field(alias="expired_on")
+    expired: bool
+    merchant_id: str
+    playtime_msecs: int
+
+    def to_domain(self) -> Promocode:
+        return Promocode(
+            id=self.id,
+            promocode=self.promocode,
+            created_on_ms=self.created_on_ms,
+            expired_on_ms=self.expired_on_ms,
+            expired=self.expired,
+            merchant_id=self.merchant_id,
+            playtime_msecs=self.playtime_msecs,
+        )

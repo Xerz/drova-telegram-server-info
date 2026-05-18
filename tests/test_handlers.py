@@ -20,6 +20,8 @@ from drova_bot.telegram.routers.core import (
     export_kind_from_message,
     limit_command,
     logout_command,
+    promocode_command,
+    promocodes_command,
     sessions_command,
     sessions_short_command,
     station_all_command,
@@ -117,6 +119,14 @@ class FakeService:
         self.calls.append(("sessions", (chat_id,), {"short_mode": short_mode}))
         return RenderedMessage(f"sessions:{short_mode}")
 
+    async def issue_promocode(self, chat_id: int, raw_minutes: str) -> RenderedMessage:
+        self.calls.append(("issue_promocode", (chat_id, raw_minutes), {}))
+        return RenderedMessage(f"promocode:{raw_minutes}")
+
+    async def unused_promocodes(self, chat_id: int) -> RenderedMessage:
+        self.calls.append(("unused_promocodes", (chat_id,), {}))
+        return RenderedMessage("promocodes")
+
     async def handle_callback(self, chat_id: int, callback: object) -> RenderedMessage:
         self.calls.append(("handle_callback", (chat_id, callback), {}))
         return RenderedMessage("callback")
@@ -174,12 +184,16 @@ async def test_token_limit_sessions_and_station_handlers_parse_arguments() -> No
     await limit_command(cast(Message, FakeMessage("/limit 25")), service)  # type: ignore[arg-type]
     await sessions_short_command(cast(Message, FakeMessage("/sessions_short")), service)  # type: ignore[arg-type]
     await station_all_command(cast(Message, FakeMessage("/station_all")), service)  # type: ignore[arg-type]
+    await promocode_command(cast(Message, FakeMessage("/promocode 60")), service)  # type: ignore[arg-type]
+    await promocodes_command(cast(Message, FakeMessage("/promocodes")), service)  # type: ignore[arg-type]
 
     assert service.calls == [
         ("connect_token", (10001, "proxy-token"), {}),
         ("set_limit", (10001, "25"), {}),
         ("sessions", (10001,), {"short_mode": True}),
         ("select_all_stations", (10001,), {}),
+        ("issue_promocode", (10001, "60"), {}),
+        ("unused_promocodes", (10001,), {}),
     ]
     assert token_message.answers[0][0] == "token:proxy-token"
 

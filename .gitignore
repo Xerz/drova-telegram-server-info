@@ -3,6 +3,7 @@ persistentData.json
 xray-config/config.json
 data/
 *.swp
+*.swo
 
 # GeoLite2 IP databases
 GeoLite2-City.mmdb

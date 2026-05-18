@@ -13,6 +13,8 @@
     "server_1_endpoints_limit_5.json": "Endpoint parsing and internal/external grouping.",
     "server_2_endpoints_limit_5.json": "Endpoint parsing for station with smaller endpoint set.",
     "server_3_endpoints_limit_5.json": "Endpoint parsing and internal/external grouping.",
+    "promocodes_issue_60.json": "Prepaid promocode issue response for 60 minutes.",
+    "promocodes_unused.json": "Unused prepaid promocode list parsing and renderer tests.",
     "test_station_publish_toggle.json": "Publish write response shape after guarded toggle.",
     "test_station_publish_toggle_confirm.json": "Station readback after guarded toggle.",
     "test_station_publish_rollback.json": "Publish write response shape after rollback.",

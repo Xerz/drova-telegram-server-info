@@ -29,12 +29,14 @@ from drova_bot.telegram.renderers import (
     render_current,
     render_disabled,
     render_error,
+    render_promocode_issued,
     render_publish_confirmation,
     render_sessions,
     render_start_connected,
     render_start_not_connected,
     render_station_picker,
     render_stations,
+    render_unused_promocodes,
 )
 
 UnitOfWorkFactory = Callable[[], StorageUnitOfWork]
@@ -173,6 +175,47 @@ class BotService:
         async with self._uow_factory() as uow:
             await uow.chat_profiles.set_session_limit(telegram_chat_id, limit)
         return RenderedMessage(f"Лимит сессий: {limit}")
+
+    async def issue_promocode(
+        self,
+        telegram_chat_id: int,
+        raw_minutes: str | None,
+    ) -> RenderedMessage:
+        minutes = _parse_promocode_minutes(raw_minutes)
+        if minutes is None:
+            return render_error("invalid_promocode_minutes")
+        loaded = await self._load_client(telegram_chat_id)
+        if loaded is None:
+            return render_error("not_connected")
+        profile, client = loaded
+        try:
+            promocodes = await client.issue_promocode(minutes)
+            return render_promocode_issued(
+                promocodes,
+                requested_minutes=minutes,
+                timezone=profile.timezone,
+            )
+        except (DrovaUnauthorized, DrovaPermissionDenied):
+            return render_error("drova_unauthorized")
+        except DrovaUnavailable:
+            return render_error("drova_unavailable")
+        finally:
+            await client.aclose()
+
+    async def unused_promocodes(self, telegram_chat_id: int) -> RenderedMessage:
+        loaded = await self._load_client(telegram_chat_id)
+        if loaded is None:
+            return render_error("not_connected")
+        profile, client = loaded
+        try:
+            promocodes = await client.get_unused_promocodes()
+            return render_unused_promocodes(promocodes, timezone=profile.timezone)
+        except (DrovaUnauthorized, DrovaPermissionDenied):
+            return render_error("drova_unauthorized")
+        except DrovaUnavailable:
+            return render_error("drova_unavailable")
+        finally:
+            await client.aclose()
 
     async def sessions(self, telegram_chat_id: int, *, short_mode: bool = False) -> RenderedMessage:
         loaded = await self._load_client(telegram_chat_id)
@@ -616,6 +659,18 @@ def _selected_stations(stations: list[Station], profile: ChatProfile) -> list[St
     if profile.selected_station_id is None:
         return stations
     return [station for station in stations if station.uuid == profile.selected_station_id]
+
+
+def _parse_promocode_minutes(raw_minutes: str | None) -> int | None:
+    if raw_minutes is None:
+        return None
+    try:
+        minutes = int(raw_minutes.strip())
+    except ValueError:
+        return None
+    if minutes <= 0:
+        return None
+    return minutes
 
 
 def _export_ready_message(files: Sequence[object]) -> str:

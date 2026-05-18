@@ -9,6 +9,7 @@ from drova_bot.domain.models import (
     Account,
     CatalogProduct,
     Endpoint,
+    Promocode,
     SessionPage,
     Station,
     StationProduct,
@@ -46,6 +47,10 @@ class DrovaClientProtocol(Protocol):
 
     async def set_server_published(self, server_id: str, published: bool) -> None: ...
 
+    async def issue_promocode(self, minutes: int) -> list[Promocode]: ...
+
+    async def get_unused_promocodes(self) -> list[Promocode]: ...
+
 
 class DrovaClientFactory(Protocol):
     def create(
@@ -54,4 +59,3 @@ class DrovaClientFactory(Protocol):
         *,
         token_persister: TokenPersister | None = None,
     ) -> DrovaClientProtocol: ...
-

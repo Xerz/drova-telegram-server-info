@@ -32,6 +32,8 @@
 | `/current` | Dashboard состояния всех станций. |
 | `/disabled` | Проблемные продукты по станциям. |
 | `/stations` | Список станций и endpoints. |
+| `/promocode <minutes>` | Выпустить один prepaid-промокод на указанное целое число минут. |
+| `/promocodes` | Показать неактивированные prepaid-промокоды. |
 | `/export_sessions` | Выгрузить сессии одним XLSX-файлом. |
 | `/export_sessions_csv` | Выгрузить сессии CSV-файлами по станциям. |
 | `/export_products` | Выгрузить XLSX-матрицу состояния продуктов. |

@@ -40,6 +40,8 @@ BOT_COMMANDS = [
     BotCommand(command="current", description="Текущее состояние станций"),
     BotCommand(command="disabled", description="Проблемы с продуктами"),
     BotCommand(command="stations", description="Станции и эндпоинты"),
+    BotCommand(command="promocode", description="Выпустить prepaid-промокод"),
+    BotCommand(command="promocodes", description="Неактивированные промокоды"),
     BotCommand(command="export_sessions", description="Сессии одним XLSX"),
     BotCommand(command="export_sessions_csv", description="Сессии CSV по станциям"),
     BotCommand(command="export_products", description="Матрица продуктов XLSX"),

@@ -25,7 +25,14 @@ from drova_bot.domain.formatters import (
     sort_stations,
     station_display_name,
 )
-from drova_bot.domain.models import ChatProfile, Endpoint, Session, Station, StationProduct
+from drova_bot.domain.models import (
+    ChatProfile,
+    Endpoint,
+    Promocode,
+    Session,
+    Station,
+    StationProduct,
+)
 from drova_bot.telegram.callbacks import CallbackSpec
 from drova_bot.telegram.keyboards import ButtonSpec, KeyboardSpec
 
@@ -89,6 +96,8 @@ def render_help() -> RenderedMessage:
         "/current - состояние станций",
         "/disabled - проблемные продукты",
         "/stations - станции и endpoints",
+        "/promocode &lt;minutes&gt; - выпустить prepaid-промокод",
+        "/promocodes - неактивированные prepaid-промокоды",
         "/export_sessions - один XLSX со всеми сессиями",
         "/export_sessions_csv - CSV-файлы по каждой станции",
         "/export_products - XLSX-матрица состояния продуктов по станциям",
@@ -104,6 +113,7 @@ def render_error(code: str) -> RenderedMessage:
         "unknown_text": "Я понимаю только команды. Используйте /help.",
         "not_connected": "Сначала подключите Drova token командой /token &lt;proxy_token&gt;.",
         "invalid_limit": "Лимит должен быть числом от 1 до 100.",
+        "invalid_promocode_minutes": "Укажите количество минут целым числом больше 0.",
         "drova_unavailable": "Drova временно недоступен. Попробуйте позже.",
         "drova_unauthorized": "Токен недействителен. Подключите новый через /token.",
         "stale_publish": "Состояние станции изменилось. Обновите панель публикации.",
@@ -155,6 +165,46 @@ def render_station_picker(
         rows.append(nav)
 
     return RenderedMessage("Выберите станцию:", KeyboardSpec(rows))
+
+
+def render_promocode_issued(
+    promocodes: Sequence[Promocode],
+    *,
+    requested_minutes: int,
+    timezone: str,
+) -> RenderedMessage:
+    if not promocodes:
+        return RenderedMessage("Промокод не выпущен. Попробуйте позже.")
+    header = (
+        f"Выпущен промокод на {requested_minutes} мин:"
+        if len(promocodes) == 1
+        else f"Выпущены промокоды на {requested_minutes} мин:"
+    )
+    lines = [header, *[_promocode_line(promocode, timezone) for promocode in promocodes]]
+    return RenderedMessage("\n".join(lines))
+
+
+def render_unused_promocodes(
+    promocodes: Sequence[Promocode],
+    *,
+    timezone: str,
+) -> RenderedMessage:
+    if not promocodes:
+        return RenderedMessage("Неактивированных промокодов нет.")
+    lines = [
+        "Неактивированные промокоды:",
+        *[_promocode_line(promocode, timezone) for promocode in promocodes],
+    ]
+    return RenderedMessage("\n".join(lines))
+
+
+def _promocode_line(promocode: Promocode, timezone: str) -> str:
+    minutes = max(0, promocode.playtime_msecs // 60_000)
+    expires_at = (
+        f"{format_date(promocode.expired_on_ms, timezone)} "
+        f"{format_time_short(promocode.expired_on_ms, timezone)}"
+    )
+    return f"<code>{html_escape(promocode.promocode)}</code> · {minutes} мин · до {expires_at}"
 
 
 def render_sessions(

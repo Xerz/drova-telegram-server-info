@@ -13,6 +13,7 @@ from drova_bot.domain.models import (
     Account,
     CatalogProduct,
     Endpoint,
+    Promocode,
     SessionPage,
     Station,
     StationProduct,
@@ -22,6 +23,7 @@ from drova_bot.drova.models import (
     AccountResponse,
     CatalogProductResponse,
     EndpointResponse,
+    PromocodeResponse,
     SessionPageResponse,
     StationProductResponse,
     StationResponse,
@@ -170,6 +172,22 @@ class DrovaClient:
             retry_read=False,
         )
 
+    async def issue_promocode(self, minutes: int) -> list[Promocode]:
+        playtime_msecs = minutes * 60 * 1000
+        payload = await self._request(
+            "GET",
+            f"/accounting/prepaid/issue_promocodes/1/{playtime_msecs}",
+            retry_read=False,
+        )
+        return _parse_promocodes(payload)
+
+    async def get_unused_promocodes(self) -> list[Promocode]:
+        payload = await self._request(
+            "GET",
+            "/accounting/prepaid/list_unused_promocodes/false",
+        )
+        return _parse_promocodes(payload)
+
     async def _request(
         self,
         method: str,
@@ -253,3 +271,12 @@ class DrovaClient:
         if last_exc is not None:
             raise last_exc
         raise DrovaUnavailable("Drova request did not complete")
+
+
+def _parse_promocodes(payload: object) -> list[Promocode]:
+    if not isinstance(payload, list):
+        raise DrovaUnavailable("promocodes response is not a list")
+    try:
+        return [PromocodeResponse.model_validate(item).to_domain() for item in payload]
+    except ValidationError as exc:
+        raise DrovaUnavailable("promocodes response has unexpected shape") from exc

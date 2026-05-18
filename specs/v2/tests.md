@@ -38,6 +38,8 @@ No command handler is considered done without handler tests and renderer tests.
 - Publish confirmation success, cancel and stale-state failure.
 - `/disabled` empty and non-empty states.
 - `/stations` endpoint grouping.
+- `/promocode <minutes>` validates integer minutes, issues one code and renders it monospace.
+- `/promocodes` lists unused codes monospace.
 - All export variants.
 - Token renewal on 401 with exactly one retry.
 - Telegram HTML fallback.

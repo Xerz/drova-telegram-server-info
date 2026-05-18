@@ -17,6 +17,8 @@ async def get_sessions(
 async def get_server_products(user_id: str, server_id: str) -> list[StationProduct]
 async def get_server_endpoints(server_id: str, limit: int | None = None) -> list[Endpoint]
 async def set_server_published(server_id: str, published: bool) -> None
+async def issue_promocode(minutes: int) -> list[Promocode]
+async def get_unused_promocodes() -> list[Promocode]
 ```
 
 ## Endpoint Mapping
@@ -31,6 +33,8 @@ async def set_server_published(server_id: str, published: bool) -> None
 | `GET` | `/server-manager/serverproduct/list4edit2/{server_id}` | Yes | Query `user_id`. |
 | `GET` | `/server-manager/serverendpoint/list/{server_id}` | Yes | Query `server_id`, optional `limit`. |
 | `POST` | `/server-manager/servers/{server_id}/set_published/{true\|false}` | Yes | No body required by observed API. |
+| `GET` | `/accounting/prepaid/issue_promocodes/1/{playtime_msecs}` | Yes | Issues one prepaid promocode. Treat as write and do not retry automatically. |
+| `GET` | `/accounting/prepaid/list_unused_promocodes/false` | Yes | Lists not-yet-activated promocodes. |
 
 ## Token Renewal
 
@@ -44,7 +48,7 @@ async def set_server_published(server_id: str, published: bool) -> None
 
 - Default timeout: 10 seconds connect/read total budget unless implementation chooses separate `httpx.Timeout` fields.
 - Retry only idempotent read requests on network timeout, max 2 attempts with small jitter.
-- Do not automatically retry `set_server_published`.
+- Do not automatically retry `set_server_published` or `issue_promocode`.
 - Validate JSON shape through Pydantic models; unknown fields are allowed and preserved only when useful for logging/tests.
 
 ## Live Contract Fixtures
@@ -58,6 +62,8 @@ Canonical live sanitized fixtures live under `fixtures/api/`.
 - `server_*_products.json`
 - `server_*_endpoints_limit_5.json`
 - `products_full.json`
+- `promocodes_issue_60.json`
+- `promocodes_unused.json`
 - `test_station_publish_*.json`
 - `schema-summary.json`
 - `sampling-report.json`

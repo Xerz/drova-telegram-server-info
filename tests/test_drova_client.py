@@ -106,3 +106,47 @@ async def test_publish_write_accepts_empty_success_body() -> None:
             await client.set_server_published("station-1", True)
 
     assert len(route.calls) == 1
+
+
+@pytest.mark.asyncio
+async def test_issue_promocode_uses_minutes_msecs_path_and_auth_header() -> None:
+    with respx.mock(assert_all_called=True) as router:
+        route = router.get(
+            "https://services.drova.io/accounting/prepaid/issue_promocodes/1/3600000"
+        ).mock(return_value=httpx.Response(200, json=load_api_response("promocodes_issue_60.json")))
+        async with DrovaClient(proxy_token="token") as client:
+            promocodes = await client.issue_promocode(60)
+
+    assert promocodes[0].promocode == "27400125"
+    assert promocodes[0].playtime_msecs == 3_600_000
+    assert route.calls[0].request.headers["X-Auth-Token"] == "token"
+
+
+@pytest.mark.asyncio
+async def test_issue_promocode_get_write_does_not_retry_timeout() -> None:
+    with respx.mock(assert_all_called=True) as router:
+        route = router.get(
+            "https://services.drova.io/accounting/prepaid/issue_promocodes/1/60000"
+        ).mock(side_effect=httpx.ReadTimeout("timeout"))
+        async with DrovaClient(proxy_token="token") as client:
+            with pytest.raises(DrovaUnavailable):
+                await client.issue_promocode(1)
+
+    assert len(route.calls) == 1
+
+
+@pytest.mark.asyncio
+async def test_get_unused_promocodes_parses_list() -> None:
+    with respx.mock(assert_all_called=True) as router:
+        route = router.get(
+            "https://services.drova.io/accounting/prepaid/list_unused_promocodes/false"
+        ).mock(return_value=httpx.Response(200, json=load_api_response("promocodes_unused.json")))
+        async with DrovaClient(proxy_token="token") as client:
+            promocodes = await client.get_unused_promocodes()
+
+    assert [promocode.promocode for promocode in promocodes] == [
+        "22945015",
+        "40596660",
+        "27400125",
+    ]
+    assert route.calls[0].request.headers["X-Auth-Token"] == "token"
