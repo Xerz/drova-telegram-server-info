@@ -275,8 +275,36 @@ async def test_current_renders_partial_station_failure(
 
     message = await service.current(10001)
 
-    assert "Alpha Station · <b>Cyber Rally</b>" in message.text
-    assert "Beta Test Station · скрыта · UNVERIFIED · ошибка загрузки" in message.text
+    assert "🟢 Alpha Station · <b>Cyber Rally</b>" in message.text
+    assert "⚫ Beta Test Station · скрыта · UNVERIFIED · ошибка загрузки" in message.text
+
+
+@pytest.mark.asyncio
+async def test_current_refresh_panel_callback_keeps_publish_panel_open(
+    service_engine: AsyncEngine,
+    ui_stations: list[Station],
+    ui_sessions: list[Session],
+) -> None:
+    service = make_service(
+        service_engine,
+        FakeDrovaClientFactory(
+            FakeDrovaClient(
+                stations=ui_stations,
+                products=[CatalogProduct("product-a", "Cyber Rally")],
+            ),
+            FakeDrovaClient(stations=ui_stations, sessions=ui_sessions),
+        ),
+    )
+    await service.connect_token(10001, "token")
+
+    message = await service.handle_callback(
+        10001,
+        parse_callback_data(CallbackSpec(action="current_refresh_panel").pack()),
+    )
+
+    assert message.keyboard is not None
+    assert message.keyboard.rows[1][0].text == "1"
+    assert message.keyboard.rows[2][0].text == "Скрыть панель публикации"
 
 
 @pytest.mark.asyncio

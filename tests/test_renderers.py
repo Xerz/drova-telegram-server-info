@@ -151,16 +151,41 @@ def test_current_renderer_matches_fixture_intent(
         publish_panel_open=True,
     )
     assert (
-        "1. Alpha Station · <b>Cyber Rally</b> · 💳 prepaid ✅ finished · 16:00 · 10 мин"
+        "1. 🟢 Alpha Station · <b>Cyber Rally</b> · 💳 prepaid ✅ finished · 16:00 · 10 мин"
         in message.text
     )
-    assert "2. Beta Test Station · скрыта · UNVERIFIED · нет сессий" in message.text
+    assert "2. ⚫ Beta Test Station · скрыта · UNVERIFIED · нет сессий" in message.text
     assert (
-        "3. Gamma Trial · Trial · <b>Space Farm</b> · 🧪 trial 🟢 active · 16:40 · 20 мин"
+        "3. 🟢 Gamma Trial · Trial · <b>Space Farm</b> · 🧪 trial 🟢 active · 16:40 · 20 мин"
         in message.text
     )
     assert message.keyboard is not None
-    assert message.keyboard.rows[2][0].text == "1"
+    assert message.keyboard.rows[0][0].callback_data.startswith("co")
+    assert message.keyboard.rows[1][0].text == "1"
+    assert message.keyboard.rows[2][0].text == "Скрыть панель публикации"
+    assert "Показать панель публикации" not in [
+        button.text for row in message.keyboard.rows for button in row
+    ]
+
+
+def test_current_renderer_hidden_panel_shows_publish_panel_button(
+    ui_profile: ChatProfile,
+    ui_sessions: list[Session],
+    ui_stations: list[Station],
+    ui_catalog: dict[str, str],
+    ui_now: datetime,
+) -> None:
+    message = render_current(
+        ui_profile,
+        ui_stations,
+        latest_sessions_by_station(ui_sessions),
+        ui_catalog,
+        now=ui_now,
+    )
+
+    assert message.keyboard is not None
+    assert message.keyboard.rows[0][0].callback_data.startswith("cr")
+    assert message.keyboard.rows[1][0].text == "Показать панель публикации"
 
 
 def test_disabled_renderer_matches_fixture_intent(

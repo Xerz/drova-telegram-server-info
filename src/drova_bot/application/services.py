@@ -442,6 +442,8 @@ class BotService:
             return await self.sessions(telegram_chat_id)
         if callback.action == "current_refresh":
             return await self.current(telegram_chat_id)
+        if callback.action == "current_refresh_panel":
+            return await self.current(telegram_chat_id, publish_panel_open=True)
         if callback.action == "publish_panel":
             return await self.current(telegram_chat_id, publish_panel_open=True)
         if callback.action == "publish_hide":

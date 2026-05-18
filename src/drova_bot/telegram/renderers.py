@@ -272,11 +272,12 @@ def render_current(
     for index, station in enumerate(ordered, start=1):
         session = latest_sessions_by_station.get(station.uuid)
         station_label = station_display_name(station)
+        line_prefix = f"{index}. {_publication_marker(station)}"
         if station.uuid in failures:
-            lines.append(f"{index}. {html_escape(station_label)} · ошибка загрузки")
+            lines.append(f"{line_prefix} {html_escape(station_label)} · ошибка загрузки")
             continue
         if session is None:
-            lines.append(f"{index}. {html_escape(station_label)} · нет сессий")
+            lines.append(f"{line_prefix} {html_escape(station_label)} · нет сессий")
             continue
         title = product_title(session.product_id, catalog=product_catalog)
         duration = format_session_duration(session_duration_seconds(session, now))
@@ -290,14 +291,20 @@ def render_current(
         )
         meta_suffix = f" · {html_escape(meta)}" if meta else ""
         lines.append(
-            f"{index}. {html_escape(station_label)} · <b>{html_escape(title)}</b>"
+            f"{line_prefix} {html_escape(station_label)} · <b>{html_escape(title)}</b>"
             f"{meta_suffix} · {format_time_short(session.created_on_ms, profile.timezone)}"
             f" · {duration}"
         )
 
     rows: list[list[ButtonSpec]] = [
-        [ButtonSpec("Обновить", CallbackSpec(action="current_refresh").pack())],
-        [ButtonSpec("Публикация", CallbackSpec(action="publish_panel").pack())],
+        [
+            ButtonSpec(
+                "Обновить",
+                CallbackSpec(
+                    action="current_refresh_panel" if publish_panel_open else "current_refresh",
+                ).pack(),
+            )
+        ],
     ]
     if publish_panel_open:
         rows.append(
@@ -313,7 +320,18 @@ def render_current(
                 for index, station in enumerate(ordered, start=1)
             ]
         )
-        rows.append([ButtonSpec("Скрыть панель", CallbackSpec(action="publish_hide").pack())])
+        rows.append(
+            [ButtonSpec("Скрыть панель публикации", CallbackSpec(action="publish_hide").pack())]
+        )
+    else:
+        rows.append(
+            [
+                ButtonSpec(
+                    "Показать панель публикации",
+                    CallbackSpec(action="publish_panel").pack(),
+                )
+            ]
+        )
     return RenderedMessage("\n".join(lines), KeyboardSpec(rows))
 
 
@@ -321,6 +339,10 @@ def _current_status_label(session: Session) -> str:
     if not session.status and session.finished_on_ms is None:
         return "🟢 active"
     return _status_label(session.status)
+
+
+def _publication_marker(station: Station) -> str:
+    return "🟢" if station.published else "⚫"
 
 
 def render_publish_confirmation(station: Station, *, new_state: bool) -> RenderedMessage:
