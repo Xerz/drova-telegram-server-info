@@ -147,4 +147,7 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# IDE project files
+.idea/
 .vscode/settings.json

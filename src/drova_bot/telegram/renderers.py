@@ -1,0 +1,345 @@
+"""Pure Telegram message renderers."""
+
+from __future__ import annotations
+
+from collections import defaultdict
+from collections.abc import Mapping, Sequence
+from dataclasses import dataclass
+from datetime import UTC, datetime
+
+from drova_bot.domain.formatters import (
+    filter_sessions,
+    format_date,
+    format_duration,
+    format_duration_compact,
+    format_time,
+    format_time_short,
+    group_endpoints,
+    html_escape,
+    masked_client_id,
+    product_problem_flags,
+    product_title,
+    session_duration_seconds,
+    sort_stations,
+    station_display_name,
+)
+from drova_bot.domain.models import ChatProfile, Endpoint, Session, Station, StationProduct
+from drova_bot.telegram.callbacks import CallbackSpec
+from drova_bot.telegram.keyboards import ButtonSpec, KeyboardSpec
+
+
+@dataclass(frozen=True, slots=True)
+class RenderedMessage:
+    text: str
+    keyboard: KeyboardSpec | None = None
+    parse_mode: str = "HTML"
+
+
+def render_start_not_connected() -> RenderedMessage:
+    return RenderedMessage(
+        "Бот Drova для владельца станций.\n\n"
+        "Чтобы подключиться, отправьте:\n"
+        "/token &lt;proxy_token&gt;\n\n"
+        "Токен дает доступ к вашему кабинету. "
+        "Используйте только своего бота или доверенный инстанс."
+    )
+
+
+def render_start_connected(
+    *,
+    station_count: int,
+    selected_station_name: str | None,
+    session_limit: int,
+) -> RenderedMessage:
+    selection = selected_station_name or "все станции"
+    return RenderedMessage(
+        "Бот подключен.\n"
+        f"Станций: {station_count}\n"
+        f"Выбор: {html_escape(selection)}\n"
+        f"Лимит сессий: {session_limit}"
+    )
+
+
+def render_help() -> RenderedMessage:
+    commands = [
+        "/start - статус подключения",
+        "/token &lt;token&gt; - подключить Drova proxy token",
+        "/logout - удалить токен и настройки чата",
+        "/station - выбрать станцию",
+        "/station all - выбрать все станции",
+        "/limit &lt;N&gt; - лимит сессий 1..100",
+        "/sessions - последние сессии",
+        "/sessions short - скрыть короткие сессии",
+        "/current - состояние станций",
+        "/disabled - проблемные продукты",
+        "/stations - станции и endpoints",
+        "/export sessions - выгрузка сессий",
+        "/export products - матрица продуктов",
+        "/export product-time - время по продуктам",
+    ]
+    return RenderedMessage("Команды:\n" + "\n".join(commands))
+
+
+def render_error(code: str) -> RenderedMessage:
+    messages = {
+        "unknown_command": "Команда не найдена. Используйте /help.",
+        "unknown_text": "Я понимаю только команды. Используйте /help.",
+        "not_connected": "Сначала подключите Drova token командой /token &lt;proxy_token&gt;.",
+        "invalid_limit": "Лимит должен быть числом от 1 до 100.",
+        "drova_unavailable": "Drova временно недоступен. Попробуйте позже.",
+        "drova_unauthorized": "Токен недействителен. Подключите новый через /token.",
+    }
+    return RenderedMessage(messages.get(code, "Не удалось выполнить команду."))
+
+
+def render_station_picker(
+    stations: Sequence[Station],
+    *,
+    page: int = 0,
+    page_size: int = 8,
+) -> RenderedMessage:
+    ordered = sort_stations(stations)
+    page_count = max(1, (len(ordered) + page_size - 1) // page_size)
+    current_page = min(max(page, 0), page_count - 1)
+    start = current_page * page_size
+    visible = ordered[start : start + page_size]
+
+    rows: list[list[ButtonSpec]] = [
+        [ButtonSpec("Все станции", CallbackSpec(action="station_all").pack())]
+    ]
+    for station in visible:
+        rows.append(
+            [
+                ButtonSpec(
+                    station_display_name(station),
+                    CallbackSpec(action="station_select", station_id=station.uuid).pack(),
+                )
+            ]
+        )
+    if page_count > 1:
+        nav: list[ButtonSpec] = []
+        if current_page > 0:
+            nav.append(
+                ButtonSpec(
+                    "Назад",
+                    CallbackSpec(action="station_page", page=current_page - 1).pack(),
+                )
+            )
+        if current_page + 1 < page_count:
+            nav.append(
+                ButtonSpec(
+                    "Вперед",
+                    CallbackSpec(action="station_page", page=current_page + 1).pack(),
+                )
+            )
+        rows.append(nav)
+
+    return RenderedMessage("Выберите станцию:", KeyboardSpec(rows))
+
+
+def render_sessions(
+    profile: ChatProfile,
+    sessions: Sequence[Session],
+    stations: Sequence[Station],
+    product_catalog: Mapping[str, str],
+    *,
+    now: datetime,
+    short_mode: bool = False,
+) -> RenderedMessage:
+    station_by_id = {station.uuid: station for station in stations}
+    selected = station_by_id.get(profile.selected_station_id or "")
+    selected_label = selected.name if selected is not None else "все станции"
+    header = f"Последние {profile.session_limit} сессий · {selected_label}"
+    filtered = filter_sessions(sessions, short_mode=short_mode, now=now)
+    if not filtered:
+        return RenderedMessage(f"{html_escape(header)}\n\nСессии не найдены.")
+
+    lines = [html_escape(header), ""]
+    index = 1
+    current_date: str | None = None
+    for session in filtered[: profile.session_limit]:
+        session_date = format_date(session.created_on_ms, profile.timezone)
+        if session_date != current_date:
+            current_date = session_date
+            if lines[-1] != "":
+                lines.append("")
+            lines.append(session_date)
+        title = product_title(session.product_id, catalog=product_catalog)
+        station = station_by_id.get(session.server_id)
+        station_name = station.name if station is not None else None
+        finish_label = (
+            "now"
+            if session.finished_on_ms is None
+            else format_time(session.finished_on_ms, profile.timezone)
+        )
+        duration = format_duration(session_duration_seconds(session, now))
+        status = (session.status or "").lower()
+        billing = (session.billing_type or "").lower()
+        lines.extend(
+            [
+                f"{index}. {html_escape(title)}",
+                html_escape(station_name or "станция неизвестна"),
+                html_escape(masked_client_id(session.client_id)),
+                html_escape(" ".join(part for part in [billing, status] if part)),
+                (
+                    f"{format_time(session.created_on_ms, profile.timezone)}-"
+                    f"{finish_label} ({duration})"
+                ),
+            ]
+        )
+        if session.score_text:
+            lines.append(f"Отзыв: {html_escape(session.score_text)}")
+        index += 1
+        lines.append("")
+
+    keyboard = KeyboardSpec(
+        rows=[
+            [ButtonSpec("Обновить", CallbackSpec(action="sessions_refresh").pack())],
+            [
+                ButtonSpec(
+                    "Показать все" if short_mode else "Скрыть короткие",
+                    CallbackSpec(action="sessions_all" if short_mode else "sessions_short").pack(),
+                )
+            ],
+        ]
+    )
+    return RenderedMessage("\n".join(lines).rstrip(), keyboard)
+
+
+def render_current(
+    profile: ChatProfile,
+    stations: Sequence[Station],
+    latest_sessions_by_station: Mapping[str, Session | None],
+    product_catalog: Mapping[str, str],
+    *,
+    now: datetime,
+    publish_panel_open: bool = False,
+) -> RenderedMessage:
+    lines: list[str] = []
+    ordered = sort_stations(stations)
+    for index, station in enumerate(ordered, start=1):
+        session = latest_sessions_by_station.get(station.uuid)
+        station_label = station_display_name(station)
+        if session is None:
+            lines.append(f"{index}. {html_escape(station_label)} · нет сессий")
+            continue
+        title = product_title(session.product_id, catalog=product_catalog)
+        duration = format_duration_compact(session_duration_seconds(session, now))
+        active = " · active" if session.finished_on_ms is None else ""
+        lines.append(
+            f"{index}. {html_escape(station_label)} · {html_escape(title)}"
+            f"{active} · {format_time_short(session.created_on_ms, profile.timezone)} · {duration}"
+        )
+
+    rows: list[list[ButtonSpec]] = [
+        [ButtonSpec("Обновить", CallbackSpec(action="current_refresh").pack())],
+        [ButtonSpec("Публикация", CallbackSpec(action="publish_panel").pack())],
+    ]
+    if publish_panel_open:
+        rows.append(
+            [
+                ButtonSpec(
+                    str(index),
+                    CallbackSpec(
+                        action="publish_select",
+                        station_id=station.uuid,
+                        expected_published=station.published,
+                    ).pack(),
+                )
+                for index, station in enumerate(ordered, start=1)
+            ]
+        )
+        rows.append([ButtonSpec("Скрыть панель", CallbackSpec(action="publish_hide").pack())])
+    return RenderedMessage("\n".join(lines), KeyboardSpec(rows))
+
+
+def render_publish_confirmation(station: Station, *, new_state: bool) -> RenderedMessage:
+    state_text = "опубликована" if new_state else "скрыта"
+    text = (
+        f'Изменить публикацию станции "{html_escape(station.name)}" '
+        f'на "{state_text}"?'
+    )
+    return RenderedMessage(
+        text,
+        KeyboardSpec(
+            rows=[
+                [
+                    ButtonSpec(
+                        "Подтвердить",
+                        CallbackSpec(
+                            action="publish_confirm",
+                            station_id=station.uuid,
+                            expected_published=station.published,
+                        ).pack(),
+                    )
+                ],
+                [ButtonSpec("Отмена", CallbackSpec(action="publish_cancel").pack())],
+            ]
+        ),
+    )
+
+
+def render_disabled(
+    stations: Sequence[Station],
+    products_by_station: Mapping[str, Sequence[StationProduct]],
+) -> RenderedMessage:
+    station_by_id = {station.uuid: station for station in stations}
+    lines: list[str] = []
+    for station in sort_stations(stations):
+        products = [
+            product
+            for product in products_by_station.get(station.uuid, [])
+            if product_problem_flags(product)
+        ]
+        if not products:
+            continue
+        if lines:
+            lines.append("")
+        lines.append(html_escape(station_by_id[station.uuid].name))
+        for product in sorted(products, key=lambda item: item.title.casefold()):
+            flags = ", ".join(product_problem_flags(product))
+            lines.append(f"{html_escape(product.title)}: {html_escape(flags)}")
+
+    if not lines:
+        return RenderedMessage("Проблемных продуктов нет.")
+    return RenderedMessage("\n".join(lines))
+
+
+def render_stations(
+    stations: Sequence[Station],
+    endpoints_by_station: Mapping[str, Sequence[Endpoint]],
+) -> RenderedMessage:
+    blocks: list[str] = []
+    for station in sort_stations(stations):
+        lines = [html_escape(station_display_name(station))]
+        if station.city_name:
+            lines.append(html_escape(station.city_name))
+        external, internal = group_endpoints(endpoints_by_station.get(station.uuid, []))
+        if not external and not internal:
+            lines.append("Endpoints не найдены.")
+        if external:
+            lines.append("Внешние:")
+            lines.extend(_render_endpoint(endpoint) for endpoint in external)
+        if internal:
+            lines.append("Внутренние:")
+            lines.extend(_render_endpoint(endpoint) for endpoint in internal)
+        blocks.append("\n".join(lines))
+    return RenderedMessage("\n\n".join(blocks))
+
+
+def latest_sessions_by_station(sessions: Sequence[Session]) -> dict[str, Session]:
+    grouped: dict[str, list[Session]] = defaultdict(list)
+    for session in sessions:
+        grouped[session.server_id].append(session)
+    return {
+        station_id: max(items, key=lambda item: item.created_on_ms)
+        for station_id, items in grouped.items()
+    }
+
+
+def utc_now() -> datetime:
+    return datetime.now(tz=UTC)
+
+
+def _render_endpoint(endpoint: Endpoint) -> str:
+    return f"{html_escape(endpoint.ip)}:{endpoint.base_port}"
