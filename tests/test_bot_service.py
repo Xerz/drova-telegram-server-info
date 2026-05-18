@@ -275,7 +275,7 @@ async def test_current_renders_partial_station_failure(
 
     message = await service.current(10001)
 
-    assert "Alpha Station · Cyber Rally" in message.text
+    assert "Alpha Station · <b>Cyber Rally</b>" in message.text
     assert "Beta Test Station · скрыта · UNVERIFIED · ошибка загрузки" in message.text
 
 

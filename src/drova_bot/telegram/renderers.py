@@ -13,7 +13,6 @@ import structlog
 from drova_bot.domain.formatters import (
     filter_sessions,
     format_date,
-    format_duration_compact,
     format_session_duration,
     format_time,
     format_time_short,
@@ -280,11 +279,20 @@ def render_current(
             lines.append(f"{index}. {html_escape(station_label)} · нет сессий")
             continue
         title = product_title(session.product_id, catalog=product_catalog)
-        duration = format_duration_compact(session_duration_seconds(session, now))
-        active = " · active" if session.finished_on_ms is None else ""
+        duration = format_session_duration(session_duration_seconds(session, now))
+        meta = " ".join(
+            part
+            for part in [
+                _billing_label(session.billing_type),
+                _current_status_label(session),
+            ]
+            if part
+        )
+        meta_suffix = f" · {html_escape(meta)}" if meta else ""
         lines.append(
-            f"{index}. {html_escape(station_label)} · {html_escape(title)}"
-            f"{active} · {format_time_short(session.created_on_ms, profile.timezone)} · {duration}"
+            f"{index}. {html_escape(station_label)} · <b>{html_escape(title)}</b>"
+            f"{meta_suffix} · {format_time_short(session.created_on_ms, profile.timezone)}"
+            f" · {duration}"
         )
 
     rows: list[list[ButtonSpec]] = [
@@ -307,6 +315,12 @@ def render_current(
         )
         rows.append([ButtonSpec("Скрыть панель", CallbackSpec(action="publish_hide").pack())])
     return RenderedMessage("\n".join(lines), KeyboardSpec(rows))
+
+
+def _current_status_label(session: Session) -> str:
+    if not session.status and session.finished_on_ms is None:
+        return "🟢 active"
+    return _status_label(session.status)
 
 
 def render_publish_confirmation(station: Station, *, new_state: bool) -> RenderedMessage:
