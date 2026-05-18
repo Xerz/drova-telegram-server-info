@@ -342,7 +342,7 @@ def _current_status_label(session: Session) -> str:
 
 
 def _publication_marker(station: Station) -> str:
-    return "🟢" if station.published else "⚫"
+    return "🌐" if station.published else "🔒"
 
 
 def render_publish_confirmation(station: Station, *, new_state: bool) -> RenderedMessage:

@@ -151,12 +151,12 @@ def test_current_renderer_matches_fixture_intent(
         publish_panel_open=True,
     )
     assert (
-        "1. 🟢 Alpha Station · <b>Cyber Rally</b> · 💳 prepaid ✅ finished · 16:00 · 10 мин"
+        "1. 🌐 Alpha Station · <b>Cyber Rally</b> · 💳 prepaid ✅ finished · 16:00 · 10 мин"
         in message.text
     )
-    assert "2. ⚫ Beta Test Station · скрыта · UNVERIFIED · нет сессий" in message.text
+    assert "2. 🔒 Beta Test Station · скрыта · UNVERIFIED · нет сессий" in message.text
     assert (
-        "3. 🟢 Gamma Trial · Trial · <b>Space Farm</b> · 🧪 trial 🟢 active · 16:40 · 20 мин"
+        "3. 🌐 Gamma Trial · Trial · <b>Space Farm</b> · 🧪 trial 🟢 active · 16:40 · 20 мин"
         in message.text
     )
     assert message.keyboard is not None

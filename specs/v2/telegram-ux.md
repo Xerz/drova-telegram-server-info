@@ -58,7 +58,7 @@
 ## Current Dashboard
 
 - Shows all stations sorted by display name.
-- Each station line includes index, station state, publication state, latest game, city/range, start time and duration.
+- Each station line includes index, publication marker (`🌐` published, `🔒` hidden), station state, latest game, city/range, start time and duration.
 - Empty station sessions render `нет сессий`.
 - API failure for one station renders `ошибка загрузки`, not a full command failure.
 - Buttons:
