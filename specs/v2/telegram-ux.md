@@ -49,7 +49,7 @@
   - bold numbered game title;
   - station name when all stations selected;
   - masked/short client id in monospace;
-  - city/provider when available;
+  - separate IP/location line as `IP: {creator_ip} · {city}` when IP is present, omitting city when unknown;
   - start-finish as `HH:MM-HH:MM` and compact duration;
   - billing/status with emoji labels;
   - feedback if present.
@@ -58,7 +58,8 @@
 ## Current Dashboard
 
 - Shows all stations sorted by display name.
-- Each station line includes index, publication marker (`🌐` published, `🔒` hidden), station state, latest game, city/range, start time and duration.
+- Each station line includes index, publication marker (`🌐` published, `🔒` hidden), station state, latest game, latest session city when known, start time and duration.
+- Current dashboard must not display raw client IP addresses.
 - Empty station sessions render `нет сессий`.
 - API failure for one station renders `ошибка загрузки`, not a full command failure.
 - Buttons:

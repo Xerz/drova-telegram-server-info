@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 
 from drova_bot.application.services import BotService, DefaultDrovaClientFactory
 from drova_bot.config import Settings
+from drova_bot.geoip import GeoLiteResolver
 from drova_bot.observability.logging import configure_logging
 from drova_bot.storage import (
     StorageUnitOfWorkFactory,
@@ -51,9 +52,12 @@ class Runtime:
     bot: Bot
     dispatcher: Dispatcher
     engine: AsyncEngine
+    geo_resolver: GeoLiteResolver | None = None
 
     async def close(self) -> None:
         await self.bot.session.close()
+        if self.geo_resolver is not None:
+            self.geo_resolver.close()
         await self.engine.dispose()
 
 
@@ -64,11 +68,16 @@ def build_runtime(settings: Settings) -> Runtime:
     session_factory = make_session_factory(engine)
     encryptor = TokenEncryptor(settings.bot_secret_key or "")
     uow_factory = StorageUnitOfWorkFactory(session_factory, encryptor)
+    geo_resolver = GeoLiteResolver(
+        city_db_path=settings.geolite_city_db,
+        asn_db_path=settings.geolite_asn_db,
+    )
     service = BotService(
         uow_factory=uow_factory,
         client_factory=DefaultDrovaClientFactory(settings),
         export_row_limit=settings.export_row_limit,
         export_timeout_seconds=settings.export_timeout_seconds,
+        session_geo_resolver=geo_resolver.lookup_session,
     )
 
     bot = Bot(token=settings.telegram_bot_token or "")
@@ -78,7 +87,7 @@ def build_runtime(settings: Settings) -> Runtime:
     dispatcher.callback_query.middleware(request_context)
     dispatcher.include_router(build_router())
     dispatcher["bot_service"] = service
-    return Runtime(bot=bot, dispatcher=dispatcher, engine=engine)
+    return Runtime(bot=bot, dispatcher=dispatcher, engine=engine, geo_resolver=geo_resolver)
 
 
 async def register_bot_commands(bot: Bot) -> None:
@@ -111,6 +120,8 @@ def main() -> None:
         timezone=settings.timezone,
         export_row_limit=settings.export_row_limit,
         export_timeout_seconds=settings.export_timeout_seconds,
+        geolite_city_db_configured=bool(settings.geolite_city_db),
+        geolite_asn_db_configured=bool(settings.geolite_asn_db),
         http_proxy_configured=settings.http_proxy is not None,
         https_proxy_configured=settings.https_proxy is not None,
     )

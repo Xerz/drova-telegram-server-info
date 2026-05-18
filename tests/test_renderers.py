@@ -79,6 +79,31 @@ def test_sessions_renderer_matches_fixture_intent(
     assert message.keyboard is not None
 
 
+def test_sessions_renderer_adds_ip_and_city_line(
+    ui_profile: ChatProfile,
+    ui_sessions: list[Session],
+    ui_stations: list[Station],
+    ui_catalog: dict[str, str],
+    ui_now: datetime,
+) -> None:
+    def resolver(session: Session) -> EndpointGeo | None:
+        if session.uuid == "session-3":
+            return EndpointGeo(city="Testburg")
+        return None
+
+    message = render_sessions(
+        ui_profile,
+        ui_sessions,
+        ui_stations,
+        ui_catalog,
+        now=ui_now,
+        geo_resolver=resolver,
+    )
+
+    assert "IP: <code>198.51.100.30</code> · Testburg" in message.text
+    assert "IP: <code>203.0.113.20</code>" in message.text
+
+
 def test_sessions_renderer_formats_unknown_meta_and_duration_edges(
     ui_profile: ChatProfile,
     ui_stations: list[Station],
@@ -169,6 +194,34 @@ def test_current_renderer_matches_fixture_intent(
     assert "Показать панель публикации" not in [
         button.text for row in message.keyboard.rows for button in row
     ]
+
+
+def test_current_renderer_adds_city_without_raw_ip(
+    ui_profile: ChatProfile,
+    ui_sessions: list[Session],
+    ui_stations: list[Station],
+    ui_catalog: dict[str, str],
+    ui_now: datetime,
+) -> None:
+    def resolver(session: Session) -> EndpointGeo | None:
+        if session.uuid == "session-2":
+            return EndpointGeo(city="Example City")
+        return None
+
+    message = render_current(
+        ui_profile,
+        ui_stations,
+        latest_sessions_by_station(ui_sessions),
+        ui_catalog,
+        now=ui_now,
+        geo_resolver=resolver,
+    )
+
+    assert (
+        "Cyber Rally</b> · 💳 prepaid ✅ finished · 16:00 · 10 мин · Example City"
+        in message.text
+    )
+    assert "203.0.113.20" not in message.text
 
 
 def test_current_renderer_hidden_panel_shows_publish_panel_button(

@@ -25,6 +25,8 @@ class Settings(BaseSettings):
     )
     export_row_limit: int = Field(default=50_000, alias="EXPORT_ROW_LIMIT")
     export_timeout_seconds: int = Field(default=120, alias="EXPORT_TIMEOUT_SECONDS")
+    geolite_city_db: str = Field(default="GeoLite2-City.mmdb", alias="GEOLITE_CITY_DB")
+    geolite_asn_db: str = Field(default="GeoLite2-ASN.mmdb", alias="GEOLITE_ASN_DB")
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore", populate_by_name=True)
 

@@ -11,12 +11,14 @@ These snapshots are intentionally high level. Exact punctuation may evolve, but 
 1. Space Farm
 Gamma Trial
 client ...abcdef
+IP: 198.51.100.30 · Testburg
 🧪 trial 🟢 active
 16:40-🟢 now (20 мин)
 
 2. Cyber Rally
 Alpha Station
 client ...222222
+IP: 203.0.113.20 · Example City
 💳 prepaid ✅ finished
 16:00-16:10 (10 мин)
 Отзыв: ok
@@ -25,6 +27,7 @@ client ...222222
 3. Desktop Mode
 Alpha Station
 client ...111111
+IP: 203.0.113.10 · Example City
 🔁 subscription ✅ finished
 16:00-16:02 (2 мин)
 ```
@@ -32,9 +35,9 @@ client ...111111
 ## `/current`
 
 ```text
-1. Alpha Station · Cyber Rally · 10:40 · 10 мин
+1. Alpha Station · Cyber Rally · Example City · 16:00 · 10 мин
 2. Beta Test Station · скрыта · UNVERIFIED · нет сессий
-3. Gamma Trial · Trial · Space Farm · active · 40 мин
+3. Gamma Trial · Trial · Space Farm · Testburg · active · 20 мин
 ```
 
 ## `/disabled`

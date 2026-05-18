@@ -24,6 +24,7 @@ from drova_bot.storage.uow import StorageUnitOfWork
 from drova_bot.telegram.callbacks import ParsedCallback
 from drova_bot.telegram.renderers import (
     RenderedMessage,
+    SessionGeoResolver,
     latest_sessions_by_station,
     render_current,
     render_disabled,
@@ -70,6 +71,7 @@ class BotService:
         product_export_service: ProductExportService | None = None,
         export_row_limit: int = 50_000,
         export_timeout_seconds: float = 120,
+        session_geo_resolver: SessionGeoResolver | None = None,
     ) -> None:
         self._uow_factory = uow_factory
         self._client_factory = client_factory
@@ -78,6 +80,7 @@ class BotService:
         self._product_export_service = product_export_service or ProductExportService()
         self._export_row_limit = export_row_limit
         self._export_timeout_seconds = export_timeout_seconds
+        self._session_geo_resolver = session_geo_resolver
 
     async def start(self, telegram_chat_id: int) -> RenderedMessage:
         async with self._uow_factory() as uow:
@@ -193,6 +196,7 @@ class BotService:
                 product_catalog,
                 now=self._clock(),
                 short_mode=short_mode,
+                geo_resolver=self._session_geo_resolver,
             )
         except (DrovaUnauthorized, DrovaPermissionDenied):
             return render_error("drova_unauthorized")
@@ -233,6 +237,7 @@ class BotService:
                 now=self._clock(),
                 publish_panel_open=publish_panel_open,
                 failed_station_ids=failed_station_ids,
+                geo_resolver=self._session_geo_resolver,
             )
         except (DrovaUnauthorized, DrovaPermissionDenied):
             return render_error("drova_unauthorized")
@@ -412,6 +417,7 @@ class BotService:
                 product_catalog,
                 now=self._clock(),
                 publish_panel_open=True,
+                geo_resolver=self._session_geo_resolver,
             )
         except (DrovaUnauthorized, DrovaPermissionDenied):
             return render_error("drova_unauthorized")

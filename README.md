@@ -54,6 +54,14 @@ python3 -m uv run drova-bot
 Startup validates required env, runs packaged Alembic migrations, registers Telegram
 commands, wires storage/application services into aiogram, and starts polling.
 
+GeoLite lookup is optional and local-only. Put these files next to the bot process, or
+override `GEOLITE_CITY_DB` / `GEOLITE_ASN_DB`:
+
+```bash
+curl -L -o GeoLite2-City.mmdb https://github.com/P3TERX/GeoLite.mmdb/raw/download/GeoLite2-City.mmdb
+curl -L -o GeoLite2-ASN.mmdb https://github.com/P3TERX/GeoLite.mmdb/raw/download/GeoLite2-ASN.mmdb
+```
+
 Docker runtime:
 
 ```bash

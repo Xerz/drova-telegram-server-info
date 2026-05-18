@@ -48,6 +48,7 @@ class EndpointGeo:
 
 
 EndpointGeoResolver = Callable[[Endpoint], EndpointGeo | None]
+SessionGeoResolver = Callable[[Session], EndpointGeo | None]
 
 
 def render_start_not_connected() -> RenderedMessage:
@@ -164,6 +165,7 @@ def render_sessions(
     *,
     now: datetime,
     short_mode: bool = False,
+    geo_resolver: SessionGeoResolver | None = None,
 ) -> RenderedMessage:
     station_by_id = {station.uuid: station for station in stations}
     selected = station_by_id.get(profile.selected_station_id or "")
@@ -200,17 +202,21 @@ def render_sessions(
             ]
             if part
         )
+        geo_line = _session_geo_line(session, geo_resolver)
         lines.extend(
             [
                 f"<b>{index}. {html_escape(title)}</b>",
                 html_escape(station_name or "станция неизвестна"),
                 f"<code>{html_escape(masked_client_id(session.client_id))}</code>",
-                html_escape(meta),
-                (
-                    f"{format_time_short(session.created_on_ms, profile.timezone)}-"
-                    f"{finish_label} ({duration})"
-                ),
             ]
+        )
+        if geo_line:
+            lines.append(geo_line)
+        if meta:
+            lines.append(html_escape(meta))
+        lines.append(
+            f"{format_time_short(session.created_on_ms, profile.timezone)}-"
+            f"{finish_label} ({duration})"
         )
         if session.score_text:
             lines.append(f"Отзыв: {html_escape(session.score_text)}")
@@ -264,6 +270,7 @@ def render_current(
     now: datetime,
     publish_panel_open: bool = False,
     failed_station_ids: set[str] | None = None,
+    geo_resolver: SessionGeoResolver | None = None,
 ) -> RenderedMessage:
     lines: list[str] = []
     failures = failed_station_ids or set()
@@ -289,10 +296,12 @@ def render_current(
             if part
         )
         meta_suffix = f" · {html_escape(meta)}" if meta else ""
+        city = _session_geo_city(session, geo_resolver)
+        city_suffix = f" · {html_escape(city)}" if city else ""
         lines.append(
             f"{line_prefix} {html_escape(station_label)} · <b>{html_escape(title)}</b>"
             f"{meta_suffix} · {format_time_short(session.created_on_ms, profile.timezone)}"
-            f" · {duration}"
+            f" · {duration}{city_suffix}"
         )
 
     rows: list[list[ButtonSpec]] = [
@@ -342,6 +351,46 @@ def _current_status_label(session: Session) -> str:
 
 def _publication_marker(station: Station) -> str:
     return "🌐" if station.published else "🔒"
+
+
+def _session_geo_line(
+    session: Session,
+    geo_resolver: SessionGeoResolver | None,
+) -> str | None:
+    if not session.creator_ip:
+        return None
+    parts = [f"IP: <code>{html_escape(session.creator_ip)}</code>"]
+    city = _session_geo_city(session, geo_resolver)
+    if city:
+        parts.append(html_escape(city))
+    return " · ".join(parts)
+
+
+def _session_geo_city(
+    session: Session,
+    geo_resolver: SessionGeoResolver | None,
+) -> str | None:
+    geo = _safe_session_geo(session, geo_resolver)
+    if geo is None or not geo.city:
+        return None
+    return geo.city
+
+
+def _safe_session_geo(
+    session: Session,
+    geo_resolver: SessionGeoResolver | None,
+) -> EndpointGeo | None:
+    if geo_resolver is None or not session.creator_ip:
+        return None
+    try:
+        return geo_resolver(session)
+    except Exception as exc:
+        logger.warning(
+            "session_geo_lookup_failed",
+            session_id=session.uuid,
+            error_code=type(exc).__name__,
+        )
+        return None
 
 
 def render_publish_confirmation(station: Station, *, new_state: bool) -> RenderedMessage:

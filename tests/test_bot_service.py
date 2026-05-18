@@ -32,6 +32,7 @@ from drova_bot.storage import (
 from drova_bot.storage.repositories import ProductCacheRepository, StationCacheRepository
 from drova_bot.storage.uow import StorageUnitOfWorkFactory
 from drova_bot.telegram.callbacks import CallbackSpec, parse_callback_data
+from drova_bot.telegram.renderers import EndpointGeo, SessionGeoResolver
 
 
 class FakeDrovaClient:
@@ -148,6 +149,7 @@ def make_service(
     factory: FakeDrovaClientFactory,
     *,
     export_row_limit: int = 50_000,
+    session_geo_resolver: SessionGeoResolver | None = None,
 ) -> BotService:
     session_factory = make_session_factory(engine)
     encryptor = TokenEncryptor(TokenEncryptor.generate_key())
@@ -156,6 +158,7 @@ def make_service(
         client_factory=factory,
         clock=lambda: datetime(2026, 5, 18, 12, 0, tzinfo=UTC),
         export_row_limit=export_row_limit,
+        session_geo_resolver=session_geo_resolver,
     )
 
 
@@ -277,6 +280,45 @@ async def test_current_renders_partial_station_failure(
 
     assert "🌐 Alpha Station · <b>Cyber Rally</b>" in message.text
     assert "🔒 Beta Test Station · скрыта · UNVERIFIED · ошибка загрузки" in message.text
+
+
+@pytest.mark.asyncio
+async def test_sessions_and_current_use_injected_geo_without_raw_ip_in_current(
+    service_engine: AsyncEngine,
+    ui_stations: list[Station],
+    ui_sessions: list[Session],
+) -> None:
+    def resolver(session: Session) -> EndpointGeo | None:
+        if session.creator_ip == "203.0.113.20":
+            return EndpointGeo(city="Example City")
+        return None
+
+    service = make_service(
+        service_engine,
+        FakeDrovaClientFactory(
+            FakeDrovaClient(
+                stations=ui_stations,
+                products=[
+                    CatalogProduct("product-a", "Cyber Rally"),
+                    CatalogProduct("product-b", "Space Farm"),
+                ],
+            ),
+            FakeDrovaClient(stations=ui_stations, sessions=ui_sessions),
+            FakeDrovaClient(stations=ui_stations, sessions=ui_sessions),
+        ),
+        session_geo_resolver=resolver,
+    )
+    await service.connect_token(10001, "token")
+
+    sessions = await service.sessions(10001)
+    current = await service.current(10001)
+
+    assert "IP: <code>203.0.113.20</code> · Example City" in sessions.text
+    assert (
+        "Cyber Rally</b> · 💳 prepaid ✅ finished · 16:00 · 10 мин · Example City"
+        in current.text
+    )
+    assert "203.0.113.20" not in current.text
 
 
 @pytest.mark.asyncio
