@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
+import asyncio
+from collections.abc import Callable, Sequence
 from datetime import UTC, datetime
 
 from drova_bot.application.protocols import DrovaClientFactory, DrovaClientProtocol, TokenPersister
@@ -14,7 +15,9 @@ from drova_bot.drova.errors import (
     DrovaPermissionDenied,
     DrovaUnauthorized,
     DrovaUnavailable,
+    ExportTooLarge,
 )
+from drova_bot.exports import ExportKind, ExportResult, ProductExportService, SessionExportService
 from drova_bot.storage.uow import StorageUnitOfWork
 from drova_bot.telegram.callbacks import ParsedCallback
 from drova_bot.telegram.renderers import (
@@ -60,10 +63,18 @@ class BotService:
         uow_factory: UnitOfWorkFactory,
         client_factory: DrovaClientFactory,
         clock: Callable[[], datetime] | None = None,
+        session_export_service: SessionExportService | None = None,
+        product_export_service: ProductExportService | None = None,
+        export_row_limit: int = 50_000,
+        export_timeout_seconds: float = 120,
     ) -> None:
         self._uow_factory = uow_factory
         self._client_factory = client_factory
         self._clock = clock or (lambda: datetime.now(tz=UTC))
+        self._session_export_service = session_export_service or SessionExportService()
+        self._product_export_service = product_export_service or ProductExportService()
+        self._export_row_limit = export_row_limit
+        self._export_timeout_seconds = export_timeout_seconds
 
     async def start(self, telegram_chat_id: int) -> RenderedMessage:
         async with self._uow_factory() as uow:
@@ -272,6 +283,33 @@ class BotService:
         finally:
             await client.aclose()
 
+    async def export(self, telegram_chat_id: int, kind: ExportKind) -> ExportResult:
+        loaded = await self._load_client(telegram_chat_id)
+        if loaded is None:
+            return ExportResult(files=[], message=render_error("not_connected").text)
+        profile, client = loaded
+        try:
+            return await asyncio.wait_for(
+                self._export_with_client(profile, client, kind),
+                timeout=self._export_timeout_seconds,
+            )
+        except ExportTooLarge:
+            return ExportResult(
+                files=[],
+                message="Выгрузка слишком большая. Уменьшите объем данных.",
+            )
+        except TimeoutError:
+            return ExportResult(
+                files=[],
+                message="Не удалось подготовить файл за отведенное время.",
+            )
+        except (DrovaUnauthorized, DrovaPermissionDenied):
+            return ExportResult(files=[], message=render_error("drova_unauthorized").text)
+        except DrovaUnavailable:
+            return ExportResult(files=[], message=render_error("drova_unavailable").text)
+        finally:
+            await client.aclose()
+
     async def publish_confirmation(
         self,
         telegram_chat_id: int,
@@ -422,6 +460,111 @@ class BotService:
             if station.uuid not in latest
         }
 
+    async def _export_with_client(
+        self,
+        profile: ChatProfile,
+        client: DrovaClientProtocol,
+        kind: ExportKind,
+    ) -> ExportResult:
+        if kind in {ExportKind.SESSIONS, ExportKind.SESSIONS_CSV}:
+            return await self._export_sessions(profile, client, kind)
+        if kind == ExportKind.PRODUCTS:
+            return await self._export_products(profile, client)
+        if kind == ExportKind.PRODUCT_TIME:
+            return await self._export_product_time(profile, client)
+        return ExportResult(files=[], message="Неизвестный тип выгрузки.")
+
+    async def _export_sessions(
+        self,
+        profile: ChatProfile,
+        client: DrovaClientProtocol,
+        kind: ExportKind,
+    ) -> ExportResult:
+        stations = await client.get_servers(profile.drova_user_id or "")
+        selected_stations = _selected_stations(stations, profile)
+        if profile.selected_station_id is not None and not selected_stations:
+            return ExportResult(files=[], message=render_error("station_not_found").text)
+        page = await client.get_sessions(
+            merchant_id=None if profile.selected_station_id else profile.drova_user_id,
+            server_id=profile.selected_station_id,
+            limit=None,
+        )
+        self._ensure_row_limit(len(page.sessions))
+        product_catalog = await self._product_catalog(profile.telegram_chat_id, client)
+        if kind == ExportKind.SESSIONS_CSV:
+            files = await self._session_export_service.build_sessions_csv_by_station(
+                sessions=page.sessions,
+                stations=selected_stations,
+                product_catalog=product_catalog,
+                now=self._clock(),
+                timezone=profile.timezone,
+            )
+        else:
+            files = [
+                await self._session_export_service.build_sessions_xlsx(
+                    sessions=page.sessions,
+                    stations=selected_stations,
+                    product_catalog=product_catalog,
+                    now=self._clock(),
+                    timezone=profile.timezone,
+                )
+            ]
+        return ExportResult(files=files, message=_export_ready_message(files))
+
+    async def _export_products(
+        self,
+        profile: ChatProfile,
+        client: DrovaClientProtocol,
+    ) -> ExportResult:
+        stations = await client.get_servers(profile.drova_user_id or "")
+        products_by_station = {
+            station.uuid: await client.get_server_products(
+                profile.drova_user_id or "",
+                station.uuid,
+            )
+            for station in stations
+        }
+        self._ensure_row_limit(sum(len(products) for products in products_by_station.values()))
+        file = await self._product_export_service.build_products_xlsx(
+            stations=stations,
+            products_by_station=products_by_station,
+            now=self._clock(),
+        )
+        return ExportResult(files=[file], message="Файл готов.")
+
+    async def _export_product_time(
+        self,
+        profile: ChatProfile,
+        client: DrovaClientProtocol,
+    ) -> ExportResult:
+        stations = await client.get_servers(profile.drova_user_id or "")
+        page = await client.get_sessions(merchant_id=profile.drova_user_id, limit=None)
+        self._ensure_row_limit(len(page.sessions))
+        product_catalog = await self._product_catalog(profile.telegram_chat_id, client)
+        file = await self._product_export_service.build_product_time_xlsx(
+            stations=stations,
+            sessions=page.sessions,
+            product_catalog=product_catalog,
+            now=self._clock(),
+        )
+        return ExportResult(files=[file], message="Файл готов.")
+
+    def _ensure_row_limit(self, row_count: int) -> None:
+        if row_count > self._export_row_limit:
+            raise ExportTooLarge("export row limit exceeded")
+
 
 def _find_station(stations: list[Station], station_id: str) -> Station | None:
     return next((station for station in stations if station.uuid == station_id), None)
+
+
+def _selected_stations(stations: list[Station], profile: ChatProfile) -> list[Station]:
+    if profile.selected_station_id is None:
+        return stations
+    return [station for station in stations if station.uuid == profile.selected_station_id]
+
+
+def _export_ready_message(files: Sequence[object]) -> str:
+    if len(files) == 1:
+        return "Файл готов."
+    return f"Файлы готовы: {len(files)}."

@@ -7,13 +7,15 @@ from aiogram.exceptions import TelegramBadRequest
 from aiogram.methods import SendMessage
 from aiogram.types import CallbackQuery, Message
 
+from drova_bot.exports import ExportFile, ExportKind, ExportResult
 from drova_bot.telegram.callbacks import CallbackSpec
 from drova_bot.telegram.delivery import answer_rendered
 from drova_bot.telegram.renderers import RenderedMessage
 from drova_bot.telegram.routers import build_router
 from drova_bot.telegram.routers.core import (
     callback_query,
-    export_placeholder_command,
+    export_command,
+    export_kind_from_message,
     limit_command,
     logout_command,
     sessions_command,
@@ -40,6 +42,7 @@ class FakeMessage:
         self.chat = FakeChat()
         self.fail_html_once = fail_html_once
         self.answers: list[tuple[str, dict[str, Any]]] = []
+        self.documents: list[tuple[Any, dict[str, Any]]] = []
         self.edits: list[tuple[str, dict[str, Any]]] = []
 
     async def answer(self, text: str, **kwargs: Any) -> None:
@@ -50,6 +53,9 @@ class FakeMessage:
 
     async def edit_text(self, text: str, **kwargs: Any) -> None:
         self.edits.append((text, kwargs))
+
+    async def answer_document(self, document: Any, **kwargs: Any) -> None:
+        self.documents.append((document, kwargs))
 
 
 class FakeCallback:
@@ -95,6 +101,19 @@ class FakeService:
         self.calls.append(("handle_callback", (chat_id, callback), {}))
         return RenderedMessage("callback")
 
+    async def export(self, chat_id: int, kind: ExportKind) -> ExportResult:
+        self.calls.append(("export", (chat_id, kind), {}))
+        return ExportResult(
+            files=[
+                ExportFile(
+                    filename=f"{kind.value}.xlsx",
+                    content_type="application/octet-stream",
+                    payload=b"payload",
+                )
+            ],
+            message="Файл готов.",
+        )
+
 
 def test_build_router_exposes_aiogram_router() -> None:
     router = build_router()
@@ -121,16 +140,32 @@ async def test_token_limit_sessions_and_station_handlers_parse_arguments() -> No
 
 
 @pytest.mark.asyncio
-async def test_legacy_logout_and_export_placeholder() -> None:
+async def test_legacy_logout_and_export_command() -> None:
     service = FakeService()
     logout_message = FakeMessage("/removeToken")
     export_message = FakeMessage("/dumpall")
 
     await logout_command(cast(Message, logout_message), service)  # type: ignore[arg-type]
-    await export_placeholder_command(cast(Message, export_message))
+    await export_command(cast(Message, export_message), service)  # type: ignore[arg-type]
 
-    assert service.calls == [("logout", (10001,), {})]
+    assert service.calls == [
+        ("logout", (10001,), {}),
+        ("export", (10001, ExportKind.SESSIONS_CSV), {}),
+    ]
     assert export_message.answers[0][0] == "Готовлю файл..."
+    assert export_message.documents[0][0].filename == "sessions_csv.xlsx"
+    assert export_message.answers[-1][0] == "Файл готов."
+
+
+def test_export_kind_mapping() -> None:
+    assert export_kind_from_message("/export sessions") == ExportKind.SESSIONS
+    assert export_kind_from_message("/export products") == ExportKind.PRODUCTS
+    assert export_kind_from_message("/export product-time") == ExportKind.PRODUCT_TIME
+    assert export_kind_from_message("/dumpOnefile") == ExportKind.SESSIONS
+    assert export_kind_from_message("/dumpall") == ExportKind.SESSIONS_CSV
+    assert export_kind_from_message("/dumpStationsProducts") == ExportKind.PRODUCTS
+    assert export_kind_from_message("/dumpStationsProductsMonth") == ExportKind.PRODUCT_TIME
+    assert export_kind_from_message("/export nope") is None
 
 
 @pytest.mark.asyncio

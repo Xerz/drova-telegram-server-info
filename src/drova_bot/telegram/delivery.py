@@ -7,8 +7,15 @@ from typing import Any, cast
 
 import structlog
 from aiogram.exceptions import TelegramBadRequest
-from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message
+from aiogram.types import (
+    BufferedInputFile,
+    CallbackQuery,
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+    Message,
+)
 
+from drova_bot.exports import ExportFile
 from drova_bot.telegram.keyboards import KeyboardSpec
 from drova_bot.telegram.renderers import RenderedMessage
 
@@ -64,6 +71,12 @@ async def edit_or_answer_rendered(callback: CallbackQuery, rendered: RenderedMes
             parse_mode=None,
             reply_markup=markup,
         )
+
+
+async def send_export_file(message: Message, export_file: ExportFile) -> Any:
+    return await message.answer_document(
+        BufferedInputFile(export_file.payload, filename=export_file.filename),
+    )
 
 
 def _plain_text(text: str) -> str:

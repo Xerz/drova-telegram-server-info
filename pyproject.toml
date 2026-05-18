@@ -27,6 +27,7 @@ dev = [
     "pytest-asyncio>=1.2,<2",
     "respx>=0.22,<0.23",
     "ruff>=0.14,<0.15",
+    "types-openpyxl>=3.1,<4",
 ]
 
 [build-system]

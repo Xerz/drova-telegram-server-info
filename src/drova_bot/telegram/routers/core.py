@@ -7,8 +7,9 @@ from aiogram.filters import Command
 from aiogram.types import CallbackQuery, Message
 
 from drova_bot.application.services import BotService
+from drova_bot.exports import ExportKind
 from drova_bot.telegram.callbacks import InvalidCallbackData, parse_callback_data
-from drova_bot.telegram.delivery import answer_rendered, edit_or_answer_rendered
+from drova_bot.telegram.delivery import answer_rendered, edit_or_answer_rendered, send_export_file
 from drova_bot.telegram.renderers import RenderedMessage, render_error, render_help
 
 EXPORT_ALIASES = {
@@ -32,7 +33,7 @@ def build_router() -> Router:
     router.message.register(current_command, Command("current"))
     router.message.register(disabled_command, Command("disabled"))
     router.message.register(stations_command, Command("stations", "stationsInfo"))
-    router.message.register(export_placeholder_command, Command("export", *EXPORT_ALIASES))
+    router.message.register(export_command, Command("export", *EXPORT_ALIASES))
     router.callback_query.register(callback_query)
     router.message.register(unknown_command, F.text.startswith("/"))
     router.message.register(unknown_text)
@@ -96,8 +97,16 @@ async def stations_command(message: Message, bot_service: BotService) -> None:
     await answer_rendered(message, await bot_service.stations(message.chat.id))
 
 
-async def export_placeholder_command(message: Message) -> None:
+async def export_command(message: Message, bot_service: BotService) -> None:
+    kind = export_kind_from_message(message.text)
+    if kind is None:
+        await answer_rendered(message, render_error("unknown_command"))
+        return
     await answer_rendered(message, RenderedMessage("Готовлю файл..."))
+    result = await bot_service.export(message.chat.id, kind)
+    for export_file in result.files:
+        await send_export_file(message, export_file)
+    await answer_rendered(message, RenderedMessage(result.message))
 
 
 async def callback_query(callback: CallbackQuery, bot_service: BotService) -> None:
@@ -128,3 +137,26 @@ def _command_args(text: str | None) -> str:
     if not separator:
         return ""
     return tail.strip()
+
+
+def export_kind_from_message(text: str | None) -> ExportKind | None:
+    if not text:
+        return None
+    command = text.split(maxsplit=1)[0].removeprefix("/").split("@", maxsplit=1)[0]
+    args = _command_args(text)
+    if command == "export":
+        if args == "sessions":
+            return ExportKind.SESSIONS
+        if args == "products":
+            return ExportKind.PRODUCTS
+        if args == "product-time":
+            return ExportKind.PRODUCT_TIME
+        return None
+    legacy_mapping = {
+        "dumpall": ExportKind.SESSIONS_CSV,
+        "dumpOnefile": ExportKind.SESSIONS,
+        "dumpStationsProducts": ExportKind.PRODUCTS,
+        "dumpStationsProductsWithTime": ExportKind.PRODUCT_TIME,
+        "dumpStationsProductsMonth": ExportKind.PRODUCT_TIME,
+    }
+    return legacy_mapping.get(command)

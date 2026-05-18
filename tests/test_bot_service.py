@@ -20,6 +20,7 @@ from drova_bot.domain.models import (
     StationProduct,
 )
 from drova_bot.drova.errors import DrovaUnauthorized, DrovaUnavailable
+from drova_bot.exports import ExportKind
 from drova_bot.storage import (
     ChatProfileRepository,
     TokenEncryptor,
@@ -141,13 +142,19 @@ async def service_engine(tmp_path: Path) -> AsyncGenerator[AsyncEngine]:
         await engine.dispose()
 
 
-def make_service(engine: AsyncEngine, factory: FakeDrovaClientFactory) -> BotService:
+def make_service(
+    engine: AsyncEngine,
+    factory: FakeDrovaClientFactory,
+    *,
+    export_row_limit: int = 50_000,
+) -> BotService:
     session_factory = make_session_factory(engine)
     encryptor = TokenEncryptor(TokenEncryptor.generate_key())
     return BotService(
         uow_factory=StorageUnitOfWorkFactory(session_factory, encryptor),
         client_factory=factory,
         clock=lambda: datetime(2026, 5, 18, 12, 0, tzinfo=UTC),
+        export_row_limit=export_row_limit,
     )
 
 
@@ -346,3 +353,114 @@ async def test_callback_dispatch_selects_all_stations(service_engine: AsyncEngin
     message = await service.handle_callback(10001, callback)
 
     assert message.text == "Выбраны все станции."
+
+
+@pytest.mark.asyncio
+async def test_export_not_connected_returns_safe_message(service_engine: AsyncEngine) -> None:
+    service = make_service(service_engine, FakeDrovaClientFactory())
+
+    result = await service.export(10001, ExportKind.SESSIONS)
+
+    assert result.files == []
+    assert "Сначала подключите" in result.message
+
+
+@pytest.mark.asyncio
+async def test_export_sessions_xlsx_uses_saved_profile_and_fixtures(
+    service_engine: AsyncEngine,
+    ui_stations: list[Station],
+    ui_sessions: list[Session],
+    ui_catalog: dict[str, str],
+) -> None:
+    service = make_service(
+        service_engine,
+        FakeDrovaClientFactory(
+            FakeDrovaClient(stations=ui_stations, products=_catalog_products(ui_catalog)),
+            FakeDrovaClient(stations=ui_stations, sessions=ui_sessions),
+        ),
+    )
+    await service.connect_token(10001, "token")
+
+    result = await service.export(10001, ExportKind.SESSIONS)
+
+    assert result.message == "Файл готов."
+    assert [file.filename for file in result.files] == ["drova-sessions-20260518-120000.xlsx"]
+    assert result.files[0].content_type.endswith("spreadsheetml.sheet")
+
+
+@pytest.mark.asyncio
+async def test_export_sessions_csv_returns_one_file_per_station(
+    service_engine: AsyncEngine,
+    ui_stations: list[Station],
+    ui_sessions: list[Session],
+    ui_catalog: dict[str, str],
+) -> None:
+    service = make_service(
+        service_engine,
+        FakeDrovaClientFactory(
+            FakeDrovaClient(stations=ui_stations, products=_catalog_products(ui_catalog)),
+            FakeDrovaClient(stations=ui_stations, sessions=ui_sessions),
+        ),
+    )
+    await service.connect_token(10001, "token")
+
+    result = await service.export(10001, ExportKind.SESSIONS_CSV)
+
+    assert result.message == "Файлы готовы: 3."
+    assert [file.filename for file in result.files] == [
+        "drova-sessions-alpha-station-20260518-120000.csv",
+        "drova-sessions-beta-test-station-20260518-120000.csv",
+        "drova-sessions-gamma-trial-20260518-120000.csv",
+    ]
+
+
+@pytest.mark.asyncio
+async def test_export_products_and_product_time(
+    service_engine: AsyncEngine,
+    ui_stations: list[Station],
+    ui_sessions: list[Session],
+    ui_catalog: dict[str, str],
+    ui_products_by_station: dict[str, list[StationProduct]],
+) -> None:
+    service = make_service(
+        service_engine,
+        FakeDrovaClientFactory(
+            FakeDrovaClient(stations=ui_stations, products=_catalog_products(ui_catalog)),
+            FakeDrovaClient(stations=ui_stations, station_products=ui_products_by_station),
+            FakeDrovaClient(stations=ui_stations, sessions=ui_sessions),
+        ),
+    )
+    await service.connect_token(10001, "token")
+
+    products = await service.export(10001, ExportKind.PRODUCTS)
+    product_time = await service.export(10001, ExportKind.PRODUCT_TIME)
+
+    assert products.files[0].filename == "drova-products-20260518-120000.xlsx"
+    assert product_time.files[0].filename == "drova-product-time-20260518-120000.xlsx"
+
+
+@pytest.mark.asyncio
+async def test_export_row_limit_returns_safe_failure(
+    service_engine: AsyncEngine,
+    ui_stations: list[Station],
+    ui_sessions: list[Session],
+    ui_catalog: dict[str, str],
+) -> None:
+    service = make_service(
+        service_engine,
+        FakeDrovaClientFactory(
+            FakeDrovaClient(stations=ui_stations, products=_catalog_products(ui_catalog)),
+            FakeDrovaClient(stations=ui_stations, sessions=ui_sessions),
+        ),
+        export_row_limit=1,
+    )
+    await service.connect_token(10001, "token")
+
+    result = await service.export(10001, ExportKind.SESSIONS)
+
+    assert result.files == []
+    assert "Выгрузка слишком большая" in result.message
+
+
+def _catalog_products(catalog: dict[str, str]) -> list[CatalogProduct]:
+    return [CatalogProduct(product_id, title) for product_id, title in catalog.items()]
