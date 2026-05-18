@@ -6,11 +6,43 @@ from pathlib import Path
 from typing import Any, cast
 
 import pytest
+from _pytest.config import Config, Parser
+from _pytest.nodes import Item
 
 from drova_bot.domain.models import ChatProfile, Endpoint, Session, Station, StationProduct
+from tests.live.harness import live_skip_reason
 
 ROOT = Path(__file__).resolve().parents[1]
 FIXTURE_ROOT = ROOT / "specs" / "v2" / "fixtures"
+
+
+def pytest_addoption(parser: Parser) -> None:
+    parser.addoption(
+        "--run-live",
+        action="store_true",
+        default=False,
+        help="run opt-in live Drova API contract tests",
+    )
+    parser.addoption(
+        "--run-live-write",
+        action="store_true",
+        default=False,
+        help="run opt-in live write contract tests against TEST_STATION_UUID",
+    )
+
+
+def pytest_collection_modifyitems(config: Config, items: list[Item]) -> None:
+    run_live = bool(config.getoption("--run-live"))
+    run_live_write = bool(config.getoption("--run-live-write"))
+    for item in items:
+        reason = live_skip_reason(
+            is_live=item.get_closest_marker("live") is not None,
+            is_live_write=item.get_closest_marker("live_write") is not None,
+            run_live=run_live,
+            run_live_write=run_live_write,
+        )
+        if reason is not None:
+            item.add_marker(pytest.mark.skip(reason=reason))
 
 
 def load_fixture(path: str) -> Any:

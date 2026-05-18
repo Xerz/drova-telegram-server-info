@@ -40,6 +40,10 @@ packages = ["src/drova_bot"]
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+markers = [
+    "live: opt-in live Drova API contract tests",
+    "live_write: opt-in live publish-toggle contract tests",
+]
 
 [tool.ruff]
 line-length = 100
