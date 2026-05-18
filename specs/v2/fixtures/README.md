@@ -2,7 +2,7 @@
 
 ## API Fixtures
 
-`api/` contains sanitized live API samples copied from `specs/current/fixtures`. These fixtures are canonical for V2 model parsing and API client contract tests.
+`api/` contains sanitized live API samples. These fixtures are canonical for V2 model parsing and API client contract tests.
 
 Use them for:
 
@@ -26,4 +26,4 @@ Use them for:
 
 ## Raw Data Policy
 
-V2 fixtures must be tracked only after sanitization. Raw API responses stay under `specs/current/fixtures/raw/` or another ignored path.
+V2 fixtures must be tracked only after sanitization. Raw API responses stay under `specs/v2/fixtures/api/raw/` or another ignored path.

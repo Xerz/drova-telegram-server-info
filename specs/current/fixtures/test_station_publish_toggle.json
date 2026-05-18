@@ -1,9 +1,0 @@
-{
-  "elapsed_ms": 85.4,
-  "label": "test_station_publish_toggle",
-  "method": "POST",
-  "params": {},
-  "path": "/server-manager/servers/<uuid:955>/set_published/true",
-  "response": "",
-  "status": 200
-}

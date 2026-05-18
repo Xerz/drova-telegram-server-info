@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Collect sanitized Drova API fixtures for the current-bot spec.
+"""Collect sanitized Drova API fixtures for the V2 spec.
 
 This script is intentionally separate from production bot code. It reads
 `.env.specing`, stores raw responses in an ignored directory, and writes
@@ -21,7 +21,7 @@ import requests
 
 ROOT = Path(__file__).resolve().parents[1]
 ENV_PATH = ROOT / ".env.specing"
-FIXTURE_DIR = ROOT / "specs" / "current" / "fixtures"
+FIXTURE_DIR = ROOT / "specs" / "v2" / "fixtures" / "api"
 RAW_DIR = FIXTURE_DIR / "raw"
 BASE_URL = "https://services.drova.io"
 REQUEST_TIMEOUT = 20

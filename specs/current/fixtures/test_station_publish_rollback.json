@@ -1,9 +1,0 @@
-{
-  "elapsed_ms": 52.1,
-  "label": "test_station_publish_rollback",
-  "method": "POST",
-  "params": {},
-  "path": "/server-manager/servers/<uuid:955>/set_published/false",
-  "response": "",
-  "status": 200
-}
