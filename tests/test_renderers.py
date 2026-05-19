@@ -6,6 +6,9 @@ from datetime import datetime
 from drova_bot.domain.models import (
     ChatProfile,
     Endpoint,
+    OpenedPrepaidDeal,
+    PrepaidSettlement,
+    PrepaidStats,
     Promocode,
     Session,
     Station,
@@ -14,6 +17,7 @@ from drova_bot.domain.models import (
 from drova_bot.telegram.renderers import (
     EndpointGeo,
     latest_sessions_by_station,
+    render_account_billing,
     render_current,
     render_disabled,
     render_error,
@@ -48,6 +52,43 @@ def test_start_and_help_messages_are_russian_and_safe() -> None:
     assert "/export sessions -" not in help_text
     assert render_error("unknown_command").text == "Команда не найдена. Используйте /help."
     assert "целым числом больше 0" in render_error("invalid_promocode_minutes").text
+
+
+def test_account_billing_renderer_formats_minutes_and_payments() -> None:
+    message = render_account_billing(
+        PrepaidStats(
+            merchant_id="merchant-1",
+            allowed_to_sell_minutes=2683,
+            sold_minutes=205126,
+            used_minutes=207817,
+            balance=123.5,
+        ),
+        settlements=[
+            PrepaidSettlement(
+                uuid="settlement-1",
+                client_id=None,
+                created_on_ms=1779125315305,
+                has_order=True,
+                playtime_msecs=10_800_000,
+            )
+        ],
+        opened_deals=[
+            OpenedPrepaidDeal(
+                created_on_ms=1777593600000,
+                deal_id="deal-1",
+                payout_amount=10340.79,
+                gross_amount=13390.0,
+                terminal_index=0,
+            )
+        ],
+        timezone="Asia/Yekaterinburg",
+    )
+
+    assert "Аккаунт" in message.text
+    assert "Доступно к продаже: 2 683 мин" in message.text
+    assert "Баланс минут: 123.50" in message.text
+    assert "2026-05-18 22:28 · 180 мин · заказ" in message.text
+    assert "2026-05-01 05:00 · сумма 13 390.00 · к выплате 10 340.79" in message.text
 
 
 def test_promocode_renderers_use_monospace_codes() -> None:

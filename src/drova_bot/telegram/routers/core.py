@@ -45,6 +45,7 @@ def build_router() -> Router:
     router.message.register(sessions_command, Command("sessions"))
     router.message.register(sessions_short_command, Command("sessions_short"))
     router.message.register(current_command, Command("current"))
+    router.message.register(account_command, Command("account"))
     router.message.register(disabled_command, Command("disabled"))
     router.message.register(stations_command, Command("stations", "stationsInfo"))
     router.message.register(promocode_command, Command("promocode"))
@@ -124,6 +125,10 @@ async def sessions_short_command(message: Message, bot_service: BotService) -> N
 
 async def current_command(message: Message, bot_service: BotService) -> None:
     await answer_rendered(message, await bot_service.current(message.chat.id))
+
+
+async def account_command(message: Message, bot_service: BotService) -> None:
+    await answer_rendered(message, await bot_service.account_billing(message.chat.id))
 
 
 async def disabled_command(message: Message, bot_service: BotService) -> None:

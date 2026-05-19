@@ -14,6 +14,9 @@ from drova_bot.domain.models import (
     Account,
     CatalogProduct,
     Endpoint,
+    OpenedPrepaidDeal,
+    PrepaidSettlement,
+    PrepaidStats,
     Promocode,
     Session,
     SessionPage,
@@ -46,6 +49,9 @@ class FakeDrovaClient:
         products: list[CatalogProduct] | None = None,
         sessions: list[Session] | None = None,
         promocodes: list[Promocode] | None = None,
+        prepaid_stats: PrepaidStats | None = None,
+        prepaid_settlements: list[PrepaidSettlement] | None = None,
+        opened_deals: list[OpenedPrepaidDeal] | None = None,
         station_products: dict[str, list[StationProduct]] | None = None,
         endpoints: dict[str, list[Endpoint]] | None = None,
         unauthorized: bool = False,
@@ -57,6 +63,15 @@ class FakeDrovaClient:
         self.products = products or []
         self.sessions_data = sessions or []
         self.promocodes = promocodes or []
+        self.prepaid_stats = prepaid_stats or PrepaidStats(
+            merchant_id=self.account.uuid,
+            allowed_to_sell_minutes=0,
+            sold_minutes=0,
+            used_minutes=0,
+            balance=None,
+        )
+        self.prepaid_settlements = prepaid_settlements or []
+        self.opened_deals = opened_deals or []
         self.station_products = station_products or {}
         self.endpoints = endpoints or {}
         self.unauthorized = unauthorized
@@ -126,6 +141,17 @@ class FakeDrovaClient:
 
     async def get_unused_promocodes(self) -> list[Promocode]:
         return self.promocodes
+
+    async def get_prepaid_stats(self, merchant_id: str) -> PrepaidStats:
+        assert merchant_id == self.account.uuid
+        return self.prepaid_stats
+
+    async def get_prepaid_settlements(self, merchant_id: str) -> list[PrepaidSettlement]:
+        assert merchant_id == self.account.uuid
+        return self.prepaid_settlements
+
+    async def get_opened_prepaid_deals(self) -> list[OpenedPrepaidDeal]:
+        return self.opened_deals
 
 
 class FakeDrovaClientFactory:
@@ -265,6 +291,54 @@ async def test_sessions_uses_all_or_selected_station(
     assert "Space Farm" in all_message.text
     assert "Последние 5 сессий · Alpha Station" in selected_message.text
     assert "Desktop Mode" not in selected_message.text
+
+
+@pytest.mark.asyncio
+async def test_account_billing_uses_saved_profile_and_drova_data(
+    service_engine: AsyncEngine,
+    ui_stations: list[Station],
+) -> None:
+    service = make_service(
+        service_engine,
+        FakeDrovaClientFactory(
+            FakeDrovaClient(stations=ui_stations),
+            FakeDrovaClient(
+                prepaid_stats=PrepaidStats(
+                    merchant_id="user-1",
+                    allowed_to_sell_minutes=120,
+                    sold_minutes=300,
+                    used_minutes=240,
+                    balance=None,
+                ),
+                prepaid_settlements=[
+                    PrepaidSettlement(
+                        uuid="settlement-1",
+                        client_id=None,
+                        created_on_ms=1779125315305,
+                        has_order=True,
+                        playtime_msecs=3_600_000,
+                    )
+                ],
+                opened_deals=[
+                    OpenedPrepaidDeal(
+                        created_on_ms=1777593600000,
+                        deal_id="deal-1",
+                        payout_amount=None,
+                        gross_amount=None,
+                        terminal_index=0,
+                    )
+                ],
+            ),
+        ),
+    )
+    await service.connect_token(10001, "token")
+
+    message = await service.account_billing(10001)
+
+    assert "Доступно к продаже: 120 мин" in message.text
+    assert "Баланс минут: скрыто" in message.text
+    assert "60 мин · заказ" in message.text
+    assert "сумма скрыто · к выплате скрыто" in message.text
 
 
 @pytest.mark.asyncio

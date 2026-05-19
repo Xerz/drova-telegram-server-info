@@ -28,6 +28,9 @@ from drova_bot.domain.formatters import (
 from drova_bot.domain.models import (
     ChatProfile,
     Endpoint,
+    OpenedPrepaidDeal,
+    PrepaidSettlement,
+    PrepaidStats,
     Promocode,
     Session,
     Station,
@@ -95,6 +98,7 @@ def render_help() -> RenderedMessage:
         "/sessions - последние сессии",
         "/sessions_short - последние сессии дольше 5 минут",
         "/current - состояние станций",
+        "/account - баланс минут и выплаты",
         "/disabled - проблемные продукты",
         "/stations - станции и endpoints",
         "/promocode &lt;minutes&gt; - выпустить prepaid-промокод",
@@ -206,6 +210,72 @@ def _promocode_line(promocode: Promocode, timezone: str) -> str:
         f"{format_time_short(promocode.expired_on_ms, timezone)}"
     )
     return f"<code>{html_escape(promocode.promocode)}</code> · {minutes} мин · до {expires_at}"
+
+
+def render_account_billing(
+    stats: PrepaidStats,
+    *,
+    settlements: Sequence[PrepaidSettlement],
+    opened_deals: Sequence[OpenedPrepaidDeal],
+    timezone: str,
+) -> RenderedMessage:
+    lines = [
+        "Аккаунт",
+        "",
+        "Минуты",
+        f"Доступно к продаже: {_format_integer(stats.allowed_to_sell_minutes)} мин",
+        f"Продано: {_format_integer(stats.sold_minutes)} мин",
+        f"Использовано: {_format_integer(stats.used_minutes)} мин",
+        f"Баланс минут: {_format_money(stats.balance)}",
+        "",
+        "Открытые выплаты",
+    ]
+    if opened_deals:
+        lines.extend(_opened_deal_line(deal, timezone) for deal in opened_deals[:5])
+    else:
+        lines.append("Нет открытых выплат.")
+
+    lines.extend(["", "Последние операции с минутами"])
+    if settlements:
+        lines.extend(
+            _prepaid_settlement_line(settlement, timezone)
+            for settlement in settlements[:5]
+        )
+    else:
+        lines.append("Операций нет.")
+
+    return RenderedMessage("\n".join(lines))
+
+
+def _prepaid_settlement_line(settlement: PrepaidSettlement, timezone: str) -> str:
+    minutes = max(0, settlement.playtime_msecs // 60_000)
+    created_at = (
+        f"{format_date(settlement.created_on_ms, timezone)} "
+        f"{format_time_short(settlement.created_on_ms, timezone)}"
+    )
+    source = "заказ" if settlement.has_order else "без заказа"
+    return f"{created_at} · {_format_integer(minutes)} мин · {source}"
+
+
+def _opened_deal_line(deal: OpenedPrepaidDeal, timezone: str) -> str:
+    created_at = (
+        f"{format_date(deal.created_on_ms, timezone)} "
+        f"{format_time_short(deal.created_on_ms, timezone)}"
+    )
+    return (
+        f"{created_at} · сумма {_format_money(deal.gross_amount)} · "
+        f"к выплате {_format_money(deal.payout_amount)}"
+    )
+
+
+def _format_integer(value: int) -> str:
+    return f"{value:,}".replace(",", " ")
+
+
+def _format_money(value: float | None) -> str:
+    if value is None:
+        return "скрыто"
+    return f"{value:,.2f}".replace(",", " ")
 
 
 def render_sessions(

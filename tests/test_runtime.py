@@ -70,6 +70,7 @@ async def test_register_bot_commands_uses_runtime_command_list() -> None:
         "sessions",
         "sessions_short",
         "current",
+        "account",
         "disabled",
         "stations",
         "promocode",

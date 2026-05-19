@@ -38,6 +38,7 @@ BOT_COMMANDS = [
     BotCommand(command="sessions", description="Последние сессии"),
     BotCommand(command="sessions_short", description="Сессии дольше 5 минут"),
     BotCommand(command="current", description="Текущее состояние станций"),
+    BotCommand(command="account", description="Баланс минут и выплаты"),
     BotCommand(command="disabled", description="Проблемы с продуктами"),
     BotCommand(command="stations", description="Станции и эндпоинты"),
     BotCommand(command="promocode", description="Выпустить prepaid-промокод"),

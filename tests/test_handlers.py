@@ -14,6 +14,7 @@ from drova_bot.telegram.delivery import answer_rendered
 from drova_bot.telegram.renderers import RenderedMessage
 from drova_bot.telegram.routers import build_router
 from drova_bot.telegram.routers.core import (
+    account_command,
     callback_query,
     current_command,
     deliver_export_job,
@@ -132,6 +133,10 @@ class FakeService:
         self.calls.append(("current", (chat_id,), {}))
         return RenderedMessage("current")
 
+    async def account_billing(self, chat_id: int) -> RenderedMessage:
+        self.calls.append(("account_billing", (chat_id,), {}))
+        return RenderedMessage("account")
+
     async def disabled(self, chat_id: int) -> RenderedMessage:
         self.calls.append(("disabled", (chat_id,), {}))
         return RenderedMessage("disabled")
@@ -202,24 +207,28 @@ async def test_basic_command_handlers_route_to_service_or_help() -> None:
     start_message = FakeMessage("/start")
     help_message = FakeMessage("/help")
     current_message = FakeMessage("/current")
+    account_message = FakeMessage("/account")
     disabled_message = FakeMessage("/disabled")
     stations_message = FakeMessage("/stations")
 
     await start_command(cast(Message, start_message), service)  # type: ignore[arg-type]
     await help_command(cast(Message, help_message))
     await current_command(cast(Message, current_message), service)  # type: ignore[arg-type]
+    await account_command(cast(Message, account_message), service)  # type: ignore[arg-type]
     await disabled_command(cast(Message, disabled_message), service)  # type: ignore[arg-type]
     await stations_command(cast(Message, stations_message), service)  # type: ignore[arg-type]
 
     assert service.calls == [
         ("start", (10001,), {}),
         ("current", (10001,), {}),
+        ("account_billing", (10001,), {}),
         ("disabled", (10001,), {}),
         ("stations", (10001,), {}),
     ]
     assert start_message.answers[0][0] == "start"
     assert "Команды:" in help_message.answers[0][0]
     assert current_message.answers[0][0] == "current"
+    assert account_message.answers[0][0] == "account"
     assert disabled_message.answers[0][0] == "disabled"
     assert stations_message.answers[0][0] == "stations"
 

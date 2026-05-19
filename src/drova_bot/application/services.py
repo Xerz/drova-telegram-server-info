@@ -26,6 +26,7 @@ from drova_bot.telegram.renderers import (
     RenderedMessage,
     SessionGeoResolver,
     latest_sessions_by_station,
+    render_account_billing,
     render_current,
     render_disabled,
     render_error,
@@ -210,6 +211,29 @@ class BotService:
         try:
             promocodes = await client.get_unused_promocodes()
             return render_unused_promocodes(promocodes, timezone=profile.timezone)
+        except (DrovaUnauthorized, DrovaPermissionDenied):
+            return render_error("drova_unauthorized")
+        except DrovaUnavailable:
+            return render_error("drova_unavailable")
+        finally:
+            await client.aclose()
+
+    async def account_billing(self, telegram_chat_id: int) -> RenderedMessage:
+        loaded = await self._load_client(telegram_chat_id)
+        if loaded is None:
+            return render_error("not_connected")
+        profile, client = loaded
+        try:
+            merchant_id = profile.drova_user_id or ""
+            stats = await client.get_prepaid_stats(merchant_id)
+            settlements = await client.get_prepaid_settlements(merchant_id)
+            opened_deals = await client.get_opened_prepaid_deals()
+            return render_account_billing(
+                stats,
+                settlements=settlements,
+                opened_deals=opened_deals,
+                timezone=profile.timezone,
+            )
         except (DrovaUnauthorized, DrovaPermissionDenied):
             return render_error("drova_unauthorized")
         except DrovaUnavailable:

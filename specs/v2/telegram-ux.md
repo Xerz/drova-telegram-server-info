@@ -70,6 +70,16 @@
   - `Публикация`
   - when publish panel is open: numbered station buttons and `Скрыть панель`
 
+## Account
+
+- `/account` shows account billing data from prepaid/accounting endpoints.
+- Include prepaid minute stats: available-to-sell minutes, sold minutes, used minutes, and
+  minute balance when Drova returns it.
+- Include up to five opened payment deals with created date, gross amount and payout amount.
+- Include up to five latest prepaid minute settlements with date, minutes and source
+  (`заказ` / `без заказа`).
+- Redacted or unavailable monetary values render as `скрыто`.
+
 ## Promocodes
 
 - `/promocode <minutes>` issues one prepaid promocode for a positive integer number of minutes.
