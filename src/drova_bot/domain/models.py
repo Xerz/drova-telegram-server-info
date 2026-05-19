@@ -122,3 +122,17 @@ class OpenedPrepaidDeal:
     payout_amount: float | None
     gross_amount: float | None
     terminal_index: int | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class ServerSource:
+    uuid: str
+    user_id: str
+    name: str
+    description: str
+    state: str
+    published: bool
+    verified: str | None
+    allow_desktop: bool
+    disable_updates: bool
+    product_ids: list[str] = field(default_factory=list)

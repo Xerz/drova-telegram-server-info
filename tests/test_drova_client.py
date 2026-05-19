@@ -216,7 +216,7 @@ async def test_next_station_product_and_server_control_endpoints() -> None:
         ).mock(return_value=httpx.Response(200, content=b""))
         source_route = router.get(
             "https://services.drova.io/server-manager/servers/station-1"
-        ).mock(return_value=httpx.Response(200, json={"name": "Station", "description": "source"}))
+        ).mock(return_value=httpx.Response(200, json=load_api_response("test_station_source.json")))
         update_route = router.put("https://services.drova.io/server-manager/servers/station-1").mock(
             return_value=httpx.Response(200, content=b"")
         )
@@ -227,10 +227,7 @@ async def test_next_station_product_and_server_control_endpoints() -> None:
             await client.set_server_product_enabled("station-1", "product-1", False)
             await client.set_server_allow_desktop("station-1", True)
             await client.set_server_disable_updates("station-1", True)
-            assert await client.get_server_source("station-1", "user-1") == {
-                "name": "Station",
-                "description": "source",
-            }
+            source = await client.get_server_source("station-1", "user-1")
             await client.update_server_source(
                 "station-1",
                 name="Station",
@@ -238,6 +235,9 @@ async def test_next_station_product_and_server_control_endpoints() -> None:
             )
 
     assert product_edit_route.calls[0].request.headers["X-Auth-Token"] == "token"
+    assert source.allow_desktop is False
+    assert source.disable_updates is True
+    assert source.product_ids
     assert enabled_route.calls[0].request.content == b"{}"
     assert desktop_route.calls[0].request.content == b"{}"
     assert updates_route.calls[0].request.content == b"{}"

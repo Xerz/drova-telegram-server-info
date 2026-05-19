@@ -17,6 +17,7 @@ from drova_bot.domain.models import (
     PrepaidSettlement,
     PrepaidStats,
     Promocode,
+    ServerSource,
     SessionPage,
     Station,
     StationProduct,
@@ -30,6 +31,7 @@ from drova_bot.drova.models import (
     PrepaidSettlementResponse,
     PrepaidStatsResponse,
     PromocodeResponse,
+    ServerSourceResponse,
     SessionPageResponse,
     StationProductResponse,
     StationResponse,
@@ -275,13 +277,16 @@ class DrovaClient:
             retry_read=False,
         )
 
-    async def get_server_source(self, server_id: str, merchant_id: str) -> JsonPayload:
+    async def get_server_source(self, server_id: str, merchant_id: str) -> ServerSource:
         payload = await self._request(
             "GET",
             f"/server-manager/servers/{server_id}",
             params={"user_id": merchant_id},
         )
-        return _parse_json_payload(payload, "server source")
+        try:
+            return ServerSourceResponse.model_validate(payload).to_domain()
+        except ValidationError as exc:
+            raise DrovaUnavailable("server source response has unexpected shape") from exc
 
     async def update_server_source(
         self,

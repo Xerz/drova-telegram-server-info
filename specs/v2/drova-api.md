@@ -27,12 +27,12 @@ async def get_server_product_edit(server_id: str, product_id: str) -> JsonPayloa
 async def set_server_product_enabled(server_id: str, product_id: str, enabled: bool) -> None
 async def set_server_allow_desktop(server_id: str, allow_desktop: bool) -> None
 async def set_server_disable_updates(server_id: str, disable_updates: bool) -> None
-async def get_server_source(server_id: str, merchant_id: str) -> JsonPayload
+async def get_server_source(server_id: str, merchant_id: str) -> ServerSource
 async def update_server_source(server_id: str, *, name: str, description: str) -> None
 ```
 
-Server statistics, server source and station-product edit methods return provisional raw JSON
-payloads until live sanitized fixtures define stable DTO shapes.
+Server statistics and station-product edit methods return provisional raw JSON payloads
+until live sanitized fixtures define stable DTO shapes.
 
 ## Endpoint Mapping
 

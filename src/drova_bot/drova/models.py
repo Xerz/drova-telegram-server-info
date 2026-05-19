@@ -14,6 +14,7 @@ from drova_bot.domain.models import (
     PrepaidSettlement,
     PrepaidStats,
     Promocode,
+    ServerSource,
     Session,
     SessionPage,
     Station,
@@ -235,4 +236,31 @@ class OpenedPrepaidDealResponse(DrovaApiModel):
             payout_amount=self.payout_amount,
             gross_amount=self.gross_amount,
             terminal_index=self.terminal_index,
+        )
+
+
+class ServerSourceResponse(DrovaApiModel):
+    uuid: str
+    user_id: str
+    name: str
+    description: str
+    state: str
+    published: bool
+    verified: str | None = None
+    allow_desktop: bool
+    disable_updates: bool
+    product_ids: list[str] = Field(default_factory=list, alias="product_list")
+
+    def to_domain(self) -> ServerSource:
+        return ServerSource(
+            uuid=self.uuid,
+            user_id=self.user_id,
+            name=self.name,
+            description=self.description,
+            state=self.state,
+            published=self.published,
+            verified=self.verified,
+            allow_desktop=self.allow_desktop,
+            disable_updates=self.disable_updates,
+            product_ids=self.product_ids,
         )

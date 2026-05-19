@@ -35,7 +35,7 @@ async def test_live_read_contracts(
 
     if stations:
         source = await live_client.get_server_source(stations[0].uuid, account.uuid)
-        assert isinstance(source, dict | list)
+        assert source.uuid
 
     if live_settings.test_station_uuid and live_settings.test_product_uuid:
         product_edit = await live_client.get_server_product_edit(
