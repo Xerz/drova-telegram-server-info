@@ -120,6 +120,8 @@
 - Confirm commands reread current server source state. If the state differs from expected,
   the write is cancelled as stale.
 - Confirmation output must not include raw server description.
+- `/server_source` explicitly shows the selected station name and description source.
+- Server source output uses Telegram HTML escaping and may truncate long descriptions.
 
 ## Publish Confirmation
 

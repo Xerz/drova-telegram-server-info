@@ -161,6 +161,7 @@ UX requirements:
   callback payloads carrying station UUIDs.
 - Description editing must never show or log raw sensitive description content unless the user
   explicitly requested viewing it in chat.
+- `/server_source` is the explicit view command for selected station description source.
 - Description update flow must read original state and support rollback in live write tests.
 
 ## Fixture Plan

@@ -35,6 +35,7 @@ from drova_bot.telegram.renderers import (
     render_publish_confirmation,
     render_server_control_confirmation,
     render_server_control_result,
+    render_server_source,
     render_sessions,
     render_start_connected,
     render_start_not_connected,
@@ -558,6 +559,25 @@ class BotService:
                 await _apply_server_control(client, station.uuid, action, target_on)
                 source = await client.get_server_source(station.uuid, profile.drova_user_id or "")
             return render_server_control_result(station, source, action=action)
+        except (DrovaUnauthorized, DrovaPermissionDenied):
+            return render_error("drova_unauthorized")
+        except DrovaUnavailable:
+            return render_error("drova_unavailable")
+        finally:
+            await client.aclose()
+
+    async def server_source(self, telegram_chat_id: int) -> RenderedMessage:
+        loaded = await self._load_client(telegram_chat_id)
+        if loaded is None:
+            return render_error("not_connected")
+        profile, client = loaded
+        try:
+            context = await self._selected_station_context(telegram_chat_id, profile, client)
+            if isinstance(context, RenderedMessage):
+                return context
+            station = context
+            source = await client.get_server_source(station.uuid, profile.drova_user_id or "")
+            return render_server_source(station, source)
         except (DrovaUnauthorized, DrovaPermissionDenied):
             return render_error("drova_unauthorized")
         except DrovaUnavailable:

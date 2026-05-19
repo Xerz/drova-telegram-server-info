@@ -515,6 +515,38 @@ async def test_server_control_confirm_rejects_stale_state_without_write(
 
 
 @pytest.mark.asyncio
+async def test_server_source_uses_selected_station_and_escapes_description(
+    service_engine: AsyncEngine,
+    ui_stations: list[Station],
+    ui_server_source: ServerSource,
+) -> None:
+    source_client = FakeDrovaClient(
+        stations=ui_stations,
+        server_sources={
+            "station-online": replace(
+                ui_server_source,
+                description="<b>raw & station source</b>",
+            )
+        },
+    )
+    service = make_service(
+        service_engine,
+        FakeDrovaClientFactory(
+            FakeDrovaClient(stations=ui_stations),
+            source_client,
+        ),
+    )
+    await service.connect_token(10001, "token")
+    await service.select_station(10001, "station-online")
+
+    message = await service.server_source(10001)
+
+    assert "Исходник описания станции Alpha Station" in message.text
+    assert "&lt;b&gt;raw &amp; station source&lt;/b&gt;" in message.text
+    assert "<b>raw & station source</b>" not in message.text
+
+
+@pytest.mark.asyncio
 async def test_sessions_page_refetches_and_keeps_short_mode(
     service_engine: AsyncEngine,
     ui_stations: list[Station],

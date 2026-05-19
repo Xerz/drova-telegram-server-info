@@ -30,6 +30,7 @@ from drova_bot.telegram.renderers import (
     render_promocode_issued,
     render_server_control_confirmation,
     render_server_control_result,
+    render_server_source,
     render_sessions,
     render_start_connected,
     render_start_not_connected,
@@ -55,6 +56,7 @@ def test_start_and_help_messages_are_russian_and_safe() -> None:
     assert "/usage - статистика использования" in help_text
     assert "/desktop_on - включить полный доступ на выбранной станции" in help_text
     assert "/updates_off - выключить обновления на выбранной станции" in help_text
+    assert "/server_source - исходник описания выбранной станции" in help_text
     assert "/promocode &lt;minutes&gt; - выпустить prepaid-промокод" in help_text
     assert "/promocodes - неактивированные prepaid-промокоды" in help_text
     assert "/export_sessions - один XLSX со всеми сессиями" in help_text
@@ -145,6 +147,21 @@ def test_server_control_renderers_use_command_confirmation_without_raw_source(
     assert "Полный доступ включен: Alpha Station" in result.text
     assert "Текущее состояние: включен" in result.text
     assert "<description:redacted>" not in result.text
+
+
+def test_server_source_renderer_escapes_explicit_description_view(
+    ui_stations: list[Station],
+    ui_server_source: ServerSource,
+) -> None:
+    message = render_server_source(
+        ui_stations[0],
+        replace(ui_server_source, description="<b>raw & station source</b>"),
+    )
+
+    assert "Исходник описания станции Alpha Station" in message.text
+    assert "Название: <code>Alpha Station</code>" in message.text
+    assert "&lt;b&gt;raw &amp; station source&lt;/b&gt;" in message.text
+    assert "<b>raw & station source</b>" not in message.text
 
 
 def test_game_management_renderers_are_command_friendly(

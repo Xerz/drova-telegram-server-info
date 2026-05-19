@@ -118,6 +118,7 @@ def render_help() -> RenderedMessage:
         "/desktop_off - выключить полный доступ на выбранной станции",
         "/updates_on - включить обновления на выбранной станции",
         "/updates_off - выключить обновления на выбранной станции",
+        "/server_source - исходник описания выбранной станции",
         "/promocode &lt;minutes&gt; - выпустить prepaid-промокод",
         "/promocodes - неактивированные prepaid-промокоды",
         "/export_sessions - один XLSX со всеми сессиями",
@@ -353,6 +354,26 @@ def render_server_control_result(
         f"{label} {state}: {html_escape(station.name)}\n"
         f"Текущее состояние: {state}"
     )
+
+
+def render_server_source(station: Station, source: ServerSource) -> RenderedMessage:
+    description, truncated = _truncated_description(source.description)
+    lines = [
+        f"Исходник описания станции {html_escape(station.name)}",
+        f"Название: <code>{html_escape(source.name)}</code>",
+        "",
+        "Описание:",
+        f"<pre>{html_escape(description)}</pre>",
+    ]
+    if truncated:
+        lines.append("Описание обрезано до безопасной длины сообщения.")
+    return RenderedMessage("\n".join(lines))
+
+
+def _truncated_description(description: str, max_length: int = 3000) -> tuple[str, bool]:
+    if len(description) <= max_length:
+        return description, False
+    return description[:max_length], True
 
 
 def _server_control_label(action: str) -> str | None:

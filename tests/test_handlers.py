@@ -35,6 +35,7 @@ from drova_bot.telegram.routers.core import (
     logout_command,
     promocode_command,
     promocodes_command,
+    server_source_command,
     sessions_command,
     sessions_short_command,
     start_command,
@@ -198,6 +199,10 @@ class FakeService:
         self.calls.append(("server_control_confirm", (chat_id, action, expected_state), {}))
         return RenderedMessage(f"control_confirm:{action}:{expected_state}")
 
+    async def server_source(self, chat_id: int) -> RenderedMessage:
+        self.calls.append(("server_source", (chat_id,), {}))
+        return RenderedMessage("server_source")
+
     async def issue_promocode(self, chat_id: int, raw_minutes: str) -> RenderedMessage:
         self.calls.append(("issue_promocode", (chat_id, raw_minutes), {}))
         return RenderedMessage(f"promocode:{raw_minutes}")
@@ -262,6 +267,7 @@ async def test_basic_command_handlers_route_to_service_or_help() -> None:
     current_message = FakeMessage("/current")
     account_message = FakeMessage("/account")
     usage_message = FakeMessage("/usage")
+    server_source_message = FakeMessage("/server_source")
     disabled_message = FakeMessage("/disabled")
     stations_message = FakeMessage("/stations")
 
@@ -270,6 +276,7 @@ async def test_basic_command_handlers_route_to_service_or_help() -> None:
     await current_command(cast(Message, current_message), service)  # type: ignore[arg-type]
     await account_command(cast(Message, account_message), service)  # type: ignore[arg-type]
     await usage_command(cast(Message, usage_message), service)  # type: ignore[arg-type]
+    await server_source_command(cast(Message, server_source_message), service)  # type: ignore[arg-type]
     await disabled_command(cast(Message, disabled_message), service)  # type: ignore[arg-type]
     await stations_command(cast(Message, stations_message), service)  # type: ignore[arg-type]
 
@@ -278,6 +285,7 @@ async def test_basic_command_handlers_route_to_service_or_help() -> None:
         ("current", (10001,), {}),
         ("account_billing", (10001,), {}),
         ("usage_statistics", (10001,), {}),
+        ("server_source", (10001,), {}),
         ("disabled", (10001,), {}),
         ("stations", (10001,), {}),
     ]
@@ -286,6 +294,7 @@ async def test_basic_command_handlers_route_to_service_or_help() -> None:
     assert current_message.answers[0][0] == "current"
     assert account_message.answers[0][0] == "account"
     assert usage_message.answers[0][0] == "usage"
+    assert server_source_message.answers[0][0] == "server_source"
     assert disabled_message.answers[0][0] == "disabled"
     assert stations_message.answers[0][0] == "stations"
 
