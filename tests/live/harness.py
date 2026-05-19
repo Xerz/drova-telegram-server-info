@@ -20,6 +20,7 @@ class MissingLiveEnvironment(RuntimeError):
 class LiveSettings:
     drova_proxy_token: str
     test_station_uuid: str | None = None
+    test_product_uuid: str | None = None
     telegram_bot_token: str | None = None
     http_proxy: str | None = None
     https_proxy: str | None = None
@@ -54,6 +55,7 @@ def load_live_settings(path: Path = ENV_SPECING_PATH) -> LiveSettings:
     return LiveSettings(
         drova_proxy_token=proxy_token,
         test_station_uuid=_optional(env.get("TEST_STATION_UUID")),
+        test_product_uuid=_optional(env.get("TEST_PRODUCT_UUID")),
         telegram_bot_token=_optional(env.get("TELEGRAM_BOT_TOKEN")),
         http_proxy=_optional(env.get("HTTP_PROXY")),
         https_proxy=_optional(env.get("HTTPS_PROXY")),

@@ -16,7 +16,7 @@ import time
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
-import requests
+import httpx
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -190,17 +190,13 @@ class DrovaSampler:
     def __init__(self, env: Dict[str, str]) -> None:
         self.token = env["DROVA_PROXY_TOKEN"]
         self.test_station_uuid = env["TEST_STATION_UUID"]
-        self.session = requests.Session()
+        self.test_product_uuid = env.get("TEST_PRODUCT_UUID")
         self.proxy_enabled = False
         self.proxy_fallback_used = False
-        proxies = {}
-        if env.get("HTTP_PROXY"):
-            proxies["http"] = env["HTTP_PROXY"]
-        if env.get("HTTPS_PROXY"):
-            proxies["https"] = env["HTTPS_PROXY"]
-        if proxies:
-            self.session.proxies.update(proxies)
+        proxy = env.get("HTTPS_PROXY") or env.get("HTTP_PROXY")
+        if proxy:
             self.proxy_enabled = True
+        self.session = httpx.Client(proxy=proxy, timeout=REQUEST_TIMEOUT)
         self.sanitizer = Sanitizer()
         self.summary: List[Dict[str, Any]] = []
         self.schema_summary: Dict[str, Any] = {}
@@ -227,15 +223,14 @@ class DrovaSampler:
                 params=params or {},
                 json=json_body,
                 headers=self.headers() if auth else {},
-                timeout=REQUEST_TIMEOUT,
             )
-        except requests.exceptions.ProxyError:
+        except httpx.ProxyError:
             if not self.proxy_enabled or self.proxy_fallback_used:
                 raise
             self.proxy_fallback_used = True
             self.proxy_enabled = False
-            self.session = requests.Session()
-            self.session.trust_env = False
+            self.session.close()
+            self.session = httpx.Client(timeout=REQUEST_TIMEOUT, trust_env=False)
             print("configured proxy is unreachable; retrying direct HTTPS without printing proxy details")
             response = self.session.request(
                 method,
@@ -243,7 +238,6 @@ class DrovaSampler:
                 params=params or {},
                 json=json_body,
                 headers=self.headers() if auth else {},
-                timeout=REQUEST_TIMEOUT,
             )
         elapsed_ms = round((time.perf_counter() - started) * 1000, 1)
 
@@ -368,15 +362,68 @@ class DrovaSampler:
             )
             require_status(f"{suffix}_endpoints_limit_5", status, 200)
 
+        self.sample_next_iteration_read_fixtures(user_id, servers)
         self.sample_publish_write_flow(servers, user_id)
         write_json(FIXTURE_DIR / "schema-summary.json", self.schema_summary)
         write_json(FIXTURE_DIR / "sampling-report.json", {"requests": self.summary})
 
-    def sample_publish_write_flow(self, servers: List[Dict[str, Any]], user_id: str) -> None:
-        test_server = next(
-            (server for server in servers if server.get("uuid") == self.test_station_uuid),
-            None,
+    def sample_next_iteration_read_fixtures(
+        self,
+        user_id: str,
+        servers: List[Dict[str, Any]],
+    ) -> None:
+        if find_test_server(servers, self.test_station_uuid) is None:
+            raise RuntimeError("TEST_STATION_UUID is not present in /server-manager/servers")
+
+        _, status = self.request(
+            "account_prepaid_stats",
+            "GET",
+            f"/accounting/prepaid/prepaid_stats4merchant/{user_id}",
         )
+        require_status("account_prepaid_stats", status, 200)
+
+        _, status = self.request(
+            "account_prepaid_settlements",
+            "GET",
+            f"/accounting/prepaid/list4merchant/{user_id}",
+        )
+        require_status("account_prepaid_settlements", status, 200)
+
+        _, status = self.request(
+            "account_tinkoff_opened_deals",
+            "GET",
+            "/accounting/tinkoff/prepaid/getOpenedDeals",
+        )
+        require_status("account_tinkoff_opened_deals", status, 200)
+
+        _, status = self.request(
+            "server_usage_statistics",
+            "GET",
+            "/accounting/statistics/myserverusageprepared",
+        )
+        require_status("server_usage_statistics", status, 200)
+
+        _, status = self.request(
+            "test_station_source",
+            "GET",
+            f"/server-manager/servers/{self.test_station_uuid}",
+            params={"user_id": user_id},
+        )
+        require_status("test_station_source", status, 200)
+
+        if self.test_product_uuid:
+            _, status = self.request(
+                "test_station_product_edit",
+                "GET",
+                (
+                    "/server-manager/serverproduct/list4edit2/"
+                    f"{self.test_station_uuid}/{self.test_product_uuid}"
+                ),
+            )
+            require_status("test_station_product_edit", status, 200)
+
+    def sample_publish_write_flow(self, servers: List[Dict[str, Any]], user_id: str) -> None:
+        test_server = find_test_server(servers, self.test_station_uuid)
         if test_server is None:
             raise RuntimeError("TEST_STATION_UUID is not present in /server-manager/servers")
         if "published" not in test_server:
@@ -418,6 +465,10 @@ class DrovaSampler:
         )
         require_status("test_station_publish_rollback_confirm", status, 200)
         require_published_state(confirm, self.test_station_uuid, original, "rollback confirm")
+
+
+def find_test_server(servers: List[Dict[str, Any]], station_uuid: str) -> Dict[str, Any] | None:
+    return next((server for server in servers if server.get("uuid") == station_uuid), None)
 
 
 def require_published_state(data: Any, server_uuid: str, expected: bool, label: str) -> None:

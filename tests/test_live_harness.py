@@ -22,6 +22,7 @@ def test_live_env_parser_handles_comments_quotes_and_missing_file(tmp_path: Path
         # comment
         DROVA_PROXY_TOKEN="token"
         TEST_STATION_UUID='station-1'
+        TEST_PRODUCT_UUID='product-1'
         HTTP_PROXY=
         MALFORMED_LINE
         HTTPS_PROXY=https://proxy.example
@@ -33,6 +34,7 @@ def test_live_env_parser_handles_comments_quotes_and_missing_file(tmp_path: Path
     assert load_env_file(env_path) == {
         "DROVA_PROXY_TOKEN": "token",
         "TEST_STATION_UUID": "station-1",
+        "TEST_PRODUCT_UUID": "product-1",
         "HTTP_PROXY": "",
         "HTTPS_PROXY": "https://proxy.example",
     }
@@ -50,6 +52,7 @@ def test_live_settings_require_proxy_token_and_apply_defaults(tmp_path: Path) ->
 
     assert settings.drova_proxy_token == "token"
     assert settings.test_station_uuid is None
+    assert settings.test_product_uuid is None
     assert settings.drova_base_url == DEFAULT_DROVA_BASE_URL
 
 

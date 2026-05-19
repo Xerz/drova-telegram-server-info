@@ -38,6 +38,15 @@ python3 -m uv run pytest tests/live --run-live --run-live-write
 The write check only targets `TEST_STATION_UUID`, verifies the toggled state, and rolls
 back in `finally`.
 
+Fixture sampling for spec work also uses `.env.specing`:
+
+```bash
+python3 scripts/sample_live_api.py
+```
+
+The sampler requires `DROVA_PROXY_TOKEN` and `TEST_STATION_UUID`. Set `TEST_PRODUCT_UUID`
+when sampling the next station-product edit fixture.
+
 ## Runtime
 
 Create `.env` from `.env.example` and set `TELEGRAM_BOT_TOKEN` plus a Fernet
