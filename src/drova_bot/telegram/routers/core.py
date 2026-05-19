@@ -54,6 +54,14 @@ def build_router() -> Router:
     router.message.register(game_hide_command, Command("game_hide"))
     router.message.register(game_show_command, Command("game_show"))
     router.message.register(game_hide_all_command, Command("game_hide_all"))
+    router.message.register(desktop_on_command, Command("desktop_on"))
+    router.message.register(desktop_off_command, Command("desktop_off"))
+    router.message.register(updates_on_command, Command("updates_on"))
+    router.message.register(updates_off_command, Command("updates_off"))
+    router.message.register(desktop_on_confirm_command, Command("desktop_on_confirm"))
+    router.message.register(desktop_off_confirm_command, Command("desktop_off_confirm"))
+    router.message.register(updates_on_confirm_command, Command("updates_on_confirm"))
+    router.message.register(updates_off_confirm_command, Command("updates_off_confirm"))
     router.message.register(promocode_command, Command("promocode"))
     router.message.register(promocodes_command, Command("promocodes"))
     router.message.register(
@@ -186,6 +194,78 @@ async def game_hide_all_command(message: Message, bot_service: BotService) -> No
     await answer_rendered(
         message,
         await bot_service.hide_game_all(message.chat.id, _command_args(message.text)),
+    )
+
+
+async def desktop_on_command(message: Message, bot_service: BotService) -> None:
+    await answer_rendered(
+        message,
+        await bot_service.server_control_confirmation(message.chat.id, "desktop_on"),
+    )
+
+
+async def desktop_off_command(message: Message, bot_service: BotService) -> None:
+    await answer_rendered(
+        message,
+        await bot_service.server_control_confirmation(message.chat.id, "desktop_off"),
+    )
+
+
+async def updates_on_command(message: Message, bot_service: BotService) -> None:
+    await answer_rendered(
+        message,
+        await bot_service.server_control_confirmation(message.chat.id, "updates_on"),
+    )
+
+
+async def updates_off_command(message: Message, bot_service: BotService) -> None:
+    await answer_rendered(
+        message,
+        await bot_service.server_control_confirmation(message.chat.id, "updates_off"),
+    )
+
+
+async def desktop_on_confirm_command(message: Message, bot_service: BotService) -> None:
+    await answer_rendered(
+        message,
+        await bot_service.server_control_confirm(
+            message.chat.id,
+            "desktop_on",
+            _command_args(message.text),
+        ),
+    )
+
+
+async def desktop_off_confirm_command(message: Message, bot_service: BotService) -> None:
+    await answer_rendered(
+        message,
+        await bot_service.server_control_confirm(
+            message.chat.id,
+            "desktop_off",
+            _command_args(message.text),
+        ),
+    )
+
+
+async def updates_on_confirm_command(message: Message, bot_service: BotService) -> None:
+    await answer_rendered(
+        message,
+        await bot_service.server_control_confirm(
+            message.chat.id,
+            "updates_on",
+            _command_args(message.text),
+        ),
+    )
+
+
+async def updates_off_confirm_command(message: Message, bot_service: BotService) -> None:
+    await answer_rendered(
+        message,
+        await bot_service.server_control_confirm(
+            message.chat.id,
+            "updates_off",
+            _command_args(message.text),
+        ),
     )
 
 

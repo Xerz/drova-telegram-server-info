@@ -11,7 +11,7 @@ from drova_bot.application.export_jobs import ExportJob
 from drova_bot.application.protocols import DrovaClientFactory, DrovaClientProtocol, TokenPersister
 from drova_bot.config import Settings
 from drova_bot.domain.formatters import normalize_session_limit
-from drova_bot.domain.models import ChatProfile, Session, Station
+from drova_bot.domain.models import ChatProfile, ServerSource, Session, Station
 from drova_bot.drova import DrovaClient
 from drova_bot.drova.errors import (
     DrovaPermissionDenied,
@@ -33,6 +33,8 @@ from drova_bot.telegram.renderers import (
     render_game_enabled_result,
     render_promocode_issued,
     render_publish_confirmation,
+    render_server_control_confirmation,
+    render_server_control_result,
     render_sessions,
     render_start_connected,
     render_start_not_connected,
@@ -505,6 +507,64 @@ class BotService:
         finally:
             await client.aclose()
 
+    async def server_control_confirmation(
+        self,
+        telegram_chat_id: int,
+        action: str,
+    ) -> RenderedMessage:
+        if not _is_server_control_action(action):
+            return render_error("invalid_server_control")
+        loaded = await self._load_client(telegram_chat_id)
+        if loaded is None:
+            return render_error("not_connected")
+        profile, client = loaded
+        try:
+            context = await self._selected_station_context(telegram_chat_id, profile, client)
+            if isinstance(context, RenderedMessage):
+                return context
+            station = context
+            source = await client.get_server_source(station.uuid, profile.drova_user_id or "")
+            return render_server_control_confirmation(station, source, action=action)
+        except (DrovaUnauthorized, DrovaPermissionDenied):
+            return render_error("drova_unauthorized")
+        except DrovaUnavailable:
+            return render_error("drova_unavailable")
+        finally:
+            await client.aclose()
+
+    async def server_control_confirm(
+        self,
+        telegram_chat_id: int,
+        action: str,
+        raw_expected_state: str | None,
+    ) -> RenderedMessage:
+        expected_on = _parse_control_expected_state(raw_expected_state)
+        if not _is_server_control_action(action) or expected_on is None:
+            return render_error("invalid_server_control_confirmation")
+        loaded = await self._load_client(telegram_chat_id)
+        if loaded is None:
+            return render_error("not_connected")
+        profile, client = loaded
+        try:
+            context = await self._selected_station_context(telegram_chat_id, profile, client)
+            if isinstance(context, RenderedMessage):
+                return context
+            station = context
+            source = await client.get_server_source(station.uuid, profile.drova_user_id or "")
+            if _server_control_current_on(source, action) != expected_on:
+                return render_error("stale_server_control")
+            target_on = _server_control_target_on(action)
+            if expected_on != target_on:
+                await _apply_server_control(client, station.uuid, action, target_on)
+                source = await client.get_server_source(station.uuid, profile.drova_user_id or "")
+            return render_server_control_result(station, source, action=action)
+        except (DrovaUnauthorized, DrovaPermissionDenied):
+            return render_error("drova_unauthorized")
+        except DrovaUnavailable:
+            return render_error("drova_unavailable")
+        finally:
+            await client.aclose()
+
     async def export(self, telegram_chat_id: int, kind: ExportKind) -> ExportResult:
         loaded = await self._load_client(telegram_chat_id)
         if loaded is None:
@@ -877,6 +937,53 @@ def _parse_product_id(raw_product_id: str | None) -> str | None:
         return None
     product_id = raw_product_id.strip()
     return product_id or None
+
+
+SERVER_CONTROL_ACTIONS = frozenset(
+    {
+        "desktop_on",
+        "desktop_off",
+        "updates_on",
+        "updates_off",
+    }
+)
+
+
+def _is_server_control_action(action: str) -> bool:
+    return action in SERVER_CONTROL_ACTIONS
+
+
+def _parse_control_expected_state(raw_expected_state: str | None) -> bool | None:
+    if raw_expected_state is None:
+        return None
+    expected = raw_expected_state.strip().casefold()
+    if expected == "on":
+        return True
+    if expected == "off":
+        return False
+    return None
+
+
+def _server_control_current_on(source: ServerSource, action: str) -> bool:
+    if action.startswith("desktop_"):
+        return source.allow_desktop
+    return not source.disable_updates
+
+
+def _server_control_target_on(action: str) -> bool:
+    return action.endswith("_on")
+
+
+async def _apply_server_control(
+    client: DrovaClientProtocol,
+    station_id: str,
+    action: str,
+    target_on: bool,
+) -> None:
+    if action.startswith("desktop_"):
+        await client.set_server_allow_desktop(station_id, target_on)
+    else:
+        await client.set_server_disable_updates(station_id, not target_on)
 
 
 def _export_ready_message(files: Sequence[object]) -> str:

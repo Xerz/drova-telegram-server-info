@@ -12,6 +12,7 @@ from _pytest.nodes import Item
 from drova_bot.domain.models import (
     ChatProfile,
     Endpoint,
+    ServerSource,
     ServerUsageStatistics,
     Session,
     Station,
@@ -187,6 +188,22 @@ def ui_usage_statistics() -> ServerUsageStatistics:
                 "product-b": UsageStat(session_count=4, total_msecs=21_600_000),
             },
         ),
+    )
+
+
+@pytest.fixture
+def ui_server_source() -> ServerSource:
+    return ServerSource(
+        uuid="station-online",
+        user_id="user-1",
+        name="Alpha Station",
+        description="<description:redacted>",
+        state="LISTEN",
+        published=True,
+        verified=None,
+        allow_desktop=False,
+        disable_updates=True,
+        product_ids=["product-a", "product-b"],
     )
 
 

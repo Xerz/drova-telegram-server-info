@@ -12,6 +12,7 @@ from drova_bot.domain.models import (
     PrepaidStats,
     Promocode,
     ServerProductEdit,
+    ServerSource,
     ServerUsageStatistics,
     Session,
     Station,
@@ -27,6 +28,8 @@ from drova_bot.telegram.renderers import (
     render_game_enabled_result,
     render_help,
     render_promocode_issued,
+    render_server_control_confirmation,
+    render_server_control_result,
     render_sessions,
     render_start_connected,
     render_start_not_connected,
@@ -50,6 +53,8 @@ def test_start_and_help_messages_are_russian_and_safe() -> None:
     assert "/station_all - выбрать все станции" in help_text
     assert "/sessions_short - последние сессии дольше 5 минут" in help_text
     assert "/usage - статистика использования" in help_text
+    assert "/desktop_on - включить полный доступ на выбранной станции" in help_text
+    assert "/updates_off - выключить обновления на выбранной станции" in help_text
     assert "/promocode &lt;minutes&gt; - выпустить prepaid-промокод" in help_text
     assert "/promocodes - неактивированные prepaid-промокоды" in help_text
     assert "/export_sessions - один XLSX со всеми сессиями" in help_text
@@ -115,6 +120,31 @@ def test_usage_statistics_renderer_shows_totals_and_top_rows(
     assert "1. Cyber Rally · 6 сессий · 10 ч 0 мин" in message.text
     assert "2. Space Farm · 4 сессий · 6 ч 0 мин" in message.text
     assert "totalincome" not in message.text.lower()
+
+
+def test_server_control_renderers_use_command_confirmation_without_raw_source(
+    ui_stations: list[Station],
+    ui_server_source: ServerSource,
+) -> None:
+    station = ui_stations[0]
+    confirmation = render_server_control_confirmation(
+        station,
+        ui_server_source,
+        action="desktop_on",
+    )
+    assert "Полный доступ сейчас: выключен" in confirmation.text
+    assert "<code>/desktop_on_confirm off</code>" in confirmation.text
+    assert "station-online" not in confirmation.text
+    assert "<description:redacted>" not in confirmation.text
+
+    result = render_server_control_result(
+        station,
+        replace(ui_server_source, allow_desktop=True),
+        action="desktop_on",
+    )
+    assert "Полный доступ включен: Alpha Station" in result.text
+    assert "Текущее состояние: включен" in result.text
+    assert "<description:redacted>" not in result.text
 
 
 def test_game_management_renderers_are_command_friendly(

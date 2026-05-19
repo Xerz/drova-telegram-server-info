@@ -35,6 +35,7 @@ from drova_bot.domain.models import (
     PrepaidStats,
     Promocode,
     ServerProductEdit,
+    ServerSource,
     ServerUsageStatistics,
     Session,
     Station,
@@ -113,6 +114,10 @@ def render_help() -> RenderedMessage:
         "/game_hide &lt;product_id&gt; - скрыть игру на выбранной станции",
         "/game_show &lt;product_id&gt; - открыть игру на выбранной станции",
         "/game_hide_all &lt;product_id&gt; - скрыть игру на всех станциях",
+        "/desktop_on - включить полный доступ на выбранной станции",
+        "/desktop_off - выключить полный доступ на выбранной станции",
+        "/updates_on - включить обновления на выбранной станции",
+        "/updates_off - выключить обновления на выбранной станции",
         "/promocode &lt;minutes&gt; - выпустить prepaid-промокод",
         "/promocodes - неактивированные prepaid-промокоды",
         "/export_sessions - один XLSX со всеми сессиями",
@@ -133,6 +138,11 @@ def render_error(code: str) -> RenderedMessage:
         "invalid_promocode_minutes": "Укажите количество минут целым числом больше 0.",
         "invalid_product_id": "Укажите product id. Например: /game &lt;product_id&gt;.",
         "station_required": "Сначала выберите одну станцию через /station.",
+        "invalid_server_control": "Команда управления не найдена.",
+        "invalid_server_control_confirmation": (
+            "Подтверждение устарело. Сначала отправьте команду управления заново."
+        ),
+        "stale_server_control": "Состояние уже изменилось. Обновите команду управления.",
         "drova_unavailable": "Drova временно недоступен. Попробуйте позже.",
         "drova_unauthorized": "Токен недействителен. Подключите новый через /token.",
         "stale_publish": "Состояние станции изменилось. Обновите панель публикации.",
@@ -298,6 +308,75 @@ def render_usage_statistics(
         )
     )
     return RenderedMessage("\n".join(lines))
+
+
+def render_server_control_confirmation(
+    station: Station,
+    source: ServerSource,
+    *,
+    action: str,
+) -> RenderedMessage:
+    label = _server_control_label(action)
+    if label is None:
+        return render_error("invalid_server_control")
+    current_on = _server_control_current_on(source, action)
+    target_on = _server_control_target_on(action)
+    state = _server_control_state_word(action, current_on)
+    if current_on == target_on:
+        return RenderedMessage(
+            f"{label} уже {state}: {html_escape(station.name)}\n"
+            f"Текущее состояние: {state}"
+        )
+    expected_state = "on" if current_on else "off"
+    target_state = _server_control_state_word(action, target_on)
+    command = f"/{action}_confirm {expected_state}"
+    return RenderedMessage(
+        f"Станция {html_escape(station.name)}\n"
+        f"{label} сейчас: {state}\n\n"
+        f"Чтобы переключить на {target_state}, отправьте:\n"
+        f"<code>{html_escape(command)}</code>"
+    )
+
+
+def render_server_control_result(
+    station: Station,
+    source: ServerSource,
+    *,
+    action: str,
+) -> RenderedMessage:
+    label = _server_control_label(action)
+    if label is None:
+        return render_error("invalid_server_control")
+    current_on = _server_control_current_on(source, action)
+    state = _server_control_state_word(action, current_on)
+    return RenderedMessage(
+        f"{label} {state}: {html_escape(station.name)}\n"
+        f"Текущее состояние: {state}"
+    )
+
+
+def _server_control_label(action: str) -> str | None:
+    if action.startswith("desktop_"):
+        return "Полный доступ"
+    if action.startswith("updates_"):
+        return "Обновления"
+    return None
+
+
+def _server_control_current_on(source: ServerSource, action: str) -> bool:
+    if action.startswith("desktop_"):
+        return source.allow_desktop
+    return not source.disable_updates
+
+
+def _server_control_target_on(action: str) -> bool:
+    return action.endswith("_on")
+
+
+def _server_control_state_word(action: str, enabled: bool) -> str:
+    if action.startswith("updates_"):
+        return "включены" if enabled else "выключены"
+    return "включен" if enabled else "выключен"
 
 
 def _usage_total_line(label: str, stat: UsageStat) -> str:

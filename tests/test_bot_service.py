@@ -20,6 +20,7 @@ from drova_bot.domain.models import (
     PrepaidStats,
     Promocode,
     ServerProductEdit,
+    ServerSource,
     ServerUsageStatistics,
     Session,
     SessionPage,
@@ -56,6 +57,7 @@ class FakeDrovaClient:
         prepaid_settlements: list[PrepaidSettlement] | None = None,
         opened_deals: list[OpenedPrepaidDeal] | None = None,
         usage_statistics: ServerUsageStatistics | None = None,
+        server_sources: dict[str, ServerSource] | None = None,
         station_products: dict[str, list[StationProduct]] | None = None,
         product_edits: dict[tuple[str, str], ServerProductEdit] | None = None,
         endpoints: dict[str, list[Endpoint]] | None = None,
@@ -79,6 +81,7 @@ class FakeDrovaClient:
         self.prepaid_settlements = prepaid_settlements or []
         self.opened_deals = opened_deals or []
         self.usage_statistics = usage_statistics
+        self.server_sources = server_sources or {}
         self.station_products = station_products or {}
         self.product_edits = product_edits or {}
         self.endpoints = endpoints or {}
@@ -88,6 +91,8 @@ class FakeDrovaClient:
         self.closed = False
         self.published_calls: list[tuple[str, bool]] = []
         self.product_enabled_calls: list[tuple[str, str, bool]] = []
+        self.desktop_calls: list[tuple[str, bool]] = []
+        self.disable_updates_calls: list[tuple[str, bool]] = []
         self.issued_promocode_minutes: list[int] = []
         self.session_calls: list[tuple[str | None, str | None, int | None]] = []
 
@@ -213,6 +218,25 @@ class FakeDrovaClient:
         if self.usage_statistics is None:
             raise DrovaUnavailable("usage statistics unavailable")
         return self.usage_statistics
+
+    async def get_server_source(self, server_id: str, merchant_id: str) -> ServerSource:
+        source = self.server_sources.get(server_id)
+        if source is None:
+            raise DrovaUnavailable("server source unavailable")
+        assert source.user_id == merchant_id
+        return source
+
+    async def set_server_allow_desktop(self, server_id: str, allow_desktop: bool) -> None:
+        self.desktop_calls.append((server_id, allow_desktop))
+        source = self.server_sources.get(server_id)
+        if source is not None:
+            self.server_sources[server_id] = replace(source, allow_desktop=allow_desktop)
+
+    async def set_server_disable_updates(self, server_id: str, disable_updates: bool) -> None:
+        self.disable_updates_calls.append((server_id, disable_updates))
+        source = self.server_sources.get(server_id)
+        if source is not None:
+            self.server_sources[server_id] = replace(source, disable_updates=disable_updates)
 
 
 class FakeDrovaClientFactory:
@@ -432,6 +456,62 @@ async def test_usage_statistics_uses_backend_stats_and_cached_titles(
     assert "Сегодня: 2 сессий · 2 ч 10 мин" in message.text
     assert "1. Alpha Station · 8 сессий · 12 ч 0 мин" in message.text
     assert "1. Cyber Rally · 6 сессий · 10 ч 0 мин" in message.text
+
+
+@pytest.mark.asyncio
+async def test_server_control_confirmation_and_confirm_use_selected_station(
+    service_engine: AsyncEngine,
+    ui_stations: list[Station],
+    ui_server_source: ServerSource,
+) -> None:
+    control_client = FakeDrovaClient(
+        stations=ui_stations,
+        server_sources={"station-online": ui_server_source},
+    )
+    service = make_service(
+        service_engine,
+        FakeDrovaClientFactory(
+            FakeDrovaClient(stations=ui_stations),
+            control_client,
+            control_client,
+        ),
+    )
+    await service.connect_token(10001, "token")
+    await service.select_station(10001, "station-online")
+
+    confirmation = await service.server_control_confirmation(10001, "desktop_on")
+    result = await service.server_control_confirm(10001, "desktop_on", "off")
+
+    assert "<code>/desktop_on_confirm off</code>" in confirmation.text
+    assert "station-online" not in confirmation.text
+    assert "Полный доступ включен: Alpha Station" in result.text
+    assert control_client.desktop_calls == [("station-online", True)]
+
+
+@pytest.mark.asyncio
+async def test_server_control_confirm_rejects_stale_state_without_write(
+    service_engine: AsyncEngine,
+    ui_stations: list[Station],
+    ui_server_source: ServerSource,
+) -> None:
+    control_client = FakeDrovaClient(
+        stations=ui_stations,
+        server_sources={"station-online": replace(ui_server_source, disable_updates=False)},
+    )
+    service = make_service(
+        service_engine,
+        FakeDrovaClientFactory(
+            FakeDrovaClient(stations=ui_stations),
+            control_client,
+        ),
+    )
+    await service.connect_token(10001, "token")
+    await service.select_station(10001, "station-online")
+
+    message = await service.server_control_confirm(10001, "updates_off", "off")
+
+    assert message.text == "Состояние уже изменилось. Обновите команду управления."
+    assert control_client.disable_updates_calls == []
 
 
 @pytest.mark.asyncio

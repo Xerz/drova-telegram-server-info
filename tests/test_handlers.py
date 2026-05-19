@@ -18,6 +18,10 @@ from drova_bot.telegram.routers.core import (
     callback_query,
     current_command,
     deliver_export_job,
+    desktop_off_command,
+    desktop_off_confirm_command,
+    desktop_on_command,
+    desktop_on_confirm_command,
     disabled_command,
     export_command,
     export_kind_from_message,
@@ -40,6 +44,10 @@ from drova_bot.telegram.routers.core import (
     token_command,
     unknown_command,
     unknown_text,
+    updates_off_command,
+    updates_off_confirm_command,
+    updates_on_command,
+    updates_on_confirm_command,
     usage_command,
 )
 
@@ -177,6 +185,19 @@ class FakeService:
         self.calls.append(("hide_game_all", (chat_id, product_id), {}))
         return RenderedMessage(f"hide_all:{product_id}")
 
+    async def server_control_confirmation(self, chat_id: int, action: str) -> RenderedMessage:
+        self.calls.append(("server_control_confirmation", (chat_id, action), {}))
+        return RenderedMessage(f"control:{action}")
+
+    async def server_control_confirm(
+        self,
+        chat_id: int,
+        action: str,
+        expected_state: str,
+    ) -> RenderedMessage:
+        self.calls.append(("server_control_confirm", (chat_id, action, expected_state), {}))
+        return RenderedMessage(f"control_confirm:{action}:{expected_state}")
+
     async def issue_promocode(self, chat_id: int, raw_minutes: str) -> RenderedMessage:
         self.calls.append(("issue_promocode", (chat_id, raw_minutes), {}))
         return RenderedMessage(f"promocode:{raw_minutes}")
@@ -285,6 +306,22 @@ async def test_token_limit_sessions_and_station_handlers_parse_arguments() -> No
     await game_hide_command(cast(Message, FakeMessage("/game_hide product-a")), service)  # type: ignore[arg-type]
     await game_show_command(cast(Message, FakeMessage("/game_show product-a")), service)  # type: ignore[arg-type]
     await game_hide_all_command(cast(Message, FakeMessage("/game_hide_all product-b")), service)  # type: ignore[arg-type]
+    await desktop_on_command(cast(Message, FakeMessage("/desktop_on")), service)  # type: ignore[arg-type]
+    await desktop_on_confirm_command(
+        cast(Message, FakeMessage("/desktop_on_confirm off")), service  # type: ignore[arg-type]
+    )
+    await desktop_off_command(cast(Message, FakeMessage("/desktop_off")), service)  # type: ignore[arg-type]
+    await desktop_off_confirm_command(
+        cast(Message, FakeMessage("/desktop_off_confirm on")), service  # type: ignore[arg-type]
+    )
+    await updates_on_command(cast(Message, FakeMessage("/updates_on")), service)  # type: ignore[arg-type]
+    await updates_on_confirm_command(
+        cast(Message, FakeMessage("/updates_on_confirm off")), service  # type: ignore[arg-type]
+    )
+    await updates_off_command(cast(Message, FakeMessage("/updates_off")), service)  # type: ignore[arg-type]
+    await updates_off_confirm_command(
+        cast(Message, FakeMessage("/updates_off_confirm on")), service  # type: ignore[arg-type]
+    )
 
     assert service.calls == [
         ("connect_token", (10001, "proxy-token"), {}),
@@ -298,6 +335,14 @@ async def test_token_limit_sessions_and_station_handlers_parse_arguments() -> No
         ("set_station_game_enabled", (10001, "product-a"), {"enabled": False}),
         ("set_station_game_enabled", (10001, "product-a"), {"enabled": True}),
         ("hide_game_all", (10001, "product-b"), {}),
+        ("server_control_confirmation", (10001, "desktop_on"), {}),
+        ("server_control_confirm", (10001, "desktop_on", "off"), {}),
+        ("server_control_confirmation", (10001, "desktop_off"), {}),
+        ("server_control_confirm", (10001, "desktop_off", "on"), {}),
+        ("server_control_confirmation", (10001, "updates_on"), {}),
+        ("server_control_confirm", (10001, "updates_on", "off"), {}),
+        ("server_control_confirmation", (10001, "updates_off"), {}),
+        ("server_control_confirm", (10001, "updates_off", "on"), {}),
     ]
     assert token_message.answers[0][0] == "token:proxy-token"
 

@@ -107,6 +107,20 @@
 - `/game_hide_all <product_id>` hides a game on every station and reports updated and failed station counts.
 - If all-stations mode is selected, station-scoped game commands ask the user to choose one station first.
 
+## Server Controls
+
+- Server desktop/update controls use command confirmation, not inline callbacks.
+- Commands require one selected station:
+  - `/desktop_on`
+  - `/desktop_off`
+  - `/updates_on`
+  - `/updates_off`
+- The first command reads current server source state and responds with a confirmation command
+  that includes only expected `on`/`off` state, never station UUID or source description.
+- Confirm commands reread current server source state. If the state differs from expected,
+  the write is cancelled as stale.
+- Confirmation output must not include raw server description.
+
 ## Publish Confirmation
 
 Flow:

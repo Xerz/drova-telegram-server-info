@@ -157,7 +157,8 @@ async def update_server_source(server_id: str, *, name: str, description: str) -
 
 UX requirements:
 
-- Desktop/update toggles require confirmation and stale-state protection similar to publish.
+- Desktop/update toggles require command confirmation and stale-state protection without
+  callback payloads carrying station UUIDs.
 - Description editing must never show or log raw sensitive description content unless the user
   explicitly requested viewing it in chat.
 - Description update flow must read original state and support rollback in live write tests.

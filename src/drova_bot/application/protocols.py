@@ -14,6 +14,7 @@ from drova_bot.domain.models import (
     PrepaidStats,
     Promocode,
     ServerProductEdit,
+    ServerSource,
     ServerUsageStatistics,
     SessionPage,
     Station,
@@ -76,6 +77,12 @@ class DrovaClientProtocol(Protocol):
     async def get_opened_prepaid_deals(self) -> list[OpenedPrepaidDeal]: ...
 
     async def get_server_usage_statistics(self) -> ServerUsageStatistics: ...
+
+    async def get_server_source(self, server_id: str, merchant_id: str) -> ServerSource: ...
+
+    async def set_server_allow_desktop(self, server_id: str, allow_desktop: bool) -> None: ...
+
+    async def set_server_disable_updates(self, server_id: str, disable_updates: bool) -> None: ...
 
 
 class DrovaClientFactory(Protocol):
