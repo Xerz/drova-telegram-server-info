@@ -23,6 +23,7 @@
 - `exports.md` - CSV/XLSX контракты и async generation.
 - `tests.md` - tests-first matrix и acceptance gates.
 - `runtime.md` - env, Docker, logging, observability, operations.
+- `next-iteration.md` - backlog/spec for the next V2 feature cycle.
 - `fixtures/` - API и UI fixtures для разработки и тестов.
 
 ## Non-goals

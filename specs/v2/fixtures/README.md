@@ -27,3 +27,10 @@ Use them for:
 ## Raw Data Policy
 
 V2 fixtures must be tracked only after sanitization. Raw API responses stay under `specs/v2/fixtures/api/raw/` or another ignored path.
+
+## Next Iteration Sampling
+
+Future account, station-product, server-control and statistics fixtures are specified in
+`../next-iteration.md`. They must be sampled through `.env.specing` with sanitized raw
+payloads, and every write fixture must have an explicit rollback/verification path before
+it is allowed into the sampler.
