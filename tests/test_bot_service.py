@@ -14,10 +14,12 @@ from drova_bot.domain.models import (
     Account,
     CatalogProduct,
     Endpoint,
+    LaunchParameters,
     OpenedPrepaidDeal,
     PrepaidSettlement,
     PrepaidStats,
     Promocode,
+    ServerProductEdit,
     Session,
     SessionPage,
     Station,
@@ -53,9 +55,11 @@ class FakeDrovaClient:
         prepaid_settlements: list[PrepaidSettlement] | None = None,
         opened_deals: list[OpenedPrepaidDeal] | None = None,
         station_products: dict[str, list[StationProduct]] | None = None,
+        product_edits: dict[tuple[str, str], ServerProductEdit] | None = None,
         endpoints: dict[str, list[Endpoint]] | None = None,
         unauthorized: bool = False,
         session_failures: set[str] | None = None,
+        product_toggle_failures: set[str] | None = None,
     ) -> None:
         self._proxy_token = token
         self.account = account or Account(uuid="user-1", name="Owner")
@@ -73,11 +77,14 @@ class FakeDrovaClient:
         self.prepaid_settlements = prepaid_settlements or []
         self.opened_deals = opened_deals or []
         self.station_products = station_products or {}
+        self.product_edits = product_edits or {}
         self.endpoints = endpoints or {}
         self.unauthorized = unauthorized
         self.session_failures = session_failures or set()
+        self.product_toggle_failures = product_toggle_failures or set()
         self.closed = False
         self.published_calls: list[tuple[str, bool]] = []
+        self.product_enabled_calls: list[tuple[str, str, bool]] = []
         self.issued_promocode_minutes: list[int] = []
         self.session_calls: list[tuple[str | None, str | None, int | None]] = []
 
@@ -119,6 +126,52 @@ class FakeDrovaClient:
 
     async def get_server_products(self, user_id: str, server_id: str) -> list[StationProduct]:
         return self.station_products.get(server_id, [])
+
+    async def get_server_product_edit(
+        self,
+        server_id: str,
+        product_id: str,
+    ) -> ServerProductEdit:
+        edit = self.product_edits.get((server_id, product_id))
+        if edit is not None:
+            return edit
+        product = next(
+            (
+                item
+                for item in self.station_products.get(server_id, [])
+                if item.product_id == product_id
+            ),
+            None,
+        )
+        if product is None:
+            raise DrovaUnavailable("product not found")
+        return ServerProductEdit(
+            product_id=product.product_id,
+            title=product.title,
+            enabled=product.enabled,
+            published=product.published,
+            available=product.available,
+            verified=None,
+            default_launch=LaunchParameters(),
+            current_launch=LaunchParameters(),
+        )
+
+    async def set_server_product_enabled(
+        self,
+        server_id: str,
+        product_id: str,
+        enabled: bool,
+    ) -> None:
+        self.product_enabled_calls.append((server_id, product_id, enabled))
+        if server_id in self.product_toggle_failures:
+            raise DrovaUnavailable("product toggle failure")
+        self.station_products[server_id] = [
+            replace(product, enabled=enabled) if product.product_id == product_id else product
+            for product in self.station_products.get(server_id, [])
+        ]
+        edit = self.product_edits.get((server_id, product_id))
+        if edit is not None:
+            self.product_edits[(server_id, product_id)] = replace(edit, enabled=enabled)
 
     async def get_server_endpoints(
         self,
@@ -545,6 +598,84 @@ async def test_disabled_and_stations_use_station_fixtures(
 
     assert "Space Farm: отключен" in disabled.text
     assert "203.0.113.11:48000" in stations.text
+
+
+@pytest.mark.asyncio
+async def test_game_commands_use_selected_station_without_callback_uuid_pairs(
+    service_engine: AsyncEngine,
+    ui_stations: list[Station],
+    ui_products_by_station: dict[str, list[StationProduct]],
+) -> None:
+    edit = ServerProductEdit(
+        product_id="product-a",
+        title="Cyber Rally",
+        enabled=True,
+        published=True,
+        available=True,
+        verified=2,
+        default_launch=LaunchParameters(game_path="C:\\Steam\\Steam.exe", args="-language russian"),
+        current_launch=LaunchParameters(),
+    )
+    toggle_client = FakeDrovaClient(
+        stations=ui_stations,
+        station_products=ui_products_by_station,
+        product_edits={("station-online", "product-a"): edit},
+    )
+    service = make_service(
+        service_engine,
+        FakeDrovaClientFactory(
+            FakeDrovaClient(stations=ui_stations),
+            FakeDrovaClient(stations=ui_stations, station_products=ui_products_by_station),
+            FakeDrovaClient(
+                stations=ui_stations,
+                station_products=ui_products_by_station,
+                product_edits={("station-online", "product-a"): edit},
+            ),
+            toggle_client,
+        ),
+    )
+    await service.connect_token(10001, "token")
+    await service.select_station(10001, "station-online")
+
+    games = await service.station_games(10001)
+    detail = await service.station_game(10001, "product-a")
+    hidden = await service.set_station_game_enabled(10001, "product-a", enabled=False)
+
+    assert "Игры станции Alpha Station" in games.text
+    assert "<code>product-a</code>" in games.text
+    assert "Путь: <code>C:\\Steam\\Steam.exe</code>" in detail.text
+    assert "Игра скрыта: <b>Cyber Rally</b>" in hidden.text
+    assert toggle_client.product_enabled_calls == [("station-online", "product-a", False)]
+
+
+@pytest.mark.asyncio
+async def test_game_hide_all_reports_partial_failures(
+    service_engine: AsyncEngine,
+    ui_stations: list[Station],
+) -> None:
+    toggle_client = FakeDrovaClient(
+        stations=ui_stations,
+        product_toggle_failures={"station-hidden"},
+    )
+    service = make_service(
+        service_engine,
+        FakeDrovaClientFactory(
+            FakeDrovaClient(stations=ui_stations),
+            toggle_client,
+        ),
+    )
+    await service.connect_token(10001, "token")
+
+    message = await service.hide_game_all(10001, "product-b")
+
+    assert toggle_client.product_enabled_calls == [
+        ("station-online", "product-b", False),
+        ("station-hidden", "product-b", False),
+        ("station-busy", "product-b", False),
+    ]
+    assert "Игра скрыта: <code>product-b</code>" in message.text
+    assert "Обновлено станций: 2" in message.text
+    assert "Ошибки: Beta Test Station" in message.text
 
 
 @pytest.mark.asyncio

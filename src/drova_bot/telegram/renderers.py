@@ -28,10 +28,12 @@ from drova_bot.domain.formatters import (
 from drova_bot.domain.models import (
     ChatProfile,
     Endpoint,
+    LaunchParameters,
     OpenedPrepaidDeal,
     PrepaidSettlement,
     PrepaidStats,
     Promocode,
+    ServerProductEdit,
     Session,
     Station,
     StationProduct,
@@ -101,6 +103,11 @@ def render_help() -> RenderedMessage:
         "/account - баланс минут и выплаты",
         "/disabled - проблемные продукты",
         "/stations - станции и endpoints",
+        "/games - игры выбранной станции",
+        "/game &lt;product_id&gt; - параметры запуска игры на выбранной станции",
+        "/game_hide &lt;product_id&gt; - скрыть игру на выбранной станции",
+        "/game_show &lt;product_id&gt; - открыть игру на выбранной станции",
+        "/game_hide_all &lt;product_id&gt; - скрыть игру на всех станциях",
         "/promocode &lt;minutes&gt; - выпустить prepaid-промокод",
         "/promocodes - неактивированные prepaid-промокоды",
         "/export_sessions - один XLSX со всеми сессиями",
@@ -119,6 +126,8 @@ def render_error(code: str) -> RenderedMessage:
         "not_connected": "Сначала подключите Drova token командой /token &lt;proxy_token&gt;.",
         "invalid_limit": "Лимит должен быть числом от 1 до 100.",
         "invalid_promocode_minutes": "Укажите количество минут целым числом больше 0.",
+        "invalid_product_id": "Укажите product id. Например: /game &lt;product_id&gt;.",
+        "station_required": "Сначала выберите одну станцию через /station.",
         "drova_unavailable": "Drova временно недоступен. Попробуйте позже.",
         "drova_unauthorized": "Токен недействителен. Подключите новый через /token.",
         "stale_publish": "Состояние станции изменилось. Обновите панель публикации.",
@@ -245,6 +254,85 @@ def render_account_billing(
         lines.append("Операций нет.")
 
     return RenderedMessage("\n".join(lines))
+
+
+def render_station_games(
+    station: Station,
+    products: Sequence[StationProduct],
+) -> RenderedMessage:
+    lines = [f"Игры станции {html_escape(station.name)}"]
+    for product in sorted(products, key=lambda item: item.title.casefold()):
+        flags = product_problem_flags(product)
+        marker = "✅" if product.enabled and product.published and product.available else "🚫"
+        suffix = f" · {html_escape(', '.join(flags))}" if flags else ""
+        lines.append(f"{marker} {html_escape(product.title)}{suffix}")
+        lines.append(f"<code>{html_escape(product.product_id)}</code>")
+    if len(lines) == 1:
+        lines.append("Игры не найдены.")
+    return RenderedMessage("\n".join(lines))
+
+
+def render_station_game_detail(station: Station, product: ServerProductEdit) -> RenderedMessage:
+    flags = []
+    flags.append("включена" if product.enabled else "отключена")
+    flags.append("опубликована" if product.published else "не опубликована")
+    flags.append("доступна" if product.available else "недоступна")
+    lines = [
+        f"Игра на станции {html_escape(station.name)}",
+        f"<b>{html_escape(product.title)}</b>",
+        f"Product ID: <code>{html_escape(product.product_id)}</code>",
+        f"Статус: {html_escape(' · '.join(flags))}",
+        "",
+        "Параметры запуска по умолчанию",
+        *_launch_lines(product.default_launch),
+        "",
+        "Переопределения",
+    ]
+    override_lines = _launch_lines(product.current_launch)
+    if override_lines:
+        lines.extend(override_lines)
+    else:
+        lines[-1] = "Переопределения: нет"
+    return RenderedMessage("\n".join(lines))
+
+
+def render_game_enabled_result(
+    *,
+    product_title: str | None,
+    product_id: str,
+    enabled: bool,
+    updated_station_names: Sequence[str],
+    failed_station_names: Sequence[str] = (),
+) -> RenderedMessage:
+    action = "открыта" if enabled else "скрыта"
+    title = (
+        f"<b>{html_escape(product_title)}</b>"
+        if product_title
+        else f"<code>{html_escape(product_id)}</code>"
+    )
+    lines = [
+        f"Игра {action}: {title}",
+        f"Product ID: <code>{html_escape(product_id)}</code>",
+        f"Обновлено станций: {len(updated_station_names)}",
+    ]
+    if updated_station_names:
+        lines.append("Станции: " + html_escape(", ".join(updated_station_names)))
+    if failed_station_names:
+        lines.append("Ошибки: " + html_escape(", ".join(failed_station_names)))
+    return RenderedMessage("\n".join(lines))
+
+
+def _launch_lines(parameters: LaunchParameters) -> list[str]:
+    lines: list[str] = []
+    if parameters.game_path:
+        lines.append(f"Путь: <code>{html_escape(parameters.game_path)}</code>")
+    if parameters.work_path:
+        lines.append(f"Рабочая папка: <code>{html_escape(parameters.work_path)}</code>")
+    if parameters.args:
+        lines.append(f"Аргументы: <code>{html_escape(parameters.args)}</code>")
+    if parameters.allowed_paths:
+        lines.append(f"Доступные пути: <code>{html_escape(parameters.allowed_paths)}</code>")
+    return lines
 
 
 def _prepaid_settlement_line(settlement: PrepaidSettlement, timezone: str) -> str:

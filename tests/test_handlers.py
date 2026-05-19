@@ -21,6 +21,11 @@ from drova_bot.telegram.routers.core import (
     disabled_command,
     export_command,
     export_kind_from_message,
+    game_command,
+    game_hide_all_command,
+    game_hide_command,
+    game_show_command,
+    games_command,
     help_command,
     limit_command,
     logout_command,
@@ -145,6 +150,28 @@ class FakeService:
         self.calls.append(("stations", (chat_id,), {}))
         return RenderedMessage("stations")
 
+    async def station_games(self, chat_id: int) -> RenderedMessage:
+        self.calls.append(("station_games", (chat_id,), {}))
+        return RenderedMessage("games")
+
+    async def station_game(self, chat_id: int, product_id: str) -> RenderedMessage:
+        self.calls.append(("station_game", (chat_id, product_id), {}))
+        return RenderedMessage(f"game:{product_id}")
+
+    async def set_station_game_enabled(
+        self,
+        chat_id: int,
+        product_id: str,
+        *,
+        enabled: bool,
+    ) -> RenderedMessage:
+        self.calls.append(("set_station_game_enabled", (chat_id, product_id), {"enabled": enabled}))
+        return RenderedMessage(f"game_enabled:{enabled}:{product_id}")
+
+    async def hide_game_all(self, chat_id: int, product_id: str) -> RenderedMessage:
+        self.calls.append(("hide_game_all", (chat_id, product_id), {}))
+        return RenderedMessage(f"hide_all:{product_id}")
+
     async def issue_promocode(self, chat_id: int, raw_minutes: str) -> RenderedMessage:
         self.calls.append(("issue_promocode", (chat_id, raw_minutes), {}))
         return RenderedMessage(f"promocode:{raw_minutes}")
@@ -244,6 +271,11 @@ async def test_token_limit_sessions_and_station_handlers_parse_arguments() -> No
     await station_all_command(cast(Message, FakeMessage("/station_all")), service)  # type: ignore[arg-type]
     await promocode_command(cast(Message, FakeMessage("/promocode 60")), service)  # type: ignore[arg-type]
     await promocodes_command(cast(Message, FakeMessage("/promocodes")), service)  # type: ignore[arg-type]
+    await games_command(cast(Message, FakeMessage("/games")), service)  # type: ignore[arg-type]
+    await game_command(cast(Message, FakeMessage("/game product-a")), service)  # type: ignore[arg-type]
+    await game_hide_command(cast(Message, FakeMessage("/game_hide product-a")), service)  # type: ignore[arg-type]
+    await game_show_command(cast(Message, FakeMessage("/game_show product-a")), service)  # type: ignore[arg-type]
+    await game_hide_all_command(cast(Message, FakeMessage("/game_hide_all product-b")), service)  # type: ignore[arg-type]
 
     assert service.calls == [
         ("connect_token", (10001, "proxy-token"), {}),
@@ -252,6 +284,11 @@ async def test_token_limit_sessions_and_station_handlers_parse_arguments() -> No
         ("select_all_stations", (10001,), {}),
         ("issue_promocode", (10001, "60"), {}),
         ("unused_promocodes", (10001,), {}),
+        ("station_games", (10001,), {}),
+        ("station_game", (10001, "product-a"), {}),
+        ("set_station_game_enabled", (10001, "product-a"), {"enabled": False}),
+        ("set_station_game_enabled", (10001, "product-a"), {"enabled": True}),
+        ("hide_game_all", (10001, "product-b"), {}),
     ]
     assert token_message.answers[0][0] == "token:proxy-token"
 

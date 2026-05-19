@@ -88,6 +88,17 @@
 - Promocode output includes playtime minutes and expiry date/time when available.
 - Invalid minutes render a user-safe validation error and do not call Drova.
 
+## Game Management
+
+- Game management uses commands instead of callbacks with multiple UUIDs.
+- `/games` requires one selected station and lists station games sorted by title.
+- Each listed game shows enabled/problem marker, title and monospace product id for copying.
+- `/game <product_id>` reads launch parameters for the selected station and shows default and override values.
+- `/game_hide <product_id>` hides a game on the selected station.
+- `/game_show <product_id>` opens a game on the selected station.
+- `/game_hide_all <product_id>` hides a game on every station and reports updated and failed station counts.
+- If all-stations mode is selected, station-scoped game commands ask the user to choose one station first.
+
 ## Publish Confirmation
 
 Flow:

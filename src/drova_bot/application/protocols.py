@@ -13,6 +13,7 @@ from drova_bot.domain.models import (
     PrepaidSettlement,
     PrepaidStats,
     Promocode,
+    ServerProductEdit,
     SessionPage,
     Station,
     StationProduct,
@@ -41,6 +42,19 @@ class DrovaClientProtocol(Protocol):
     ) -> SessionPage: ...
 
     async def get_server_products(self, user_id: str, server_id: str) -> list[StationProduct]: ...
+
+    async def get_server_product_edit(
+        self,
+        server_id: str,
+        product_id: str,
+    ) -> ServerProductEdit: ...
+
+    async def set_server_product_enabled(
+        self,
+        server_id: str,
+        product_id: str,
+        enabled: bool,
+    ) -> None: ...
 
     async def get_server_endpoints(
         self,

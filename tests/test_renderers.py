@@ -6,10 +6,12 @@ from datetime import datetime
 from drova_bot.domain.models import (
     ChatProfile,
     Endpoint,
+    LaunchParameters,
     OpenedPrepaidDeal,
     PrepaidSettlement,
     PrepaidStats,
     Promocode,
+    ServerProductEdit,
     Session,
     Station,
     StationProduct,
@@ -21,11 +23,14 @@ from drova_bot.telegram.renderers import (
     render_current,
     render_disabled,
     render_error,
+    render_game_enabled_result,
     render_help,
     render_promocode_issued,
     render_sessions,
     render_start_connected,
     render_start_not_connected,
+    render_station_game_detail,
+    render_station_games,
     render_station_picker,
     render_stations,
     render_unused_promocodes,
@@ -89,6 +94,54 @@ def test_account_billing_renderer_formats_minutes_and_payments() -> None:
     assert "Баланс минут: 123.50" in message.text
     assert "2026-05-18 22:28 · 180 мин · заказ" in message.text
     assert "2026-05-01 05:00 · сумма 13 390.00 · к выплате 10 340.79" in message.text
+
+
+def test_game_management_renderers_are_command_friendly(
+    ui_stations: list[Station],
+    ui_products_by_station: dict[str, list[StationProduct]],
+) -> None:
+    station = ui_stations[0]
+    games = render_station_games(station, ui_products_by_station["station-online"])
+    assert "Игры станции Alpha Station" in games.text
+    assert "✅ Cyber Rally" in games.text
+    assert "<code>product-a</code>" in games.text
+    assert "🚫 Space Farm · отключен" in games.text
+    assert "<code>product-b</code>" in games.text
+
+    detail = render_station_game_detail(
+        station,
+        ServerProductEdit(
+            product_id="product-a",
+            title="Cyber Rally",
+            enabled=True,
+            published=True,
+            available=True,
+            verified=2,
+            default_launch=LaunchParameters(
+                game_path="C:\\Steam\\Steam.exe",
+                work_path="C:\\Steam",
+                args="-language russian",
+                allowed_paths="",
+            ),
+            current_launch=LaunchParameters(),
+        ),
+    )
+    assert "Игра на станции Alpha Station" in detail.text
+    assert "<b>Cyber Rally</b>" in detail.text
+    assert "Product ID: <code>product-a</code>" in detail.text
+    assert "Путь: <code>C:\\Steam\\Steam.exe</code>" in detail.text
+    assert "Переопределения: нет" in detail.text
+
+    result = render_game_enabled_result(
+        product_title="Space Farm",
+        product_id="product-b",
+        enabled=False,
+        updated_station_names=["Alpha Station", "Gamma Trial"],
+        failed_station_names=["Beta Test Station"],
+    )
+    assert "Игра скрыта: <b>Space Farm</b>" in result.text
+    assert "Обновлено станций: 2" in result.text
+    assert "Ошибки: Beta Test Station" in result.text
 
 
 def test_promocode_renderers_use_monospace_codes() -> None:

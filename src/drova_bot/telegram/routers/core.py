@@ -48,6 +48,11 @@ def build_router() -> Router:
     router.message.register(account_command, Command("account"))
     router.message.register(disabled_command, Command("disabled"))
     router.message.register(stations_command, Command("stations", "stationsInfo"))
+    router.message.register(games_command, Command("games"))
+    router.message.register(game_command, Command("game"))
+    router.message.register(game_hide_command, Command("game_hide"))
+    router.message.register(game_show_command, Command("game_show"))
+    router.message.register(game_hide_all_command, Command("game_hide_all"))
     router.message.register(promocode_command, Command("promocode"))
     router.message.register(promocodes_command, Command("promocodes"))
     router.message.register(
@@ -137,6 +142,46 @@ async def disabled_command(message: Message, bot_service: BotService) -> None:
 
 async def stations_command(message: Message, bot_service: BotService) -> None:
     await answer_rendered(message, await bot_service.stations(message.chat.id))
+
+
+async def games_command(message: Message, bot_service: BotService) -> None:
+    await answer_rendered(message, await bot_service.station_games(message.chat.id))
+
+
+async def game_command(message: Message, bot_service: BotService) -> None:
+    await answer_rendered(
+        message,
+        await bot_service.station_game(message.chat.id, _command_args(message.text)),
+    )
+
+
+async def game_hide_command(message: Message, bot_service: BotService) -> None:
+    await answer_rendered(
+        message,
+        await bot_service.set_station_game_enabled(
+            message.chat.id,
+            _command_args(message.text),
+            enabled=False,
+        ),
+    )
+
+
+async def game_show_command(message: Message, bot_service: BotService) -> None:
+    await answer_rendered(
+        message,
+        await bot_service.set_station_game_enabled(
+            message.chat.id,
+            _command_args(message.text),
+            enabled=True,
+        ),
+    )
+
+
+async def game_hide_all_command(message: Message, bot_service: BotService) -> None:
+    await answer_rendered(
+        message,
+        await bot_service.hide_game_all(message.chat.id, _command_args(message.text)),
+    )
 
 
 async def promocode_command(message: Message, bot_service: BotService) -> None:
