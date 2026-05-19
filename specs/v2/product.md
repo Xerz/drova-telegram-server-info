@@ -39,11 +39,7 @@
 | `/usage` | Статистика использования за сегодня, неделю и месяц. |
 | `/disabled` | Проблемные продукты по станциям. |
 | `/stations` | Список станций и endpoints. |
-| `/games` | Список игр выбранной станции с product id для копирования. |
-| `/game <product_id>` | Показать параметры запуска игры на выбранной станции. |
-| `/game_hide <product_id>` | Скрыть игру на выбранной станции. |
-| `/game_show <product_id>` | Открыть игру на выбранной станции. |
-| `/game_hide_all <product_id>` | Скрыть игру на всех станциях аккаунта. |
+| `/games` | Постраничный выбор игры на выбранной станции, по названиям и состоянию. |
 | `/desktop_on` | Включить полный доступ на выбранной станции после подтверждения. |
 | `/desktop_off` | Выключить полный доступ на выбранной станции после подтверждения. |
 | `/updates_on` | Включить обновления на выбранной станции после подтверждения. |
@@ -58,6 +54,10 @@
 | `/export_product_time` | Выгрузить XLSX времени использования продуктов. |
 
 Backward-compatible aliases должны поддерживаться в V2: `/station all`, `/sessions short`, `/export sessions`, `/export products`, `/export product-time`, `/removeToken`, `/stationsInfo`, `/dumpall`, `/dumpOnefile`, `/dumpStationsProducts`, `/dumpStationsProductsWithTime`, `/dumpStationsProductsMonth`.
+
+Technical game-management aliases may stay accepted for automation/debugging but are
+not primary UX: `/game <product_id>`, `/game_hide <product_id>`,
+`/game_show <product_id>`, `/game_hide_all <product_id>`.
 
 ## UX Defaults
 

@@ -844,7 +844,7 @@ async def test_game_commands_use_selected_station_without_callback_uuid_pairs(
         default_launch=LaunchParameters(game_path="C:\\Steam\\Steam.exe", args="-language russian"),
         current_launch=LaunchParameters(),
     )
-    toggle_client = FakeDrovaClient(
+    game_client = FakeDrovaClient(
         stations=ui_stations,
         station_products=ui_products_by_station,
         product_edits={("station-online", "product-a"): edit},
@@ -853,27 +853,57 @@ async def test_game_commands_use_selected_station_without_callback_uuid_pairs(
         service_engine,
         FakeDrovaClientFactory(
             FakeDrovaClient(stations=ui_stations),
-            FakeDrovaClient(stations=ui_stations, station_products=ui_products_by_station),
-            FakeDrovaClient(
-                stations=ui_stations,
-                station_products=ui_products_by_station,
-                product_edits={("station-online", "product-a"): edit},
-            ),
-            toggle_client,
+            game_client,
+            game_client,
+            game_client,
+            game_client,
+            game_client,
+            game_client,
         ),
     )
     await service.connect_token(10001, "token")
     await service.select_station(10001, "station-online")
 
     games = await service.station_games(10001)
-    detail = await service.station_game(10001, "product-a")
-    hidden = await service.set_station_game_enabled(10001, "product-a", enabled=False)
+    page = await service.handle_callback(
+        10001,
+        parse_callback_data(CallbackSpec(action="game_page", page=0).pack()),
+    )
+    detail = await service.handle_callback(
+        10001,
+        parse_callback_data(
+            CallbackSpec(action="game_select", product_id="product-a", page=0).pack()
+        ),
+    )
+    hidden = await service.handle_callback(
+        10001,
+        parse_callback_data(CallbackSpec(action="game_hide", product_id="product-a").pack()),
+    )
+    opened = await service.handle_callback(
+        10001,
+        parse_callback_data(CallbackSpec(action="game_show", product_id="product-a").pack()),
+    )
+    hidden_all = await service.handle_callback(
+        10001,
+        parse_callback_data(CallbackSpec(action="game_hide_all", product_id="product-b").pack()),
+    )
 
     assert "Игры станции Alpha Station" in games.text
-    assert "<code>product-a</code>" in games.text
+    assert "product-a" not in games.text
+    assert games.keyboard is not None
+    assert games.keyboard.rows[0][0].text == "✅ Cyber Rally"
+    assert "Игры станции Alpha Station" in page.text
     assert "Путь: <code>C:\\Steam\\Steam.exe</code>" in detail.text
     assert "Игра скрыта: <b>Cyber Rally</b>" in hidden.text
-    assert toggle_client.product_enabled_calls == [("station-online", "product-a", False)]
+    assert "Игра открыта: <b>Cyber Rally</b>" in opened.text
+    assert "Обновлено станций: 3" in hidden_all.text
+    assert game_client.product_enabled_calls == [
+        ("station-online", "product-a", False),
+        ("station-online", "product-a", True),
+        ("station-online", "product-b", False),
+        ("station-hidden", "product-b", False),
+        ("station-busy", "product-b", False),
+    ]
 
 
 @pytest.mark.asyncio

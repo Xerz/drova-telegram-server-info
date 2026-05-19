@@ -107,6 +107,10 @@ UX requirements:
 
 - Read launch parameters before showing a game-management panel.
 - Display the default launch parameter separately from the other three launch variants.
+- Product selection starts from the selected station and uses paginated inline buttons
+  by human-readable game title, not product-id-first commands.
+- Each page shows no more than 10 games; callbacks may carry one product id only and
+  must not carry both station id and product id.
 - Hide/show a game on one station via inline button and confirmation.
 - Hide a game on all stations via a separate confirmation flow.
 - "Hide on all stations" must run per-station writes with partial-failure reporting; do not
@@ -115,9 +119,7 @@ UX requirements:
 
 Open product decisions before implementation:
 
-- Primary command names for game management.
 - Whether "show on all stations" is needed or only "hide on all stations".
-- Whether product selection starts from selected station only or all station product caches.
 
 ### Account Statistics
 

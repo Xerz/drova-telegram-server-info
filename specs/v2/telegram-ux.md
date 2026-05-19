@@ -98,14 +98,23 @@
 
 ## Game Management
 
-- Game management uses commands instead of callbacks with multiple UUIDs.
+- Game management uses `/games` as the primary human-facing command.
 - `/games` requires one selected station and lists station games sorted by title.
-- Each listed game shows enabled/problem marker, title and monospace product id for copying.
-- `/game <product_id>` reads launch parameters for the selected station and shows default and override values.
-- `/game_hide <product_id>` hides a game on the selected station.
-- `/game_show <product_id>` opens a game on the selected station.
-- `/game_hide_all <product_id>` hides a game on every station and reports updated and failed station counts.
-- If all-stations mode is selected, station-scoped game commands ask the user to choose one station first.
+- The list is paginated, with no more than 10 games per page, because stations may
+  have hundreds of games.
+- Each listed game button shows enabled/problem marker and title. The list message
+  does not print product ids.
+- Selecting a game opens launch parameters for the selected station and shows
+  default and override values.
+- The selected-game panel has buttons to hide/show the game on the selected station,
+  hide the game on all stations, and return to the paginated list.
+- Game callbacks may carry one product id only; station id comes from the chat's
+  selected station, and callbacks never carry tokens.
+- `/game <product_id>`, `/game_hide <product_id>`, `/game_show <product_id>`,
+  and `/game_hide_all <product_id>` are accepted only as technical compatibility
+  aliases, not as primary UX.
+- If all-stations mode is selected, station-scoped game flows ask the user to choose
+  one station first.
 
 ## Server Controls
 

@@ -25,10 +25,16 @@ ACTION_ALIASES = {
     "publish_select": "ps",
     "publish_confirm": "pc",
     "publish_cancel": "px",
+    "game_page": "gp",
+    "game_select": "gs",
+    "game_hide": "gh",
+    "game_show": "gw",
+    "game_hide_all": "ga",
 }
 ACTION_BY_ALIAS = {alias: action for action, alias in ACTION_ALIASES.items()}
 KEY_ALIASES = {
     "station": "s",
+    "product": "g",
     "page": "p",
     "published": "e",
 }
@@ -39,6 +45,7 @@ KEY_BY_ALIAS = {alias: key for key, alias in KEY_ALIASES.items()}
 class CallbackSpec:
     action: str
     station_id: str | None = None
+    product_id: str | None = None
     page: int | None = None
     expected_published: bool | None = None
 
@@ -46,6 +53,8 @@ class CallbackSpec:
         parts = [_pack_action(self.action)]
         if self.station_id is not None:
             parts.append(f"{KEY_ALIASES['station']}={self.station_id}")
+        if self.product_id is not None:
+            parts.append(f"{KEY_ALIASES['product']}={self.product_id}")
         if self.page is not None:
             parts.append(f"{KEY_ALIASES['page']}={self.page}")
         if self.expected_published is not None:
@@ -57,6 +66,7 @@ class CallbackSpec:
 class ParsedCallback:
     action: str
     station_id: str | None = None
+    product_id: str | None = None
     page: int | None = None
     expected_published: bool | None = None
 
@@ -92,6 +102,7 @@ def parse_callback_data(data: str | None) -> ParsedCallback:
     return ParsedCallback(
         action=action,
         station_id=values.get("station"),
+        product_id=values.get("product"),
         page=page,
         expected_published=expected_published,
     )

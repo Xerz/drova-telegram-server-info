@@ -18,6 +18,7 @@ from drova_bot.domain.models import (
     Station,
     StationProduct,
 )
+from drova_bot.telegram.callbacks import parse_callback_data
 from drova_bot.telegram.renderers import (
     EndpointGeo,
     latest_sessions_by_station,
@@ -66,6 +67,8 @@ def test_start_and_help_messages_are_russian_and_safe() -> None:
     assert "/export_sessions_csv - CSV-файлы по каждой станции" in help_text
     assert "/export_products - XLSX-матрица состояния продуктов по станциям" in help_text
     assert "/export_product_time - XLSX по времени использования продуктов" in help_text
+    assert "/games - выбрать игру на выбранной станции" in help_text
+    assert "/game &lt;product_id&gt; -" not in help_text
     assert "/sessions short -" not in help_text
     assert "/export sessions -" not in help_text
     assert render_error("unknown_command").text == "Команда не найдена. Используйте /help."
@@ -194,11 +197,14 @@ def test_game_management_renderers_are_command_friendly(
 ) -> None:
     station = ui_stations[0]
     games = render_station_games(station, ui_products_by_station["station-online"])
-    assert "Игры станции Alpha Station" in games.text
-    assert "✅ Cyber Rally" in games.text
-    assert "<code>product-a</code>" in games.text
-    assert "🚫 Space Farm · отключен" in games.text
-    assert "<code>product-b</code>" in games.text
+    assert "Игры станции Alpha Station · стр. 1/1" in games.text
+    assert "Выберите игру:" in games.text
+    assert "product-a" not in games.text
+    assert games.keyboard is not None
+    assert games.keyboard.rows[0][0].text == "✅ Cyber Rally"
+    assert games.keyboard.rows[1][0].text == "🚫 Space Farm · отключен"
+    assert parse_callback_data(games.keyboard.rows[0][0].callback_data).action == "game_select"
+    assert parse_callback_data(games.keyboard.rows[0][0].callback_data).product_id == "product-a"
 
     detail = render_station_game_detail(
         station,
@@ -220,9 +226,13 @@ def test_game_management_renderers_are_command_friendly(
     )
     assert "Игра на станции Alpha Station" in detail.text
     assert "<b>Cyber Rally</b>" in detail.text
-    assert "Product ID: <code>product-a</code>" in detail.text
+    assert "Технический ID: <code>product-a</code>" in detail.text
     assert "Путь: <code>C:\\Steam\\Steam.exe</code>" in detail.text
     assert "Переопределения: нет" in detail.text
+    assert detail.keyboard is not None
+    assert detail.keyboard.rows[0][0].text == "Скрыть на станции"
+    assert parse_callback_data(detail.keyboard.rows[0][0].callback_data).action == "game_hide"
+    assert parse_callback_data(detail.keyboard.rows[0][0].callback_data).product_id == "product-a"
 
     result = render_game_enabled_result(
         product_title="Space Farm",
@@ -234,6 +244,39 @@ def test_game_management_renderers_are_command_friendly(
     assert "Игра скрыта: <b>Space Farm</b>" in result.text
     assert "Обновлено станций: 2" in result.text
     assert "Ошибки: Beta Test Station" in result.text
+
+
+def test_station_games_renderer_paginates_large_lists(ui_stations: list[Station]) -> None:
+    products = [
+        StationProduct(
+            product_id=f"product-{index}",
+            title=f"Game {index:02}",
+            enabled=True,
+            published=True,
+            available=True,
+        )
+        for index in range(13)
+    ]
+
+    first = render_station_games(ui_stations[0], products, page=0, page_size=10)
+    second = render_station_games(ui_stations[0], products, page=1, page_size=10)
+
+    assert "стр. 1/2" in first.text
+    assert "стр. 2/2" in second.text
+    assert first.keyboard is not None
+    assert second.keyboard is not None
+    assert [row[0].text for row in first.keyboard.rows[:2]] == ["✅ Game 00", "✅ Game 01"]
+    assert all("Game 10" not in row[0].text for row in first.keyboard.rows[:10])
+    assert [row[0].text for row in second.keyboard.rows[:3]] == [
+        "✅ Game 10",
+        "✅ Game 11",
+        "✅ Game 12",
+    ]
+    assert first.keyboard.rows[-1][0].text == "Вперед"
+    assert second.keyboard.rows[-1][0].text == "Назад"
+    for row in first.keyboard.rows:
+        for button in row:
+            assert len(button.callback_data.encode("utf-8")) <= 64
 
 
 def test_promocode_renderers_use_monospace_codes() -> None:

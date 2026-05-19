@@ -450,6 +450,7 @@ def test_export_kind_mapping() -> None:
 
 def test_callback_payloads_fit_telegram_limit_and_parse_legacy_format() -> None:
     station_uuid = "000019ee-2466-41ef-9ff8-4bfe7aa9fd4f"
+    product_uuid = "6a28acf4-cac9-4580-9428-daae5b554ae2"
     select_payload = CallbackSpec(
         action="publish_select",
         station_id=station_uuid,
@@ -471,12 +472,27 @@ def test_callback_payloads_fit_telegram_limit_and_parse_legacy_format() -> None:
     parsed_page = parse_callback_data(page_payload)
     assert parsed_page.action == "sessions_short_page"
     assert parsed_page.page == 12
+    product_payload = CallbackSpec(
+        action="game_select",
+        product_id=product_uuid,
+        page=3,
+    ).pack()
+    assert len(product_payload.encode("utf-8")) <= 64
+    parsed_product = parse_callback_data(product_payload)
+    assert parsed_product.action == "game_select"
+    assert parsed_product.product_id == product_uuid
+    assert parsed_product.page == 3
 
     legacy = f"publish_select|station={station_uuid}|published=1"
     parsed_legacy = parse_callback_data(legacy)
     assert parsed_legacy.action == "publish_select"
     assert parsed_legacy.station_id == station_uuid
     assert parsed_legacy.expected_published is True
+    legacy_product = f"game_select|product={product_uuid}|page=4"
+    parsed_legacy_product = parse_callback_data(legacy_product)
+    assert parsed_legacy_product.action == "game_select"
+    assert parsed_legacy_product.product_id == product_uuid
+    assert parsed_legacy_product.page == 4
 
 
 @pytest.mark.asyncio

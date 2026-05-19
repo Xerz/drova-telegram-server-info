@@ -394,7 +394,7 @@ class BotService:
         finally:
             await client.aclose()
 
-    async def station_games(self, telegram_chat_id: int) -> RenderedMessage:
+    async def station_games(self, telegram_chat_id: int, *, page: int = 0) -> RenderedMessage:
         loaded = await self._load_client(telegram_chat_id)
         if loaded is None:
             return render_error("not_connected")
@@ -405,7 +405,7 @@ class BotService:
                 return context
             station = context
             products = await client.get_server_products(profile.drova_user_id or "", station.uuid)
-            return render_station_games(station, products)
+            return render_station_games(station, products, page=page)
         except (DrovaUnauthorized, DrovaPermissionDenied):
             return render_error("drova_unauthorized")
         except DrovaUnavailable:
@@ -417,6 +417,8 @@ class BotService:
         self,
         telegram_chat_id: int,
         raw_product_id: str | None,
+        *,
+        page: int = 0,
     ) -> RenderedMessage:
         product_id = _parse_product_id(raw_product_id)
         if product_id is None:
@@ -431,7 +433,7 @@ class BotService:
                 return context
             station = context
             product = await client.get_server_product_edit(station.uuid, product_id)
-            return render_station_game_detail(station, product)
+            return render_station_game_detail(station, product, page=page)
         except (DrovaUnauthorized, DrovaPermissionDenied):
             return render_error("drova_unauthorized")
         except DrovaUnavailable:
@@ -841,6 +843,28 @@ class BotService:
             )
         if callback.action == "publish_cancel":
             return await self.cancel_publish(telegram_chat_id)
+        if callback.action == "game_page":
+            return await self.station_games(telegram_chat_id, page=callback.page or 0)
+        if callback.action == "game_select":
+            return await self.station_game(
+                telegram_chat_id,
+                callback.product_id,
+                page=callback.page or 0,
+            )
+        if callback.action == "game_hide":
+            return await self.set_station_game_enabled(
+                telegram_chat_id,
+                callback.product_id,
+                enabled=False,
+            )
+        if callback.action == "game_show":
+            return await self.set_station_game_enabled(
+                telegram_chat_id,
+                callback.product_id,
+                enabled=True,
+            )
+        if callback.action == "game_hide_all":
+            return await self.hide_game_all(telegram_chat_id, callback.product_id)
         return render_error("unknown_command")
 
     async def _selected_station_context(

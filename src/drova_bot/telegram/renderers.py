@@ -67,6 +67,7 @@ class EndpointGeo:
 EndpointGeoResolver = Callable[[Endpoint], EndpointGeo | None]
 SessionGeoResolver = Callable[[Session], EndpointGeo | None]
 SESSION_PAGE_SIZE = 5
+GAME_PAGE_SIZE = 10
 
 
 def render_start_not_connected() -> RenderedMessage:
@@ -109,11 +110,7 @@ def render_help() -> RenderedMessage:
         "/usage - статистика использования",
         "/disabled - проблемные продукты",
         "/stations - станции и endpoints",
-        "/games - игры выбранной станции",
-        "/game &lt;product_id&gt; - параметры запуска игры на выбранной станции",
-        "/game_hide &lt;product_id&gt; - скрыть игру на выбранной станции",
-        "/game_show &lt;product_id&gt; - открыть игру на выбранной станции",
-        "/game_hide_all &lt;product_id&gt; - скрыть игру на всех станциях",
+        "/games - выбрать игру на выбранной станции",
         "/desktop_on - включить полный доступ на выбранной станции",
         "/desktop_off - выключить полный доступ на выбранной станции",
         "/updates_on - включить обновления на выбранной станции",
@@ -126,7 +123,7 @@ def render_help() -> RenderedMessage:
         "/export_sessions_csv - CSV-файлы по каждой станции",
         "/export_products - XLSX-матрица состояния продуктов по станциям",
         "/export_product_time - XLSX по времени использования продуктов",
-        "Совместимость: /station all, /sessions short, /export ..., /dump...",
+        "Совместимость: /station all, /sessions short, /export ..., /dump..., /game...",
     ]
     return RenderedMessage("Команды:\n" + "\n".join(commands))
 
@@ -138,7 +135,7 @@ def render_error(code: str) -> RenderedMessage:
         "not_connected": "Сначала подключите Drova token командой /token &lt;proxy_token&gt;.",
         "invalid_limit": "Лимит должен быть числом от 1 до 100.",
         "invalid_promocode_minutes": "Укажите количество минут целым числом больше 0.",
-        "invalid_product_id": "Укажите product id. Например: /game &lt;product_id&gt;.",
+        "invalid_product_id": "Выберите игру через /games.",
         "station_required": "Сначала выберите одну станцию через /station.",
         "invalid_server_control": "Команда управления не найдена.",
         "invalid_server_control_confirmation": (
@@ -477,20 +474,67 @@ def _usage_ranked_lines(
 def render_station_games(
     station: Station,
     products: Sequence[StationProduct],
+    *,
+    page: int = 0,
+    page_size: int = GAME_PAGE_SIZE,
 ) -> RenderedMessage:
-    lines = [f"Игры станции {html_escape(station.name)}"]
-    for product in sorted(products, key=lambda item: item.title.casefold()):
+    ordered = sorted(products, key=lambda item: item.title.casefold())
+    safe_page_size = max(1, page_size)
+    page_count = max(1, (len(ordered) + safe_page_size - 1) // safe_page_size)
+    current_page = min(max(page, 0), page_count - 1)
+    start = current_page * safe_page_size
+    visible = ordered[start : start + safe_page_size]
+    lines = [
+        f"Игры станции {html_escape(station.name)} · стр. {current_page + 1}/{page_count}",
+        "Выберите игру:",
+    ]
+    if not ordered:
+        lines.append("Игры не найдены.")
+        return RenderedMessage("\n".join(lines))
+
+    rows: list[list[ButtonSpec]] = []
+    for product in visible:
         flags = product_problem_flags(product)
         marker = "✅" if product.enabled and product.published and product.available else "🚫"
-        suffix = f" · {html_escape(', '.join(flags))}" if flags else ""
-        lines.append(f"{marker} {html_escape(product.title)}{suffix}")
-        lines.append(f"<code>{html_escape(product.product_id)}</code>")
-    if len(lines) == 1:
-        lines.append("Игры не найдены.")
-    return RenderedMessage("\n".join(lines))
+        suffix = f" · {', '.join(flags)}" if flags else ""
+        rows.append(
+            [
+                ButtonSpec(
+                    _truncate_button_text(f"{marker} {product.title}{suffix}"),
+                    CallbackSpec(
+                        action="game_select",
+                        product_id=product.product_id,
+                        page=current_page,
+                    ).pack(),
+                )
+            ]
+        )
+    if page_count > 1:
+        nav: list[ButtonSpec] = []
+        if current_page > 0:
+            nav.append(
+                ButtonSpec(
+                    "Назад",
+                    CallbackSpec(action="game_page", page=current_page - 1).pack(),
+                )
+            )
+        if current_page + 1 < page_count:
+            nav.append(
+                ButtonSpec(
+                    "Вперед",
+                    CallbackSpec(action="game_page", page=current_page + 1).pack(),
+                )
+            )
+        rows.append(nav)
+    return RenderedMessage("\n".join(lines), KeyboardSpec(rows))
 
 
-def render_station_game_detail(station: Station, product: ServerProductEdit) -> RenderedMessage:
+def render_station_game_detail(
+    station: Station,
+    product: ServerProductEdit,
+    *,
+    page: int = 0,
+) -> RenderedMessage:
     flags = []
     flags.append("включена" if product.enabled else "отключена")
     flags.append("опубликована" if product.published else "не опубликована")
@@ -498,7 +542,7 @@ def render_station_game_detail(station: Station, product: ServerProductEdit) -> 
     lines = [
         f"Игра на станции {html_escape(station.name)}",
         f"<b>{html_escape(product.title)}</b>",
-        f"Product ID: <code>{html_escape(product.product_id)}</code>",
+        f"Технический ID: <code>{html_escape(product.product_id)}</code>",
         f"Статус: {html_escape(' · '.join(flags))}",
         "",
         "Параметры запуска по умолчанию",
@@ -511,7 +555,39 @@ def render_station_game_detail(station: Station, product: ServerProductEdit) -> 
         lines.extend(override_lines)
     else:
         lines[-1] = "Переопределения: нет"
-    return RenderedMessage("\n".join(lines))
+    primary_action = "game_hide" if product.enabled else "game_show"
+    primary_text = "Скрыть на станции" if product.enabled else "Открыть на станции"
+    keyboard = KeyboardSpec(
+        [
+            [
+                ButtonSpec(
+                    primary_text,
+                    CallbackSpec(
+                        action=primary_action,
+                        product_id=product.product_id,
+                        page=page,
+                    ).pack(),
+                )
+            ],
+            [
+                ButtonSpec(
+                    "Скрыть на всех станциях",
+                    CallbackSpec(
+                        action="game_hide_all",
+                        product_id=product.product_id,
+                        page=page,
+                    ).pack(),
+                )
+            ],
+            [
+                ButtonSpec(
+                    "К списку игр",
+                    CallbackSpec(action="game_page", page=page).pack(),
+                )
+            ],
+        ]
+    )
+    return RenderedMessage("\n".join(lines), keyboard)
 
 
 def render_game_enabled_result(
@@ -530,7 +606,7 @@ def render_game_enabled_result(
     )
     lines = [
         f"Игра {action}: {title}",
-        f"Product ID: <code>{html_escape(product_id)}</code>",
+        f"Технический ID: <code>{html_escape(product_id)}</code>",
         f"Обновлено станций: {len(updated_station_names)}",
     ]
     if updated_station_names:
@@ -538,6 +614,12 @@ def render_game_enabled_result(
     if failed_station_names:
         lines.append("Ошибки: " + html_escape(", ".join(failed_station_names)))
     return RenderedMessage("\n".join(lines))
+
+
+def _truncate_button_text(value: str, *, limit: int = 60) -> str:
+    if len(value) <= limit:
+        return value
+    return value[: max(1, limit - 1)].rstrip() + "…"
 
 
 def _launch_lines(parameters: LaunchParameters) -> list[str]:
