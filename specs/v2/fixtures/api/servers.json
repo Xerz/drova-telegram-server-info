@@ -1,5 +1,5 @@
 {
-  "elapsed_ms": 58.2,
+  "elapsed_ms": 64.4,
   "label": "servers",
   "method": "GET",
   "params": {
@@ -8,7 +8,7 @@
   "path": "/server-manager/servers",
   "response": [
     {
-      "alive_since": 1779106657580,
+      "alive_since": 1779132377606,
       "allow_desktop": true,
       "city_name": "<city_name:redacted>",
       "created_on": 1775677370455,
@@ -17,7 +17,7 @@
       "disable_updates": false,
       "distance": null,
       "groups_list": [],
-      "last_heartbeat": 1779109695085,
+      "last_heartbeat": 1779176231126,
       "latitude": "<latitude:redacted>",
       "longitude": "<longitude:redacted>",
       "name": "<name:redacted>",
@@ -59,12 +59,12 @@
     },
     {
       "alive_since": null,
-      "allow_desktop": true,
+      "allow_desktop": false,
       "city_name": null,
       "created_on": 1779108463455,
       "deleted": false,
       "description": "<description:redacted>",
-      "disable_updates": false,
+      "disable_updates": true,
       "distance": null,
       "groups_list": [],
       "last_heartbeat": 0,
@@ -74,7 +74,9 @@
       "options_mask": 0,
       "product_id": null,
       "product_list": [
-        "<uuid:785>"
+        "<uuid:785>",
+        "<uuid:504>",
+        "<uuid:401>"
       ],
       "published": false,
       "session_id": null,
@@ -84,7 +86,7 @@
       "verified": "READY"
     },
     {
-      "alive_since": 1779107567921,
+      "alive_since": 1779171477659,
       "allow_desktop": true,
       "city_name": "<city_name:redacted>",
       "created_on": 1761507406144,
@@ -93,7 +95,7 @@
       "disable_updates": false,
       "distance": null,
       "groups_list": [],
-      "last_heartbeat": 1779109699276,
+      "last_heartbeat": 1779176227202,
       "latitude": "<latitude:redacted>",
       "longitude": "<longitude:redacted>",
       "name": "<name:redacted>",

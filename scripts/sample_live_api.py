@@ -71,21 +71,25 @@ class Sanitizer:
 
         if key_lower.startswith("description") or key_lower in {
             "balance",
+            "dealid",
             "emails",
             "exportable_money",
             "latitude",
             "longitude",
             "mts_msisdn",
             "mts_pcr",
+            "payout",
             "primary_qiwi_bankcard_id",
             "qiwi_wallet",
+            "sum",
+            "totalincome",
             "trial_msecs_left",
         }:
             return f"<{key_lower}:redacted>"
 
         if isinstance(value, dict):
             return {
-                str(k): self.sanitize(v, str(k), path + (str(k),))
+                self.sanitize_key(str(k)): self.sanitize(v, str(k), path + (str(k),))
                 for k, v in value.items()
             }
 
@@ -116,6 +120,10 @@ class Sanitizer:
         sanitized = UUID_RE.sub(lambda m: self._alias(self.uuid_map, "uuid", m.group(0)), value)
         sanitized = IP_RE.sub(lambda m: self._alias(self.ip_map, "ip", m.group(0)), sanitized)
         return sanitized
+
+    def sanitize_key(self, key: str) -> str:
+        sanitized = UUID_RE.sub(lambda m: self._alias(self.uuid_map, "uuid", m.group(0)), key)
+        return IP_RE.sub(lambda m: self._alias(self.ip_map, "ip", m.group(0)), sanitized)
 
 
 def merge_schemas(left: Any, right: Any) -> Any:

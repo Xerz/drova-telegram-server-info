@@ -5,7 +5,7 @@ from typing import Any
 import pytest
 
 from scripts import sample_live_api
-from scripts.sample_live_api import DrovaSampler
+from scripts.sample_live_api import DrovaSampler, Sanitizer
 
 
 def test_sampler_next_iteration_read_endpoints_are_explicit(
@@ -70,6 +70,36 @@ def test_sampler_next_iteration_read_endpoints_are_explicit(
             {},
         ),
     ]
+
+
+def test_sampler_sanitizer_redacts_sensitive_values_and_uuid_keys() -> None:
+    sanitizer = Sanitizer()
+
+    sanitized = sanitizer.sanitize(
+        {
+            "perServerStats": {
+                "4c09cc7e-0044-4936-9227-b1d95979b98e": {
+                    "totalIncome": 123.45,
+                    "10.0.0.1": "internal",
+                }
+            },
+            "dealId": "12345678",
+            "payout": 99.0,
+            "sum": 120.0,
+        }
+    )
+
+    assert sanitized == {
+        "perServerStats": {
+            "<uuid:1>": {
+                "totalIncome": "<totalincome:redacted>",
+                "<ip:1>": "internal",
+            }
+        },
+        "dealId": "<dealid:redacted>",
+        "payout": "<payout:redacted>",
+        "sum": "<sum:redacted>",
+    }
 
 
 def test_sampler_next_iteration_product_edit_requires_test_product(

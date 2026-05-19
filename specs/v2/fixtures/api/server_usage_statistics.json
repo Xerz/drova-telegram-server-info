@@ -1,0 +1,576 @@
+{
+  "elapsed_ms": 56.4,
+  "label": "server_usage_statistics",
+  "method": "GET",
+  "params": {},
+  "path": "/accounting/statistics/myserverusageprepared",
+  "response": {
+    "monthStat": {
+      "perGameStats": {
+        "<uuid:215>": {
+          "sessionCount": 13,
+          "totalIncome": "<totalincome:redacted>",
+          "totalMsecs": 62939918
+        },
+        "<uuid:217>": {
+          "sessionCount": 17,
+          "totalIncome": "<totalincome:redacted>",
+          "totalMsecs": 172737497
+        },
+        "<uuid:22>": {
+          "sessionCount": 14,
+          "totalIncome": "<totalincome:redacted>",
+          "totalMsecs": 62382813
+        },
+        "<uuid:236>": {
+          "sessionCount": 5,
+          "totalIncome": "<totalincome:redacted>",
+          "totalMsecs": 50615184
+        },
+        "<uuid:269>": {
+          "sessionCount": 1,
+          "totalIncome": "<totalincome:redacted>",
+          "totalMsecs": 291172
+        },
+        "<uuid:359>": {
+          "sessionCount": 8,
+          "totalIncome": "<totalincome:redacted>",
+          "totalMsecs": 25869266
+        },
+        "<uuid:396>": {
+          "sessionCount": 1,
+          "totalIncome": "<totalincome:redacted>",
+          "totalMsecs": 31662
+        },
+        "<uuid:408>": {
+          "sessionCount": 6,
+          "totalIncome": "<totalincome:redacted>",
+          "totalMsecs": 33161845
+        },
+        "<uuid:432>": {
+          "sessionCount": 16,
+          "totalIncome": "<totalincome:redacted>",
+          "totalMsecs": 68261910
+        },
+        "<uuid:479>": {
+          "sessionCount": 1,
+          "totalIncome": "<totalincome:redacted>",
+          "totalMsecs": 35890
+        },
+        "<uuid:583>": {
+          "sessionCount": 57,
+          "totalIncome": "<totalincome:redacted>",
+          "totalMsecs": 1491903248
+        },
+        "<uuid:645>": {
+          "sessionCount": 6,
+          "totalIncome": "<totalincome:redacted>",
+          "totalMsecs": 19081444
+        },
+        "<uuid:723>": {
+          "sessionCount": 5,
+          "totalIncome": "<totalincome:redacted>",
+          "totalMsecs": 20991235
+        },
+        "<uuid:745>": {
+          "sessionCount": 5,
+          "totalIncome": "<totalincome:redacted>",
+          "totalMsecs": 8592286
+        },
+        "<uuid:746>": {
+          "sessionCount": 20,
+          "totalIncome": "<totalincome:redacted>",
+          "totalMsecs": 97139441
+        },
+        "<uuid:768>": {
+          "sessionCount": 2,
+          "totalIncome": "<totalincome:redacted>",
+          "totalMsecs": 1330339
+        },
+        "<uuid:781>": {
+          "sessionCount": 10,
+          "totalIncome": "<totalincome:redacted>",
+          "totalMsecs": 26773859
+        },
+        "<uuid:785>": {
+          "sessionCount": 4,
+          "totalIncome": "<totalincome:redacted>",
+          "totalMsecs": 7484148
+        },
+        "<uuid:787>": {
+          "sessionCount": 7,
+          "totalIncome": "<totalincome:redacted>",
+          "totalMsecs": 3550425
+        },
+        "<uuid:797>": {
+          "sessionCount": 2,
+          "totalIncome": "<totalincome:redacted>",
+          "totalMsecs": 1088809
+        },
+        "<uuid:886>": {
+          "sessionCount": 13,
+          "totalIncome": "<totalincome:redacted>",
+          "totalMsecs": 129674391
+        },
+        "<uuid:919>": {
+          "sessionCount": 2,
+          "totalIncome": "<totalincome:redacted>",
+          "totalMsecs": 2047037
+        }
+      },
+      "perServerStats": {
+        "<uuid:954>": {
+          "perGameStats": {
+            "<uuid:215>": {
+              "sessionCount": 5,
+              "totalIncome": "<totalincome:redacted>",
+              "totalMsecs": 20923009
+            },
+            "<uuid:217>": {
+              "sessionCount": 9,
+              "totalIncome": "<totalincome:redacted>",
+              "totalMsecs": 87713809
+            },
+            "<uuid:22>": {
+              "sessionCount": 8,
+              "totalIncome": "<totalincome:redacted>",
+              "totalMsecs": 37998756
+            },
+            "<uuid:236>": {
+              "sessionCount": 5,
+              "totalIncome": "<totalincome:redacted>",
+              "totalMsecs": 50615184
+            },
+            "<uuid:359>": {
+              "sessionCount": 1,
+              "totalIncome": "<totalincome:redacted>",
+              "totalMsecs": 214522
+            },
+            "<uuid:408>": {
+              "sessionCount": 3,
+              "totalIncome": "<totalincome:redacted>",
+              "totalMsecs": 24322966
+            },
+            "<uuid:432>": {
+              "sessionCount": 8,
+              "totalIncome": "<totalincome:redacted>",
+              "totalMsecs": 29468467
+            },
+            "<uuid:583>": {
+              "sessionCount": 28,
+              "totalIncome": "<totalincome:redacted>",
+              "totalMsecs": 509191993
+            },
+            "<uuid:645>": {
+              "sessionCount": 3,
+              "totalIncome": "<totalincome:redacted>",
+              "totalMsecs": 10634690
+            },
+            "<uuid:723>": {
+              "sessionCount": 3,
+              "totalIncome": "<totalincome:redacted>",
+              "totalMsecs": 9575042
+            },
+            "<uuid:745>": {
+              "sessionCount": 3,
+              "totalIncome": "<totalincome:redacted>",
+              "totalMsecs": 7992340
+            },
+            "<uuid:746>": {
+              "sessionCount": 12,
+              "totalIncome": "<totalincome:redacted>",
+              "totalMsecs": 68000284
+            },
+            "<uuid:781>": {
+              "sessionCount": 5,
+              "totalIncome": "<totalincome:redacted>",
+              "totalMsecs": 12761525
+            },
+            "<uuid:785>": {
+              "sessionCount": 2,
+              "totalIncome": "<totalincome:redacted>",
+              "totalMsecs": 4046520
+            },
+            "<uuid:787>": {
+              "sessionCount": 4,
+              "totalIncome": "<totalincome:redacted>",
+              "totalMsecs": 1638971
+            },
+            "<uuid:797>": {
+              "sessionCount": 1,
+              "totalIncome": "<totalincome:redacted>",
+              "totalMsecs": 1058350
+            },
+            "<uuid:886>": {
+              "sessionCount": 9,
+              "totalIncome": "<totalincome:redacted>",
+              "totalMsecs": 118737072
+            }
+          },
+          "totalStat": {
+            "sessionCount": 109,
+            "totalIncome": "<totalincome:redacted>",
+            "totalMsecs": 994893500
+          }
+        },
+        "<uuid:956>": {
+          "perGameStats": {
+            "<uuid:215>": {
+              "sessionCount": 8,
+              "totalIncome": "<totalincome:redacted>",
+              "totalMsecs": 42016909
+            },
+            "<uuid:217>": {
+              "sessionCount": 8,
+              "totalIncome": "<totalincome:redacted>",
+              "totalMsecs": 85023688
+            },
+            "<uuid:22>": {
+              "sessionCount": 6,
+              "totalIncome": "<totalincome:redacted>",
+              "totalMsecs": 24384057
+            },
+            "<uuid:269>": {
+              "sessionCount": 1,
+              "totalIncome": "<totalincome:redacted>",
+              "totalMsecs": 291172
+            },
+            "<uuid:359>": {
+              "sessionCount": 7,
+              "totalIncome": "<totalincome:redacted>",
+              "totalMsecs": 25654744
+            },
+            "<uuid:396>": {
+              "sessionCount": 1,
+              "totalIncome": "<totalincome:redacted>",
+              "totalMsecs": 31662
+            },
+            "<uuid:408>": {
+              "sessionCount": 3,
+              "totalIncome": "<totalincome:redacted>",
+              "totalMsecs": 8838879
+            },
+            "<uuid:432>": {
+              "sessionCount": 7,
+              "totalIncome": "<totalincome:redacted>",
+              "totalMsecs": 38735548
+            },
+            "<uuid:479>": {
+              "sessionCount": 1,
+              "totalIncome": "<totalincome:redacted>",
+              "totalMsecs": 35890
+            },
+            "<uuid:583>": {
+              "sessionCount": 29,
+              "totalIncome": "<totalincome:redacted>",
+              "totalMsecs": 982711255
+            },
+            "<uuid:645>": {
+              "sessionCount": 3,
+              "totalIncome": "<totalincome:redacted>",
+              "totalMsecs": 8446754
+            },
+            "<uuid:723>": {
+              "sessionCount": 2,
+              "totalIncome": "<totalincome:redacted>",
+              "totalMsecs": 11416193
+            },
+            "<uuid:745>": {
+              "sessionCount": 2,
+              "totalIncome": "<totalincome:redacted>",
+              "totalMsecs": 599946
+            },
+            "<uuid:746>": {
+              "sessionCount": 8,
+              "totalIncome": "<totalincome:redacted>",
+              "totalMsecs": 29139157
+            },
+            "<uuid:768>": {
+              "sessionCount": 2,
+              "totalIncome": "<totalincome:redacted>",
+              "totalMsecs": 1330339
+            },
+            "<uuid:781>": {
+              "sessionCount": 5,
+              "totalIncome": "<totalincome:redacted>",
+              "totalMsecs": 14012334
+            },
+            "<uuid:785>": {
+              "sessionCount": 2,
+              "totalIncome": "<totalincome:redacted>",
+              "totalMsecs": 3437628
+            },
+            "<uuid:787>": {
+              "sessionCount": 3,
+              "totalIncome": "<totalincome:redacted>",
+              "totalMsecs": 1911454
+            },
+            "<uuid:797>": {
+              "sessionCount": 1,
+              "totalIncome": "<totalincome:redacted>",
+              "totalMsecs": 30459
+            },
+            "<uuid:886>": {
+              "sessionCount": 4,
+              "totalIncome": "<totalincome:redacted>",
+              "totalMsecs": 10937319
+            },
+            "<uuid:919>": {
+              "sessionCount": 2,
+              "totalIncome": "<totalincome:redacted>",
+              "totalMsecs": 2047037
+            }
+          },
+          "totalStat": {
+            "sessionCount": 105,
+            "totalIncome": "<totalincome:redacted>",
+            "totalMsecs": 1291032424
+          }
+        },
+        "<uuid:958>": {
+          "perGameStats": {
+            "<uuid:432>": {
+              "sessionCount": 1,
+              "totalIncome": "<totalincome:redacted>",
+              "totalMsecs": 57895
+            }
+          },
+          "totalStat": {
+            "sessionCount": 1,
+            "totalIncome": "<totalincome:redacted>",
+            "totalMsecs": 57895
+          }
+        }
+      },
+      "totalStat": {
+        "sessionCount": 215,
+        "totalIncome": "<totalincome:redacted>",
+        "totalMsecs": 2285983819
+      }
+    },
+    "todayStat": {
+      "perGameStats": {
+        "<uuid:269>": {
+          "sessionCount": 1,
+          "totalIncome": "<totalincome:redacted>",
+          "totalMsecs": 291172
+        },
+        "<uuid:583>": {
+          "sessionCount": 1,
+          "totalIncome": "<totalincome:redacted>",
+          "totalMsecs": 7524079
+        }
+      },
+      "perServerStats": {
+        "<uuid:956>": {
+          "perGameStats": {
+            "<uuid:269>": {
+              "sessionCount": 1,
+              "totalIncome": "<totalincome:redacted>",
+              "totalMsecs": 291172
+            },
+            "<uuid:583>": {
+              "sessionCount": 1,
+              "totalIncome": "<totalincome:redacted>",
+              "totalMsecs": 7524079
+            }
+          },
+          "totalStat": {
+            "sessionCount": 2,
+            "totalIncome": "<totalincome:redacted>",
+            "totalMsecs": 7815251
+          }
+        }
+      },
+      "totalStat": {
+        "sessionCount": 2,
+        "totalIncome": "<totalincome:redacted>",
+        "totalMsecs": 7815251
+      }
+    },
+    "weekStat": {
+      "perGameStats": {
+        "<uuid:217>": {
+          "sessionCount": 2,
+          "totalIncome": "<totalincome:redacted>",
+          "totalMsecs": 14868024
+        },
+        "<uuid:22>": {
+          "sessionCount": 2,
+          "totalIncome": "<totalincome:redacted>",
+          "totalMsecs": 11671347
+        },
+        "<uuid:269>": {
+          "sessionCount": 1,
+          "totalIncome": "<totalincome:redacted>",
+          "totalMsecs": 291172
+        },
+        "<uuid:359>": {
+          "sessionCount": 5,
+          "totalIncome": "<totalincome:redacted>",
+          "totalMsecs": 23901502
+        },
+        "<uuid:432>": {
+          "sessionCount": 1,
+          "totalIncome": "<totalincome:redacted>",
+          "totalMsecs": 57895
+        },
+        "<uuid:583>": {
+          "sessionCount": 13,
+          "totalIncome": "<totalincome:redacted>",
+          "totalMsecs": 484088987
+        },
+        "<uuid:723>": {
+          "sessionCount": 4,
+          "totalIncome": "<totalincome:redacted>",
+          "totalMsecs": 20325444
+        },
+        "<uuid:745>": {
+          "sessionCount": 3,
+          "totalIncome": "<totalincome:redacted>",
+          "totalMsecs": 1155287
+        },
+        "<uuid:746>": {
+          "sessionCount": 9,
+          "totalIncome": "<totalincome:redacted>",
+          "totalMsecs": 26584737
+        },
+        "<uuid:781>": {
+          "sessionCount": 1,
+          "totalIncome": "<totalincome:redacted>",
+          "totalMsecs": 9549
+        },
+        "<uuid:785>": {
+          "sessionCount": 1,
+          "totalIncome": "<totalincome:redacted>",
+          "totalMsecs": 667733
+        }
+      },
+      "perServerStats": {
+        "<uuid:954>": {
+          "perGameStats": {
+            "<uuid:217>": {
+              "sessionCount": 1,
+              "totalIncome": "<totalincome:redacted>",
+              "totalMsecs": 14255870
+            },
+            "<uuid:22>": {
+              "sessionCount": 1,
+              "totalIncome": "<totalincome:redacted>",
+              "totalMsecs": 4354166
+            },
+            "<uuid:359>": {
+              "sessionCount": 1,
+              "totalIncome": "<totalincome:redacted>",
+              "totalMsecs": 214522
+            },
+            "<uuid:583>": {
+              "sessionCount": 6,
+              "totalIncome": "<totalincome:redacted>",
+              "totalMsecs": 238570972
+            },
+            "<uuid:723>": {
+              "sessionCount": 2,
+              "totalIncome": "<totalincome:redacted>",
+              "totalMsecs": 8909251
+            },
+            "<uuid:745>": {
+              "sessionCount": 1,
+              "totalIncome": "<totalincome:redacted>",
+              "totalMsecs": 555341
+            },
+            "<uuid:746>": {
+              "sessionCount": 5,
+              "totalIncome": "<totalincome:redacted>",
+              "totalMsecs": 16410261
+            }
+          },
+          "totalStat": {
+            "sessionCount": 17,
+            "totalIncome": "<totalincome:redacted>",
+            "totalMsecs": 283270383
+          }
+        },
+        "<uuid:956>": {
+          "perGameStats": {
+            "<uuid:217>": {
+              "sessionCount": 1,
+              "totalIncome": "<totalincome:redacted>",
+              "totalMsecs": 612154
+            },
+            "<uuid:22>": {
+              "sessionCount": 1,
+              "totalIncome": "<totalincome:redacted>",
+              "totalMsecs": 7317181
+            },
+            "<uuid:269>": {
+              "sessionCount": 1,
+              "totalIncome": "<totalincome:redacted>",
+              "totalMsecs": 291172
+            },
+            "<uuid:359>": {
+              "sessionCount": 4,
+              "totalIncome": "<totalincome:redacted>",
+              "totalMsecs": 23686980
+            },
+            "<uuid:583>": {
+              "sessionCount": 7,
+              "totalIncome": "<totalincome:redacted>",
+              "totalMsecs": 245518015
+            },
+            "<uuid:723>": {
+              "sessionCount": 2,
+              "totalIncome": "<totalincome:redacted>",
+              "totalMsecs": 11416193
+            },
+            "<uuid:745>": {
+              "sessionCount": 2,
+              "totalIncome": "<totalincome:redacted>",
+              "totalMsecs": 599946
+            },
+            "<uuid:746>": {
+              "sessionCount": 4,
+              "totalIncome": "<totalincome:redacted>",
+              "totalMsecs": 10174476
+            },
+            "<uuid:781>": {
+              "sessionCount": 1,
+              "totalIncome": "<totalincome:redacted>",
+              "totalMsecs": 9549
+            },
+            "<uuid:785>": {
+              "sessionCount": 1,
+              "totalIncome": "<totalincome:redacted>",
+              "totalMsecs": 667733
+            }
+          },
+          "totalStat": {
+            "sessionCount": 24,
+            "totalIncome": "<totalincome:redacted>",
+            "totalMsecs": 300293399
+          }
+        },
+        "<uuid:958>": {
+          "perGameStats": {
+            "<uuid:432>": {
+              "sessionCount": 1,
+              "totalIncome": "<totalincome:redacted>",
+              "totalMsecs": 57895
+            }
+          },
+          "totalStat": {
+            "sessionCount": 1,
+            "totalIncome": "<totalincome:redacted>",
+            "totalMsecs": 57895
+          }
+        }
+      },
+      "totalStat": {
+        "sessionCount": 42,
+        "totalIncome": "<totalincome:redacted>",
+        "totalMsecs": 583621677
+      }
+    }
+  },
+  "status": 200
+}

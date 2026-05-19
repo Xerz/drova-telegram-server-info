@@ -1,139 +1,155 @@
 {
   "requests": [
     {
-      "elapsed_ms": 242.2,
+      "elapsed_ms": 253.9,
       "label": "account",
       "method": "GET",
       "path": "/accounting/myaccount",
-      "proxy_fallback_used": true,
+      "proxy_fallback_used": false,
       "status": 200
     },
     {
-      "elapsed_ms": 418.2,
+      "elapsed_ms": 350.7,
       "label": "products_full",
       "method": "GET",
       "path": "/product-manager/product/listfull2",
-      "proxy_fallback_used": true,
+      "proxy_fallback_used": false,
       "status": 200
     },
     {
-      "elapsed_ms": 58.2,
+      "elapsed_ms": 64.4,
       "label": "servers",
       "method": "GET",
       "path": "/server-manager/servers",
-      "proxy_fallback_used": true,
+      "proxy_fallback_used": false,
       "status": 200
     },
     {
-      "elapsed_ms": 318.7,
+      "elapsed_ms": 412.6,
       "label": "sessions_all_limit_5",
       "method": "GET",
       "path": "/session-manager/sessions",
-      "proxy_fallback_used": true,
+      "proxy_fallback_used": false,
       "status": 200
     },
     {
-      "elapsed_ms": 53.7,
+      "elapsed_ms": 55.2,
+      "label": "promocodes_unused",
+      "method": "GET",
+      "path": "/accounting/prepaid/list_unused_promocodes/false",
+      "proxy_fallback_used": false,
+      "status": 200
+    },
+    {
+      "elapsed_ms": 51.4,
       "label": "server_1_sessions_limit_5",
       "method": "GET",
       "path": "/session-manager/sessions",
-      "proxy_fallback_used": true,
+      "proxy_fallback_used": false,
       "status": 200
     },
     {
-      "elapsed_ms": 54.1,
+      "elapsed_ms": 117.5,
       "label": "server_1_products",
       "method": "GET",
       "path": "/server-manager/serverproduct/list4edit2/<uuid:954>",
-      "proxy_fallback_used": true,
-      "status": 200
-    },
-    {
-      "elapsed_ms": 54.8,
-      "label": "server_1_endpoints_limit_5",
-      "method": "GET",
-      "path": "/server-manager/serverendpoint/list/<uuid:954>",
-      "proxy_fallback_used": true,
-      "status": 200
-    },
-    {
-      "elapsed_ms": 52.5,
-      "label": "server_2_sessions_limit_5",
-      "method": "GET",
-      "path": "/session-manager/sessions",
-      "proxy_fallback_used": true,
-      "status": 200
-    },
-    {
-      "elapsed_ms": 53.3,
-      "label": "server_2_products",
-      "method": "GET",
-      "path": "/server-manager/serverproduct/list4edit2/<uuid:955>",
-      "proxy_fallback_used": true,
-      "status": 200
-    },
-    {
-      "elapsed_ms": 53.2,
-      "label": "server_2_endpoints_limit_5",
-      "method": "GET",
-      "path": "/server-manager/serverendpoint/list/<uuid:955>",
-      "proxy_fallback_used": true,
-      "status": 200
-    },
-    {
-      "elapsed_ms": 108.6,
-      "label": "server_3_sessions_limit_5",
-      "method": "GET",
-      "path": "/session-manager/sessions",
-      "proxy_fallback_used": true,
-      "status": 200
-    },
-    {
-      "elapsed_ms": 55.9,
-      "label": "server_3_products",
-      "method": "GET",
-      "path": "/server-manager/serverproduct/list4edit2/<uuid:956>",
-      "proxy_fallback_used": true,
-      "status": 200
-    },
-    {
-      "elapsed_ms": 53.9,
-      "label": "server_3_endpoints_limit_5",
-      "method": "GET",
-      "path": "/server-manager/serverendpoint/list/<uuid:956>",
-      "proxy_fallback_used": true,
-      "status": 200
-    },
-    {
-      "elapsed_ms": 85.4,
-      "label": "test_station_publish_toggle",
-      "method": "POST",
-      "path": "/server-manager/servers/<uuid:955>/set_published/true",
-      "proxy_fallback_used": true,
-      "status": 200
-    },
-    {
-      "elapsed_ms": 61.6,
-      "label": "test_station_publish_toggle_confirm",
-      "method": "GET",
-      "path": "/server-manager/servers",
-      "proxy_fallback_used": true,
+      "proxy_fallback_used": false,
       "status": 200
     },
     {
       "elapsed_ms": 52.1,
-      "label": "test_station_publish_rollback",
-      "method": "POST",
-      "path": "/server-manager/servers/<uuid:955>/set_published/false",
-      "proxy_fallback_used": true,
+      "label": "server_1_endpoints_limit_5",
+      "method": "GET",
+      "path": "/server-manager/serverendpoint/list/<uuid:954>",
+      "proxy_fallback_used": false,
       "status": 200
     },
     {
-      "elapsed_ms": 57.4,
-      "label": "test_station_publish_rollback_confirm",
+      "elapsed_ms": 48.9,
+      "label": "server_2_sessions_limit_5",
       "method": "GET",
-      "path": "/server-manager/servers",
-      "proxy_fallback_used": true,
+      "path": "/session-manager/sessions",
+      "proxy_fallback_used": false,
+      "status": 200
+    },
+    {
+      "elapsed_ms": 51.0,
+      "label": "server_2_products",
+      "method": "GET",
+      "path": "/server-manager/serverproduct/list4edit2/<uuid:955>",
+      "proxy_fallback_used": false,
+      "status": 200
+    },
+    {
+      "elapsed_ms": 50.9,
+      "label": "server_2_endpoints_limit_5",
+      "method": "GET",
+      "path": "/server-manager/serverendpoint/list/<uuid:955>",
+      "proxy_fallback_used": false,
+      "status": 200
+    },
+    {
+      "elapsed_ms": 62.5,
+      "label": "server_3_sessions_limit_5",
+      "method": "GET",
+      "path": "/session-manager/sessions",
+      "proxy_fallback_used": false,
+      "status": 200
+    },
+    {
+      "elapsed_ms": 54.5,
+      "label": "server_3_products",
+      "method": "GET",
+      "path": "/server-manager/serverproduct/list4edit2/<uuid:956>",
+      "proxy_fallback_used": false,
+      "status": 200
+    },
+    {
+      "elapsed_ms": 51.4,
+      "label": "server_3_endpoints_limit_5",
+      "method": "GET",
+      "path": "/server-manager/serverendpoint/list/<uuid:956>",
+      "proxy_fallback_used": false,
+      "status": 200
+    },
+    {
+      "elapsed_ms": 233.3,
+      "label": "account_prepaid_stats",
+      "method": "GET",
+      "path": "/accounting/prepaid/prepaid_stats4merchant/<uuid:957>",
+      "proxy_fallback_used": false,
+      "status": 200
+    },
+    {
+      "elapsed_ms": 56.3,
+      "label": "account_prepaid_settlements",
+      "method": "GET",
+      "path": "/accounting/prepaid/list4merchant/<uuid:957>",
+      "proxy_fallback_used": false,
+      "status": 200
+    },
+    {
+      "elapsed_ms": 58.5,
+      "label": "account_tinkoff_opened_deals",
+      "method": "GET",
+      "path": "/accounting/tinkoff/prepaid/getOpenedDeals",
+      "proxy_fallback_used": false,
+      "status": 200
+    },
+    {
+      "elapsed_ms": 56.4,
+      "label": "server_usage_statistics",
+      "method": "GET",
+      "path": "/accounting/statistics/myserverusageprepared",
+      "proxy_fallback_used": false,
+      "status": 200
+    },
+    {
+      "elapsed_ms": 51.8,
+      "label": "test_station_source",
+      "method": "GET",
+      "path": "/server-manager/servers/<uuid:955>",
+      "proxy_fallback_used": false,
       "status": 200
     }
   ]

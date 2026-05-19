@@ -83,6 +83,149 @@
     },
     "type": "object"
   },
+  "account_prepaid_settlements": {
+    "fields": {
+      "elapsed_ms": {
+        "type": "number"
+      },
+      "label": {
+        "type": "string"
+      },
+      "method": {
+        "type": "string"
+      },
+      "params": {
+        "fields": {},
+        "type": "object"
+      },
+      "path": {
+        "type": "string"
+      },
+      "response": {
+        "count": 20,
+        "items": {
+          "fields": {
+            "client_id": {
+              "type": [
+                "null",
+                "string"
+              ]
+            },
+            "created_on": {
+              "type": "integer"
+            },
+            "has_order": {
+              "type": "boolean"
+            },
+            "playtime_msecs": {
+              "type": "integer"
+            },
+            "uuid": {
+              "type": "string"
+            }
+          },
+          "type": "object"
+        },
+        "type": "array"
+      },
+      "status": {
+        "type": "integer"
+      }
+    },
+    "type": "object"
+  },
+  "account_prepaid_stats": {
+    "fields": {
+      "elapsed_ms": {
+        "type": "number"
+      },
+      "label": {
+        "type": "string"
+      },
+      "method": {
+        "type": "string"
+      },
+      "params": {
+        "fields": {},
+        "type": "object"
+      },
+      "path": {
+        "type": "string"
+      },
+      "response": {
+        "fields": {
+          "allowed_to_sell_minutes": {
+            "type": "integer"
+          },
+          "balance": {
+            "type": "string"
+          },
+          "merchant_id": {
+            "type": "string"
+          },
+          "sold_minutes": {
+            "type": "integer"
+          },
+          "used_minutes": {
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "status": {
+        "type": "integer"
+      }
+    },
+    "type": "object"
+  },
+  "account_tinkoff_opened_deals": {
+    "fields": {
+      "elapsed_ms": {
+        "type": "number"
+      },
+      "label": {
+        "type": "string"
+      },
+      "method": {
+        "type": "string"
+      },
+      "params": {
+        "fields": {},
+        "type": "object"
+      },
+      "path": {
+        "type": "string"
+      },
+      "response": {
+        "count": 1,
+        "items": {
+          "fields": {
+            "created_on": {
+              "type": "integer"
+            },
+            "dealId": {
+              "type": "string"
+            },
+            "payout": {
+              "type": "string"
+            },
+            "sum": {
+              "type": "string"
+            },
+            "terminal_index": {
+              "type": "integer"
+            }
+          },
+          "type": "object"
+        },
+        "type": "array"
+      },
+      "status": {
+        "type": "integer"
+      }
+    },
+    "type": "object"
+  },
   "products_full": {
     "fields": {
       "elapsed_ms": {
@@ -164,6 +307,60 @@
             },
             "useDefaultDesktop": {
               "type": "boolean"
+            }
+          },
+          "type": "object"
+        },
+        "type": "array"
+      },
+      "status": {
+        "type": "integer"
+      }
+    },
+    "type": "object"
+  },
+  "promocodes_unused": {
+    "fields": {
+      "elapsed_ms": {
+        "type": "number"
+      },
+      "label": {
+        "type": "string"
+      },
+      "method": {
+        "type": "string"
+      },
+      "params": {
+        "fields": {},
+        "type": "object"
+      },
+      "path": {
+        "type": "string"
+      },
+      "response": {
+        "count": 3,
+        "items": {
+          "fields": {
+            "created_on": {
+              "type": "integer"
+            },
+            "expired": {
+              "type": "boolean"
+            },
+            "expired_on": {
+              "type": "integer"
+            },
+            "id": {
+              "type": "integer"
+            },
+            "merchant_id": {
+              "type": "string"
+            },
+            "playtime_msecs": {
+              "type": "integer"
+            },
+            "promocode": {
+              "type": "string"
             }
           },
           "type": "object"
@@ -717,6 +914,1606 @@
     },
     "type": "object"
   },
+  "server_usage_statistics": {
+    "fields": {
+      "elapsed_ms": {
+        "type": "number"
+      },
+      "label": {
+        "type": "string"
+      },
+      "method": {
+        "type": "string"
+      },
+      "params": {
+        "fields": {},
+        "type": "object"
+      },
+      "path": {
+        "type": "string"
+      },
+      "response": {
+        "fields": {
+          "monthStat": {
+            "fields": {
+              "perGameStats": {
+                "fields": {
+                  "<uuid:215>": {
+                    "fields": {
+                      "sessionCount": {
+                        "type": "integer"
+                      },
+                      "totalIncome": {
+                        "type": "string"
+                      },
+                      "totalMsecs": {
+                        "type": "integer"
+                      }
+                    },
+                    "type": "object"
+                  },
+                  "<uuid:217>": {
+                    "fields": {
+                      "sessionCount": {
+                        "type": "integer"
+                      },
+                      "totalIncome": {
+                        "type": "string"
+                      },
+                      "totalMsecs": {
+                        "type": "integer"
+                      }
+                    },
+                    "type": "object"
+                  },
+                  "<uuid:22>": {
+                    "fields": {
+                      "sessionCount": {
+                        "type": "integer"
+                      },
+                      "totalIncome": {
+                        "type": "string"
+                      },
+                      "totalMsecs": {
+                        "type": "integer"
+                      }
+                    },
+                    "type": "object"
+                  },
+                  "<uuid:236>": {
+                    "fields": {
+                      "sessionCount": {
+                        "type": "integer"
+                      },
+                      "totalIncome": {
+                        "type": "string"
+                      },
+                      "totalMsecs": {
+                        "type": "integer"
+                      }
+                    },
+                    "type": "object"
+                  },
+                  "<uuid:269>": {
+                    "fields": {
+                      "sessionCount": {
+                        "type": "integer"
+                      },
+                      "totalIncome": {
+                        "type": "string"
+                      },
+                      "totalMsecs": {
+                        "type": "integer"
+                      }
+                    },
+                    "type": "object"
+                  },
+                  "<uuid:359>": {
+                    "fields": {
+                      "sessionCount": {
+                        "type": "integer"
+                      },
+                      "totalIncome": {
+                        "type": "string"
+                      },
+                      "totalMsecs": {
+                        "type": "integer"
+                      }
+                    },
+                    "type": "object"
+                  },
+                  "<uuid:396>": {
+                    "fields": {
+                      "sessionCount": {
+                        "type": "integer"
+                      },
+                      "totalIncome": {
+                        "type": "string"
+                      },
+                      "totalMsecs": {
+                        "type": "integer"
+                      }
+                    },
+                    "type": "object"
+                  },
+                  "<uuid:408>": {
+                    "fields": {
+                      "sessionCount": {
+                        "type": "integer"
+                      },
+                      "totalIncome": {
+                        "type": "string"
+                      },
+                      "totalMsecs": {
+                        "type": "integer"
+                      }
+                    },
+                    "type": "object"
+                  },
+                  "<uuid:432>": {
+                    "fields": {
+                      "sessionCount": {
+                        "type": "integer"
+                      },
+                      "totalIncome": {
+                        "type": "string"
+                      },
+                      "totalMsecs": {
+                        "type": "integer"
+                      }
+                    },
+                    "type": "object"
+                  },
+                  "<uuid:479>": {
+                    "fields": {
+                      "sessionCount": {
+                        "type": "integer"
+                      },
+                      "totalIncome": {
+                        "type": "string"
+                      },
+                      "totalMsecs": {
+                        "type": "integer"
+                      }
+                    },
+                    "type": "object"
+                  },
+                  "<uuid:583>": {
+                    "fields": {
+                      "sessionCount": {
+                        "type": "integer"
+                      },
+                      "totalIncome": {
+                        "type": "string"
+                      },
+                      "totalMsecs": {
+                        "type": "integer"
+                      }
+                    },
+                    "type": "object"
+                  },
+                  "<uuid:645>": {
+                    "fields": {
+                      "sessionCount": {
+                        "type": "integer"
+                      },
+                      "totalIncome": {
+                        "type": "string"
+                      },
+                      "totalMsecs": {
+                        "type": "integer"
+                      }
+                    },
+                    "type": "object"
+                  },
+                  "<uuid:723>": {
+                    "fields": {
+                      "sessionCount": {
+                        "type": "integer"
+                      },
+                      "totalIncome": {
+                        "type": "string"
+                      },
+                      "totalMsecs": {
+                        "type": "integer"
+                      }
+                    },
+                    "type": "object"
+                  },
+                  "<uuid:745>": {
+                    "fields": {
+                      "sessionCount": {
+                        "type": "integer"
+                      },
+                      "totalIncome": {
+                        "type": "string"
+                      },
+                      "totalMsecs": {
+                        "type": "integer"
+                      }
+                    },
+                    "type": "object"
+                  },
+                  "<uuid:746>": {
+                    "fields": {
+                      "sessionCount": {
+                        "type": "integer"
+                      },
+                      "totalIncome": {
+                        "type": "string"
+                      },
+                      "totalMsecs": {
+                        "type": "integer"
+                      }
+                    },
+                    "type": "object"
+                  },
+                  "<uuid:768>": {
+                    "fields": {
+                      "sessionCount": {
+                        "type": "integer"
+                      },
+                      "totalIncome": {
+                        "type": "string"
+                      },
+                      "totalMsecs": {
+                        "type": "integer"
+                      }
+                    },
+                    "type": "object"
+                  },
+                  "<uuid:781>": {
+                    "fields": {
+                      "sessionCount": {
+                        "type": "integer"
+                      },
+                      "totalIncome": {
+                        "type": "string"
+                      },
+                      "totalMsecs": {
+                        "type": "integer"
+                      }
+                    },
+                    "type": "object"
+                  },
+                  "<uuid:785>": {
+                    "fields": {
+                      "sessionCount": {
+                        "type": "integer"
+                      },
+                      "totalIncome": {
+                        "type": "string"
+                      },
+                      "totalMsecs": {
+                        "type": "integer"
+                      }
+                    },
+                    "type": "object"
+                  },
+                  "<uuid:787>": {
+                    "fields": {
+                      "sessionCount": {
+                        "type": "integer"
+                      },
+                      "totalIncome": {
+                        "type": "string"
+                      },
+                      "totalMsecs": {
+                        "type": "integer"
+                      }
+                    },
+                    "type": "object"
+                  },
+                  "<uuid:797>": {
+                    "fields": {
+                      "sessionCount": {
+                        "type": "integer"
+                      },
+                      "totalIncome": {
+                        "type": "string"
+                      },
+                      "totalMsecs": {
+                        "type": "integer"
+                      }
+                    },
+                    "type": "object"
+                  },
+                  "<uuid:886>": {
+                    "fields": {
+                      "sessionCount": {
+                        "type": "integer"
+                      },
+                      "totalIncome": {
+                        "type": "string"
+                      },
+                      "totalMsecs": {
+                        "type": "integer"
+                      }
+                    },
+                    "type": "object"
+                  },
+                  "<uuid:919>": {
+                    "fields": {
+                      "sessionCount": {
+                        "type": "integer"
+                      },
+                      "totalIncome": {
+                        "type": "string"
+                      },
+                      "totalMsecs": {
+                        "type": "integer"
+                      }
+                    },
+                    "type": "object"
+                  }
+                },
+                "type": "object"
+              },
+              "perServerStats": {
+                "fields": {
+                  "<uuid:954>": {
+                    "fields": {
+                      "perGameStats": {
+                        "fields": {
+                          "<uuid:215>": {
+                            "fields": {
+                              "sessionCount": {
+                                "type": "integer"
+                              },
+                              "totalIncome": {
+                                "type": "string"
+                              },
+                              "totalMsecs": {
+                                "type": "integer"
+                              }
+                            },
+                            "type": "object"
+                          },
+                          "<uuid:217>": {
+                            "fields": {
+                              "sessionCount": {
+                                "type": "integer"
+                              },
+                              "totalIncome": {
+                                "type": "string"
+                              },
+                              "totalMsecs": {
+                                "type": "integer"
+                              }
+                            },
+                            "type": "object"
+                          },
+                          "<uuid:22>": {
+                            "fields": {
+                              "sessionCount": {
+                                "type": "integer"
+                              },
+                              "totalIncome": {
+                                "type": "string"
+                              },
+                              "totalMsecs": {
+                                "type": "integer"
+                              }
+                            },
+                            "type": "object"
+                          },
+                          "<uuid:236>": {
+                            "fields": {
+                              "sessionCount": {
+                                "type": "integer"
+                              },
+                              "totalIncome": {
+                                "type": "string"
+                              },
+                              "totalMsecs": {
+                                "type": "integer"
+                              }
+                            },
+                            "type": "object"
+                          },
+                          "<uuid:359>": {
+                            "fields": {
+                              "sessionCount": {
+                                "type": "integer"
+                              },
+                              "totalIncome": {
+                                "type": "string"
+                              },
+                              "totalMsecs": {
+                                "type": "integer"
+                              }
+                            },
+                            "type": "object"
+                          },
+                          "<uuid:408>": {
+                            "fields": {
+                              "sessionCount": {
+                                "type": "integer"
+                              },
+                              "totalIncome": {
+                                "type": "string"
+                              },
+                              "totalMsecs": {
+                                "type": "integer"
+                              }
+                            },
+                            "type": "object"
+                          },
+                          "<uuid:432>": {
+                            "fields": {
+                              "sessionCount": {
+                                "type": "integer"
+                              },
+                              "totalIncome": {
+                                "type": "string"
+                              },
+                              "totalMsecs": {
+                                "type": "integer"
+                              }
+                            },
+                            "type": "object"
+                          },
+                          "<uuid:583>": {
+                            "fields": {
+                              "sessionCount": {
+                                "type": "integer"
+                              },
+                              "totalIncome": {
+                                "type": "string"
+                              },
+                              "totalMsecs": {
+                                "type": "integer"
+                              }
+                            },
+                            "type": "object"
+                          },
+                          "<uuid:645>": {
+                            "fields": {
+                              "sessionCount": {
+                                "type": "integer"
+                              },
+                              "totalIncome": {
+                                "type": "string"
+                              },
+                              "totalMsecs": {
+                                "type": "integer"
+                              }
+                            },
+                            "type": "object"
+                          },
+                          "<uuid:723>": {
+                            "fields": {
+                              "sessionCount": {
+                                "type": "integer"
+                              },
+                              "totalIncome": {
+                                "type": "string"
+                              },
+                              "totalMsecs": {
+                                "type": "integer"
+                              }
+                            },
+                            "type": "object"
+                          },
+                          "<uuid:745>": {
+                            "fields": {
+                              "sessionCount": {
+                                "type": "integer"
+                              },
+                              "totalIncome": {
+                                "type": "string"
+                              },
+                              "totalMsecs": {
+                                "type": "integer"
+                              }
+                            },
+                            "type": "object"
+                          },
+                          "<uuid:746>": {
+                            "fields": {
+                              "sessionCount": {
+                                "type": "integer"
+                              },
+                              "totalIncome": {
+                                "type": "string"
+                              },
+                              "totalMsecs": {
+                                "type": "integer"
+                              }
+                            },
+                            "type": "object"
+                          },
+                          "<uuid:781>": {
+                            "fields": {
+                              "sessionCount": {
+                                "type": "integer"
+                              },
+                              "totalIncome": {
+                                "type": "string"
+                              },
+                              "totalMsecs": {
+                                "type": "integer"
+                              }
+                            },
+                            "type": "object"
+                          },
+                          "<uuid:785>": {
+                            "fields": {
+                              "sessionCount": {
+                                "type": "integer"
+                              },
+                              "totalIncome": {
+                                "type": "string"
+                              },
+                              "totalMsecs": {
+                                "type": "integer"
+                              }
+                            },
+                            "type": "object"
+                          },
+                          "<uuid:787>": {
+                            "fields": {
+                              "sessionCount": {
+                                "type": "integer"
+                              },
+                              "totalIncome": {
+                                "type": "string"
+                              },
+                              "totalMsecs": {
+                                "type": "integer"
+                              }
+                            },
+                            "type": "object"
+                          },
+                          "<uuid:797>": {
+                            "fields": {
+                              "sessionCount": {
+                                "type": "integer"
+                              },
+                              "totalIncome": {
+                                "type": "string"
+                              },
+                              "totalMsecs": {
+                                "type": "integer"
+                              }
+                            },
+                            "type": "object"
+                          },
+                          "<uuid:886>": {
+                            "fields": {
+                              "sessionCount": {
+                                "type": "integer"
+                              },
+                              "totalIncome": {
+                                "type": "string"
+                              },
+                              "totalMsecs": {
+                                "type": "integer"
+                              }
+                            },
+                            "type": "object"
+                          }
+                        },
+                        "type": "object"
+                      },
+                      "totalStat": {
+                        "fields": {
+                          "sessionCount": {
+                            "type": "integer"
+                          },
+                          "totalIncome": {
+                            "type": "string"
+                          },
+                          "totalMsecs": {
+                            "type": "integer"
+                          }
+                        },
+                        "type": "object"
+                      }
+                    },
+                    "type": "object"
+                  },
+                  "<uuid:956>": {
+                    "fields": {
+                      "perGameStats": {
+                        "fields": {
+                          "<uuid:215>": {
+                            "fields": {
+                              "sessionCount": {
+                                "type": "integer"
+                              },
+                              "totalIncome": {
+                                "type": "string"
+                              },
+                              "totalMsecs": {
+                                "type": "integer"
+                              }
+                            },
+                            "type": "object"
+                          },
+                          "<uuid:217>": {
+                            "fields": {
+                              "sessionCount": {
+                                "type": "integer"
+                              },
+                              "totalIncome": {
+                                "type": "string"
+                              },
+                              "totalMsecs": {
+                                "type": "integer"
+                              }
+                            },
+                            "type": "object"
+                          },
+                          "<uuid:22>": {
+                            "fields": {
+                              "sessionCount": {
+                                "type": "integer"
+                              },
+                              "totalIncome": {
+                                "type": "string"
+                              },
+                              "totalMsecs": {
+                                "type": "integer"
+                              }
+                            },
+                            "type": "object"
+                          },
+                          "<uuid:269>": {
+                            "fields": {
+                              "sessionCount": {
+                                "type": "integer"
+                              },
+                              "totalIncome": {
+                                "type": "string"
+                              },
+                              "totalMsecs": {
+                                "type": "integer"
+                              }
+                            },
+                            "type": "object"
+                          },
+                          "<uuid:359>": {
+                            "fields": {
+                              "sessionCount": {
+                                "type": "integer"
+                              },
+                              "totalIncome": {
+                                "type": "string"
+                              },
+                              "totalMsecs": {
+                                "type": "integer"
+                              }
+                            },
+                            "type": "object"
+                          },
+                          "<uuid:396>": {
+                            "fields": {
+                              "sessionCount": {
+                                "type": "integer"
+                              },
+                              "totalIncome": {
+                                "type": "string"
+                              },
+                              "totalMsecs": {
+                                "type": "integer"
+                              }
+                            },
+                            "type": "object"
+                          },
+                          "<uuid:408>": {
+                            "fields": {
+                              "sessionCount": {
+                                "type": "integer"
+                              },
+                              "totalIncome": {
+                                "type": "string"
+                              },
+                              "totalMsecs": {
+                                "type": "integer"
+                              }
+                            },
+                            "type": "object"
+                          },
+                          "<uuid:432>": {
+                            "fields": {
+                              "sessionCount": {
+                                "type": "integer"
+                              },
+                              "totalIncome": {
+                                "type": "string"
+                              },
+                              "totalMsecs": {
+                                "type": "integer"
+                              }
+                            },
+                            "type": "object"
+                          },
+                          "<uuid:479>": {
+                            "fields": {
+                              "sessionCount": {
+                                "type": "integer"
+                              },
+                              "totalIncome": {
+                                "type": "string"
+                              },
+                              "totalMsecs": {
+                                "type": "integer"
+                              }
+                            },
+                            "type": "object"
+                          },
+                          "<uuid:583>": {
+                            "fields": {
+                              "sessionCount": {
+                                "type": "integer"
+                              },
+                              "totalIncome": {
+                                "type": "string"
+                              },
+                              "totalMsecs": {
+                                "type": "integer"
+                              }
+                            },
+                            "type": "object"
+                          },
+                          "<uuid:645>": {
+                            "fields": {
+                              "sessionCount": {
+                                "type": "integer"
+                              },
+                              "totalIncome": {
+                                "type": "string"
+                              },
+                              "totalMsecs": {
+                                "type": "integer"
+                              }
+                            },
+                            "type": "object"
+                          },
+                          "<uuid:723>": {
+                            "fields": {
+                              "sessionCount": {
+                                "type": "integer"
+                              },
+                              "totalIncome": {
+                                "type": "string"
+                              },
+                              "totalMsecs": {
+                                "type": "integer"
+                              }
+                            },
+                            "type": "object"
+                          },
+                          "<uuid:745>": {
+                            "fields": {
+                              "sessionCount": {
+                                "type": "integer"
+                              },
+                              "totalIncome": {
+                                "type": "string"
+                              },
+                              "totalMsecs": {
+                                "type": "integer"
+                              }
+                            },
+                            "type": "object"
+                          },
+                          "<uuid:746>": {
+                            "fields": {
+                              "sessionCount": {
+                                "type": "integer"
+                              },
+                              "totalIncome": {
+                                "type": "string"
+                              },
+                              "totalMsecs": {
+                                "type": "integer"
+                              }
+                            },
+                            "type": "object"
+                          },
+                          "<uuid:768>": {
+                            "fields": {
+                              "sessionCount": {
+                                "type": "integer"
+                              },
+                              "totalIncome": {
+                                "type": "string"
+                              },
+                              "totalMsecs": {
+                                "type": "integer"
+                              }
+                            },
+                            "type": "object"
+                          },
+                          "<uuid:781>": {
+                            "fields": {
+                              "sessionCount": {
+                                "type": "integer"
+                              },
+                              "totalIncome": {
+                                "type": "string"
+                              },
+                              "totalMsecs": {
+                                "type": "integer"
+                              }
+                            },
+                            "type": "object"
+                          },
+                          "<uuid:785>": {
+                            "fields": {
+                              "sessionCount": {
+                                "type": "integer"
+                              },
+                              "totalIncome": {
+                                "type": "string"
+                              },
+                              "totalMsecs": {
+                                "type": "integer"
+                              }
+                            },
+                            "type": "object"
+                          },
+                          "<uuid:787>": {
+                            "fields": {
+                              "sessionCount": {
+                                "type": "integer"
+                              },
+                              "totalIncome": {
+                                "type": "string"
+                              },
+                              "totalMsecs": {
+                                "type": "integer"
+                              }
+                            },
+                            "type": "object"
+                          },
+                          "<uuid:797>": {
+                            "fields": {
+                              "sessionCount": {
+                                "type": "integer"
+                              },
+                              "totalIncome": {
+                                "type": "string"
+                              },
+                              "totalMsecs": {
+                                "type": "integer"
+                              }
+                            },
+                            "type": "object"
+                          },
+                          "<uuid:886>": {
+                            "fields": {
+                              "sessionCount": {
+                                "type": "integer"
+                              },
+                              "totalIncome": {
+                                "type": "string"
+                              },
+                              "totalMsecs": {
+                                "type": "integer"
+                              }
+                            },
+                            "type": "object"
+                          },
+                          "<uuid:919>": {
+                            "fields": {
+                              "sessionCount": {
+                                "type": "integer"
+                              },
+                              "totalIncome": {
+                                "type": "string"
+                              },
+                              "totalMsecs": {
+                                "type": "integer"
+                              }
+                            },
+                            "type": "object"
+                          }
+                        },
+                        "type": "object"
+                      },
+                      "totalStat": {
+                        "fields": {
+                          "sessionCount": {
+                            "type": "integer"
+                          },
+                          "totalIncome": {
+                            "type": "string"
+                          },
+                          "totalMsecs": {
+                            "type": "integer"
+                          }
+                        },
+                        "type": "object"
+                      }
+                    },
+                    "type": "object"
+                  },
+                  "<uuid:958>": {
+                    "fields": {
+                      "perGameStats": {
+                        "fields": {
+                          "<uuid:432>": {
+                            "fields": {
+                              "sessionCount": {
+                                "type": "integer"
+                              },
+                              "totalIncome": {
+                                "type": "string"
+                              },
+                              "totalMsecs": {
+                                "type": "integer"
+                              }
+                            },
+                            "type": "object"
+                          }
+                        },
+                        "type": "object"
+                      },
+                      "totalStat": {
+                        "fields": {
+                          "sessionCount": {
+                            "type": "integer"
+                          },
+                          "totalIncome": {
+                            "type": "string"
+                          },
+                          "totalMsecs": {
+                            "type": "integer"
+                          }
+                        },
+                        "type": "object"
+                      }
+                    },
+                    "type": "object"
+                  }
+                },
+                "type": "object"
+              },
+              "totalStat": {
+                "fields": {
+                  "sessionCount": {
+                    "type": "integer"
+                  },
+                  "totalIncome": {
+                    "type": "string"
+                  },
+                  "totalMsecs": {
+                    "type": "integer"
+                  }
+                },
+                "type": "object"
+              }
+            },
+            "type": "object"
+          },
+          "todayStat": {
+            "fields": {
+              "perGameStats": {
+                "fields": {
+                  "<uuid:269>": {
+                    "fields": {
+                      "sessionCount": {
+                        "type": "integer"
+                      },
+                      "totalIncome": {
+                        "type": "string"
+                      },
+                      "totalMsecs": {
+                        "type": "integer"
+                      }
+                    },
+                    "type": "object"
+                  },
+                  "<uuid:583>": {
+                    "fields": {
+                      "sessionCount": {
+                        "type": "integer"
+                      },
+                      "totalIncome": {
+                        "type": "string"
+                      },
+                      "totalMsecs": {
+                        "type": "integer"
+                      }
+                    },
+                    "type": "object"
+                  }
+                },
+                "type": "object"
+              },
+              "perServerStats": {
+                "fields": {
+                  "<uuid:956>": {
+                    "fields": {
+                      "perGameStats": {
+                        "fields": {
+                          "<uuid:269>": {
+                            "fields": {
+                              "sessionCount": {
+                                "type": "integer"
+                              },
+                              "totalIncome": {
+                                "type": "string"
+                              },
+                              "totalMsecs": {
+                                "type": "integer"
+                              }
+                            },
+                            "type": "object"
+                          },
+                          "<uuid:583>": {
+                            "fields": {
+                              "sessionCount": {
+                                "type": "integer"
+                              },
+                              "totalIncome": {
+                                "type": "string"
+                              },
+                              "totalMsecs": {
+                                "type": "integer"
+                              }
+                            },
+                            "type": "object"
+                          }
+                        },
+                        "type": "object"
+                      },
+                      "totalStat": {
+                        "fields": {
+                          "sessionCount": {
+                            "type": "integer"
+                          },
+                          "totalIncome": {
+                            "type": "string"
+                          },
+                          "totalMsecs": {
+                            "type": "integer"
+                          }
+                        },
+                        "type": "object"
+                      }
+                    },
+                    "type": "object"
+                  }
+                },
+                "type": "object"
+              },
+              "totalStat": {
+                "fields": {
+                  "sessionCount": {
+                    "type": "integer"
+                  },
+                  "totalIncome": {
+                    "type": "string"
+                  },
+                  "totalMsecs": {
+                    "type": "integer"
+                  }
+                },
+                "type": "object"
+              }
+            },
+            "type": "object"
+          },
+          "weekStat": {
+            "fields": {
+              "perGameStats": {
+                "fields": {
+                  "<uuid:217>": {
+                    "fields": {
+                      "sessionCount": {
+                        "type": "integer"
+                      },
+                      "totalIncome": {
+                        "type": "string"
+                      },
+                      "totalMsecs": {
+                        "type": "integer"
+                      }
+                    },
+                    "type": "object"
+                  },
+                  "<uuid:22>": {
+                    "fields": {
+                      "sessionCount": {
+                        "type": "integer"
+                      },
+                      "totalIncome": {
+                        "type": "string"
+                      },
+                      "totalMsecs": {
+                        "type": "integer"
+                      }
+                    },
+                    "type": "object"
+                  },
+                  "<uuid:269>": {
+                    "fields": {
+                      "sessionCount": {
+                        "type": "integer"
+                      },
+                      "totalIncome": {
+                        "type": "string"
+                      },
+                      "totalMsecs": {
+                        "type": "integer"
+                      }
+                    },
+                    "type": "object"
+                  },
+                  "<uuid:359>": {
+                    "fields": {
+                      "sessionCount": {
+                        "type": "integer"
+                      },
+                      "totalIncome": {
+                        "type": "string"
+                      },
+                      "totalMsecs": {
+                        "type": "integer"
+                      }
+                    },
+                    "type": "object"
+                  },
+                  "<uuid:432>": {
+                    "fields": {
+                      "sessionCount": {
+                        "type": "integer"
+                      },
+                      "totalIncome": {
+                        "type": "string"
+                      },
+                      "totalMsecs": {
+                        "type": "integer"
+                      }
+                    },
+                    "type": "object"
+                  },
+                  "<uuid:583>": {
+                    "fields": {
+                      "sessionCount": {
+                        "type": "integer"
+                      },
+                      "totalIncome": {
+                        "type": "string"
+                      },
+                      "totalMsecs": {
+                        "type": "integer"
+                      }
+                    },
+                    "type": "object"
+                  },
+                  "<uuid:723>": {
+                    "fields": {
+                      "sessionCount": {
+                        "type": "integer"
+                      },
+                      "totalIncome": {
+                        "type": "string"
+                      },
+                      "totalMsecs": {
+                        "type": "integer"
+                      }
+                    },
+                    "type": "object"
+                  },
+                  "<uuid:745>": {
+                    "fields": {
+                      "sessionCount": {
+                        "type": "integer"
+                      },
+                      "totalIncome": {
+                        "type": "string"
+                      },
+                      "totalMsecs": {
+                        "type": "integer"
+                      }
+                    },
+                    "type": "object"
+                  },
+                  "<uuid:746>": {
+                    "fields": {
+                      "sessionCount": {
+                        "type": "integer"
+                      },
+                      "totalIncome": {
+                        "type": "string"
+                      },
+                      "totalMsecs": {
+                        "type": "integer"
+                      }
+                    },
+                    "type": "object"
+                  },
+                  "<uuid:781>": {
+                    "fields": {
+                      "sessionCount": {
+                        "type": "integer"
+                      },
+                      "totalIncome": {
+                        "type": "string"
+                      },
+                      "totalMsecs": {
+                        "type": "integer"
+                      }
+                    },
+                    "type": "object"
+                  },
+                  "<uuid:785>": {
+                    "fields": {
+                      "sessionCount": {
+                        "type": "integer"
+                      },
+                      "totalIncome": {
+                        "type": "string"
+                      },
+                      "totalMsecs": {
+                        "type": "integer"
+                      }
+                    },
+                    "type": "object"
+                  }
+                },
+                "type": "object"
+              },
+              "perServerStats": {
+                "fields": {
+                  "<uuid:954>": {
+                    "fields": {
+                      "perGameStats": {
+                        "fields": {
+                          "<uuid:217>": {
+                            "fields": {
+                              "sessionCount": {
+                                "type": "integer"
+                              },
+                              "totalIncome": {
+                                "type": "string"
+                              },
+                              "totalMsecs": {
+                                "type": "integer"
+                              }
+                            },
+                            "type": "object"
+                          },
+                          "<uuid:22>": {
+                            "fields": {
+                              "sessionCount": {
+                                "type": "integer"
+                              },
+                              "totalIncome": {
+                                "type": "string"
+                              },
+                              "totalMsecs": {
+                                "type": "integer"
+                              }
+                            },
+                            "type": "object"
+                          },
+                          "<uuid:359>": {
+                            "fields": {
+                              "sessionCount": {
+                                "type": "integer"
+                              },
+                              "totalIncome": {
+                                "type": "string"
+                              },
+                              "totalMsecs": {
+                                "type": "integer"
+                              }
+                            },
+                            "type": "object"
+                          },
+                          "<uuid:583>": {
+                            "fields": {
+                              "sessionCount": {
+                                "type": "integer"
+                              },
+                              "totalIncome": {
+                                "type": "string"
+                              },
+                              "totalMsecs": {
+                                "type": "integer"
+                              }
+                            },
+                            "type": "object"
+                          },
+                          "<uuid:723>": {
+                            "fields": {
+                              "sessionCount": {
+                                "type": "integer"
+                              },
+                              "totalIncome": {
+                                "type": "string"
+                              },
+                              "totalMsecs": {
+                                "type": "integer"
+                              }
+                            },
+                            "type": "object"
+                          },
+                          "<uuid:745>": {
+                            "fields": {
+                              "sessionCount": {
+                                "type": "integer"
+                              },
+                              "totalIncome": {
+                                "type": "string"
+                              },
+                              "totalMsecs": {
+                                "type": "integer"
+                              }
+                            },
+                            "type": "object"
+                          },
+                          "<uuid:746>": {
+                            "fields": {
+                              "sessionCount": {
+                                "type": "integer"
+                              },
+                              "totalIncome": {
+                                "type": "string"
+                              },
+                              "totalMsecs": {
+                                "type": "integer"
+                              }
+                            },
+                            "type": "object"
+                          }
+                        },
+                        "type": "object"
+                      },
+                      "totalStat": {
+                        "fields": {
+                          "sessionCount": {
+                            "type": "integer"
+                          },
+                          "totalIncome": {
+                            "type": "string"
+                          },
+                          "totalMsecs": {
+                            "type": "integer"
+                          }
+                        },
+                        "type": "object"
+                      }
+                    },
+                    "type": "object"
+                  },
+                  "<uuid:956>": {
+                    "fields": {
+                      "perGameStats": {
+                        "fields": {
+                          "<uuid:217>": {
+                            "fields": {
+                              "sessionCount": {
+                                "type": "integer"
+                              },
+                              "totalIncome": {
+                                "type": "string"
+                              },
+                              "totalMsecs": {
+                                "type": "integer"
+                              }
+                            },
+                            "type": "object"
+                          },
+                          "<uuid:22>": {
+                            "fields": {
+                              "sessionCount": {
+                                "type": "integer"
+                              },
+                              "totalIncome": {
+                                "type": "string"
+                              },
+                              "totalMsecs": {
+                                "type": "integer"
+                              }
+                            },
+                            "type": "object"
+                          },
+                          "<uuid:269>": {
+                            "fields": {
+                              "sessionCount": {
+                                "type": "integer"
+                              },
+                              "totalIncome": {
+                                "type": "string"
+                              },
+                              "totalMsecs": {
+                                "type": "integer"
+                              }
+                            },
+                            "type": "object"
+                          },
+                          "<uuid:359>": {
+                            "fields": {
+                              "sessionCount": {
+                                "type": "integer"
+                              },
+                              "totalIncome": {
+                                "type": "string"
+                              },
+                              "totalMsecs": {
+                                "type": "integer"
+                              }
+                            },
+                            "type": "object"
+                          },
+                          "<uuid:583>": {
+                            "fields": {
+                              "sessionCount": {
+                                "type": "integer"
+                              },
+                              "totalIncome": {
+                                "type": "string"
+                              },
+                              "totalMsecs": {
+                                "type": "integer"
+                              }
+                            },
+                            "type": "object"
+                          },
+                          "<uuid:723>": {
+                            "fields": {
+                              "sessionCount": {
+                                "type": "integer"
+                              },
+                              "totalIncome": {
+                                "type": "string"
+                              },
+                              "totalMsecs": {
+                                "type": "integer"
+                              }
+                            },
+                            "type": "object"
+                          },
+                          "<uuid:745>": {
+                            "fields": {
+                              "sessionCount": {
+                                "type": "integer"
+                              },
+                              "totalIncome": {
+                                "type": "string"
+                              },
+                              "totalMsecs": {
+                                "type": "integer"
+                              }
+                            },
+                            "type": "object"
+                          },
+                          "<uuid:746>": {
+                            "fields": {
+                              "sessionCount": {
+                                "type": "integer"
+                              },
+                              "totalIncome": {
+                                "type": "string"
+                              },
+                              "totalMsecs": {
+                                "type": "integer"
+                              }
+                            },
+                            "type": "object"
+                          },
+                          "<uuid:781>": {
+                            "fields": {
+                              "sessionCount": {
+                                "type": "integer"
+                              },
+                              "totalIncome": {
+                                "type": "string"
+                              },
+                              "totalMsecs": {
+                                "type": "integer"
+                              }
+                            },
+                            "type": "object"
+                          },
+                          "<uuid:785>": {
+                            "fields": {
+                              "sessionCount": {
+                                "type": "integer"
+                              },
+                              "totalIncome": {
+                                "type": "string"
+                              },
+                              "totalMsecs": {
+                                "type": "integer"
+                              }
+                            },
+                            "type": "object"
+                          }
+                        },
+                        "type": "object"
+                      },
+                      "totalStat": {
+                        "fields": {
+                          "sessionCount": {
+                            "type": "integer"
+                          },
+                          "totalIncome": {
+                            "type": "string"
+                          },
+                          "totalMsecs": {
+                            "type": "integer"
+                          }
+                        },
+                        "type": "object"
+                      }
+                    },
+                    "type": "object"
+                  },
+                  "<uuid:958>": {
+                    "fields": {
+                      "perGameStats": {
+                        "fields": {
+                          "<uuid:432>": {
+                            "fields": {
+                              "sessionCount": {
+                                "type": "integer"
+                              },
+                              "totalIncome": {
+                                "type": "string"
+                              },
+                              "totalMsecs": {
+                                "type": "integer"
+                              }
+                            },
+                            "type": "object"
+                          }
+                        },
+                        "type": "object"
+                      },
+                      "totalStat": {
+                        "fields": {
+                          "sessionCount": {
+                            "type": "integer"
+                          },
+                          "totalIncome": {
+                            "type": "string"
+                          },
+                          "totalMsecs": {
+                            "type": "integer"
+                          }
+                        },
+                        "type": "object"
+                      }
+                    },
+                    "type": "object"
+                  }
+                },
+                "type": "object"
+              },
+              "totalStat": {
+                "fields": {
+                  "sessionCount": {
+                    "type": "integer"
+                  },
+                  "totalIncome": {
+                    "type": "string"
+                  },
+                  "totalMsecs": {
+                    "type": "integer"
+                  }
+                },
+                "type": "object"
+              }
+            },
+            "type": "object"
+          }
+        },
+        "type": "object"
+      },
+      "status": {
+        "type": "integer"
+      }
+    },
+    "type": "object"
+  },
   "servers": {
     "fields": {
       "elapsed_ms": {
@@ -863,9 +2660,6 @@
             "count": 5,
             "items": {
               "fields": {
-                "abort_comment": {
-                  "type": "string"
-                },
                 "billing_type": {
                   "type": "string"
                 },
@@ -910,34 +2704,7 @@
     },
     "type": "object"
   },
-  "test_station_publish_rollback": {
-    "fields": {
-      "elapsed_ms": {
-        "type": "number"
-      },
-      "label": {
-        "type": "string"
-      },
-      "method": {
-        "type": "string"
-      },
-      "params": {
-        "fields": {},
-        "type": "object"
-      },
-      "path": {
-        "type": "string"
-      },
-      "response": {
-        "type": "string"
-      },
-      "status": {
-        "type": "integer"
-      }
-    },
-    "type": "object"
-  },
-  "test_station_publish_rollback_confirm": {
+  "test_station_source": {
     "fields": {
       "elapsed_ms": {
         "type": "number"
@@ -960,233 +2727,81 @@
         "type": "string"
       },
       "response": {
-        "count": 3,
-        "items": {
-          "fields": {
-            "alive_since": {
-              "type": [
-                "integer",
-                "null"
-              ]
-            },
-            "allow_desktop": {
-              "type": "boolean"
-            },
-            "city_name": {
-              "type": [
-                "null",
-                "string"
-              ]
-            },
-            "created_on": {
-              "type": "integer"
-            },
-            "deleted": {
-              "type": "boolean"
-            },
-            "description": {
-              "type": "string"
-            },
-            "disable_updates": {
-              "type": "boolean"
-            },
-            "distance": {
-              "type": "null"
-            },
-            "groups_list": {
-              "count": 0,
-              "items": null,
-              "type": "array"
-            },
-            "last_heartbeat": {
-              "type": "integer"
-            },
-            "latitude": {
-              "type": "string"
-            },
-            "longitude": {
-              "type": "string"
-            },
-            "name": {
-              "type": "string"
-            },
-            "options_mask": {
-              "type": "integer"
-            },
-            "product_id": {
-              "type": "null"
-            },
-            "product_list": {
-              "count": 27,
-              "items": {
-                "type": "string"
-              },
-              "type": "array"
-            },
-            "published": {
-              "type": "boolean"
-            },
-            "session_id": {
-              "type": "null"
-            },
-            "state": {
-              "type": "string"
-            },
-            "user_id": {
-              "type": "string"
-            },
-            "uuid": {
-              "type": "string"
-            },
-            "verified": {
-              "type": "string"
-            }
-          },
-          "type": "object"
-        },
-        "type": "array"
-      },
-      "status": {
-        "type": "integer"
-      }
-    },
-    "type": "object"
-  },
-  "test_station_publish_toggle": {
-    "fields": {
-      "elapsed_ms": {
-        "type": "number"
-      },
-      "label": {
-        "type": "string"
-      },
-      "method": {
-        "type": "string"
-      },
-      "params": {
-        "fields": {},
-        "type": "object"
-      },
-      "path": {
-        "type": "string"
-      },
-      "response": {
-        "type": "string"
-      },
-      "status": {
-        "type": "integer"
-      }
-    },
-    "type": "object"
-  },
-  "test_station_publish_toggle_confirm": {
-    "fields": {
-      "elapsed_ms": {
-        "type": "number"
-      },
-      "label": {
-        "type": "string"
-      },
-      "method": {
-        "type": "string"
-      },
-      "params": {
         "fields": {
+          "alive_since": {
+            "type": "null"
+          },
+          "allow_desktop": {
+            "type": "boolean"
+          },
+          "city_name": {
+            "type": "null"
+          },
+          "created_on": {
+            "type": "integer"
+          },
+          "deleted": {
+            "type": "boolean"
+          },
+          "description": {
+            "type": "string"
+          },
+          "disable_updates": {
+            "type": "boolean"
+          },
+          "distance": {
+            "type": "null"
+          },
+          "groups_list": {
+            "count": 0,
+            "items": null,
+            "type": "array"
+          },
+          "last_heartbeat": {
+            "type": "integer"
+          },
+          "latitude": {
+            "type": "string"
+          },
+          "longitude": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "options_mask": {
+            "type": "integer"
+          },
+          "product_id": {
+            "type": "null"
+          },
+          "product_list": {
+            "count": 3,
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "published": {
+            "type": "boolean"
+          },
+          "session_id": {
+            "type": "null"
+          },
+          "state": {
+            "type": "string"
+          },
           "user_id": {
+            "type": "string"
+          },
+          "uuid": {
+            "type": "string"
+          },
+          "verified": {
             "type": "string"
           }
         },
         "type": "object"
-      },
-      "path": {
-        "type": "string"
-      },
-      "response": {
-        "count": 3,
-        "items": {
-          "fields": {
-            "alive_since": {
-              "type": [
-                "integer",
-                "null"
-              ]
-            },
-            "allow_desktop": {
-              "type": "boolean"
-            },
-            "city_name": {
-              "type": [
-                "null",
-                "string"
-              ]
-            },
-            "created_on": {
-              "type": "integer"
-            },
-            "deleted": {
-              "type": "boolean"
-            },
-            "description": {
-              "type": "string"
-            },
-            "disable_updates": {
-              "type": "boolean"
-            },
-            "distance": {
-              "type": "null"
-            },
-            "groups_list": {
-              "count": 0,
-              "items": null,
-              "type": "array"
-            },
-            "last_heartbeat": {
-              "type": "integer"
-            },
-            "latitude": {
-              "type": "string"
-            },
-            "longitude": {
-              "type": "string"
-            },
-            "name": {
-              "type": "string"
-            },
-            "options_mask": {
-              "type": "integer"
-            },
-            "product_id": {
-              "type": "null"
-            },
-            "product_list": {
-              "count": 27,
-              "items": {
-                "type": "string"
-              },
-              "type": "array"
-            },
-            "published": {
-              "type": "boolean"
-            },
-            "session_id": {
-              "type": "null"
-            },
-            "state": {
-              "type": "string"
-            },
-            "user_id": {
-              "type": "string"
-            },
-            "uuid": {
-              "type": "string"
-            },
-            "verified": {
-              "type": "string"
-            }
-          },
-          "type": "object"
-        },
-        "type": "array"
       },
       "status": {
         "type": "integer"
