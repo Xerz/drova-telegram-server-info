@@ -93,6 +93,7 @@ class FakeDrovaClient:
         self.product_enabled_calls: list[tuple[str, str, bool]] = []
         self.desktop_calls: list[tuple[str, bool]] = []
         self.disable_updates_calls: list[tuple[str, bool]] = []
+        self.source_update_calls: list[tuple[str, str, str]] = []
         self.issued_promocode_minutes: list[int] = []
         self.session_calls: list[tuple[str | None, str | None, int | None]] = []
 
@@ -237,6 +238,22 @@ class FakeDrovaClient:
         source = self.server_sources.get(server_id)
         if source is not None:
             self.server_sources[server_id] = replace(source, disable_updates=disable_updates)
+
+    async def update_server_source(
+        self,
+        server_id: str,
+        *,
+        name: str,
+        description: str,
+    ) -> None:
+        self.source_update_calls.append((server_id, name, description))
+        source = self.server_sources.get(server_id)
+        if source is not None:
+            self.server_sources[server_id] = replace(
+                source,
+                name=name,
+                description=description,
+            )
 
 
 class FakeDrovaClientFactory:
@@ -544,6 +561,65 @@ async def test_server_source_uses_selected_station_and_escapes_description(
     assert "Исходник описания станции Alpha Station" in message.text
     assert "&lt;b&gt;raw &amp; station source&lt;/b&gt;" in message.text
     assert "<b>raw & station source</b>" not in message.text
+
+
+@pytest.mark.asyncio
+async def test_server_description_preview_and_apply_use_source_revision(
+    service_engine: AsyncEngine,
+    ui_stations: list[Station],
+    ui_server_source: ServerSource,
+) -> None:
+    source_client = FakeDrovaClient(
+        stations=ui_stations,
+        server_sources={"station-online": ui_server_source},
+    )
+    service = make_service(
+        service_engine,
+        FakeDrovaClientFactory(
+            FakeDrovaClient(stations=ui_stations),
+            source_client,
+            source_client,
+        ),
+    )
+    await service.connect_token(10001, "token")
+    await service.select_station(10001, "station-online")
+
+    preview = await service.server_description_preview(10001, "New station source")
+    revision = preview.text.split("/server_description_apply ", maxsplit=1)[1].split()[0]
+    result = await service.server_description_apply(10001, f"{revision} New station source")
+
+    assert "Новое описание для Alpha Station" in preview.text
+    assert "station-online" not in preview.text
+    assert "Описание обновлено: Alpha Station" in result.text
+    assert source_client.source_update_calls == [
+        ("station-online", "Alpha Station", "New station source")
+    ]
+
+
+@pytest.mark.asyncio
+async def test_server_description_apply_rejects_stale_revision(
+    service_engine: AsyncEngine,
+    ui_stations: list[Station],
+    ui_server_source: ServerSource,
+) -> None:
+    source_client = FakeDrovaClient(
+        stations=ui_stations,
+        server_sources={"station-online": ui_server_source},
+    )
+    service = make_service(
+        service_engine,
+        FakeDrovaClientFactory(
+            FakeDrovaClient(stations=ui_stations),
+            source_client,
+        ),
+    )
+    await service.connect_token(10001, "token")
+    await service.select_station(10001, "station-online")
+
+    message = await service.server_description_apply(10001, "badrev New station source")
+
+    assert message.text == "Описание станции уже изменилось. Сначала выполните /server_source."
+    assert source_client.source_update_calls == []
 
 
 @pytest.mark.asyncio

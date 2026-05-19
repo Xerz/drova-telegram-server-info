@@ -84,6 +84,14 @@ class DrovaClientProtocol(Protocol):
 
     async def set_server_disable_updates(self, server_id: str, disable_updates: bool) -> None: ...
 
+    async def update_server_source(
+        self,
+        server_id: str,
+        *,
+        name: str,
+        description: str,
+    ) -> None: ...
+
 
 class DrovaClientFactory(Protocol):
     def create(

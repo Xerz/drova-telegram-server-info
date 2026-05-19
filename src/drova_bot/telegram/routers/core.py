@@ -63,6 +63,11 @@ def build_router() -> Router:
     router.message.register(updates_on_confirm_command, Command("updates_on_confirm"))
     router.message.register(updates_off_confirm_command, Command("updates_off_confirm"))
     router.message.register(server_source_command, Command("server_source"))
+    router.message.register(server_description_command, Command("server_description"))
+    router.message.register(
+        server_description_apply_command,
+        Command("server_description_apply"),
+    )
     router.message.register(promocode_command, Command("promocode"))
     router.message.register(promocodes_command, Command("promocodes"))
     router.message.register(
@@ -272,6 +277,26 @@ async def updates_off_confirm_command(message: Message, bot_service: BotService)
 
 async def server_source_command(message: Message, bot_service: BotService) -> None:
     await answer_rendered(message, await bot_service.server_source(message.chat.id))
+
+
+async def server_description_command(message: Message, bot_service: BotService) -> None:
+    await answer_rendered(
+        message,
+        await bot_service.server_description_preview(
+            message.chat.id,
+            _command_args(message.text),
+        ),
+    )
+
+
+async def server_description_apply_command(message: Message, bot_service: BotService) -> None:
+    await answer_rendered(
+        message,
+        await bot_service.server_description_apply(
+            message.chat.id,
+            _command_args(message.text),
+        ),
+    )
 
 
 async def promocode_command(message: Message, bot_service: BotService) -> None:

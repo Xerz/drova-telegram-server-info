@@ -119,6 +119,7 @@ def render_help() -> RenderedMessage:
         "/updates_on - включить обновления на выбранной станции",
         "/updates_off - выключить обновления на выбранной станции",
         "/server_source - исходник описания выбранной станции",
+        "/server_description &lt;text&gt; - обновить описание выбранной станции",
         "/promocode &lt;minutes&gt; - выпустить prepaid-промокод",
         "/promocodes - неактивированные prepaid-промокоды",
         "/export_sessions - один XLSX со всеми сессиями",
@@ -143,7 +144,11 @@ def render_error(code: str) -> RenderedMessage:
         "invalid_server_control_confirmation": (
             "Подтверждение устарело. Сначала отправьте команду управления заново."
         ),
+        "invalid_server_description": (
+            "Укажите новое описание. Например: /server_description &lt;text&gt;."
+        ),
         "stale_server_control": "Состояние уже изменилось. Обновите команду управления.",
+        "stale_server_source": "Описание станции уже изменилось. Сначала выполните /server_source.",
         "drova_unavailable": "Drova временно недоступен. Попробуйте позже.",
         "drova_unauthorized": "Токен недействителен. Подключите новый через /token.",
         "stale_publish": "Состояние станции изменилось. Обновите панель публикации.",
@@ -368,6 +373,37 @@ def render_server_source(station: Station, source: ServerSource) -> RenderedMess
     if truncated:
         lines.append("Описание обрезано до безопасной длины сообщения.")
     return RenderedMessage("\n".join(lines))
+
+
+def render_server_description_preview(
+    station: Station,
+    *,
+    description: str,
+    revision: str,
+) -> RenderedMessage:
+    preview, truncated = _truncated_description(description)
+    command = f"/server_description_apply {revision} {description}"
+    command_preview, command_truncated = _truncated_description(command, max_length=1200)
+    lines = [
+        f"Новое описание для {html_escape(station.name)}",
+        f"Ревизия текущего описания: <code>{html_escape(revision)}</code>",
+        "",
+        "Предпросмотр:",
+        f"<pre>{html_escape(preview)}</pre>",
+        "",
+        "Чтобы применить, отправьте:",
+        f"<code>{html_escape(command_preview)}</code>",
+    ]
+    if truncated or command_truncated:
+        lines.append("Длинное описание обрезано в предпросмотре; отправьте apply-команду вручную.")
+    return RenderedMessage("\n".join(lines))
+
+
+def render_server_description_result(station: Station, *, revision: str) -> RenderedMessage:
+    return RenderedMessage(
+        f"Описание обновлено: {html_escape(station.name)}\n"
+        f"Новая ревизия: <code>{html_escape(revision)}</code>"
+    )
 
 
 def _truncated_description(description: str, max_length: int = 3000) -> tuple[str, bool]:

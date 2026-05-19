@@ -52,6 +52,7 @@ BOT_COMMANDS = [
     BotCommand(command="updates_on", description="Включить обновления"),
     BotCommand(command="updates_off", description="Выключить обновления"),
     BotCommand(command="server_source", description="Исходник описания станции"),
+    BotCommand(command="server_description", description="Обновить описание станции"),
     BotCommand(command="promocode", description="Выпустить prepaid-промокод"),
     BotCommand(command="promocodes", description="Неактивированные промокоды"),
     BotCommand(command="export_sessions", description="Сессии одним XLSX"),

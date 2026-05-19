@@ -35,6 +35,8 @@ from drova_bot.telegram.routers.core import (
     logout_command,
     promocode_command,
     promocodes_command,
+    server_description_apply_command,
+    server_description_command,
     server_source_command,
     sessions_command,
     sessions_short_command,
@@ -203,6 +205,22 @@ class FakeService:
         self.calls.append(("server_source", (chat_id,), {}))
         return RenderedMessage("server_source")
 
+    async def server_description_preview(
+        self,
+        chat_id: int,
+        description: str,
+    ) -> RenderedMessage:
+        self.calls.append(("server_description_preview", (chat_id, description), {}))
+        return RenderedMessage(f"server_description:{description}")
+
+    async def server_description_apply(
+        self,
+        chat_id: int,
+        payload: str,
+    ) -> RenderedMessage:
+        self.calls.append(("server_description_apply", (chat_id, payload), {}))
+        return RenderedMessage(f"server_description_apply:{payload}")
+
     async def issue_promocode(self, chat_id: int, raw_minutes: str) -> RenderedMessage:
         self.calls.append(("issue_promocode", (chat_id, raw_minutes), {}))
         return RenderedMessage(f"promocode:{raw_minutes}")
@@ -331,6 +349,14 @@ async def test_token_limit_sessions_and_station_handlers_parse_arguments() -> No
     await updates_off_confirm_command(
         cast(Message, FakeMessage("/updates_off_confirm on")), service  # type: ignore[arg-type]
     )
+    await server_description_command(
+        cast(Message, FakeMessage("/server_description New source")),
+        service,  # type: ignore[arg-type]
+    )
+    await server_description_apply_command(
+        cast(Message, FakeMessage("/server_description_apply abc123 New source")),
+        service,  # type: ignore[arg-type]
+    )
 
     assert service.calls == [
         ("connect_token", (10001, "proxy-token"), {}),
@@ -352,6 +378,8 @@ async def test_token_limit_sessions_and_station_handlers_parse_arguments() -> No
         ("server_control_confirm", (10001, "updates_on", "off"), {}),
         ("server_control_confirmation", (10001, "updates_off"), {}),
         ("server_control_confirm", (10001, "updates_off", "on"), {}),
+        ("server_description_preview", (10001, "New source"), {}),
+        ("server_description_apply", (10001, "abc123 New source"), {}),
     ]
     assert token_message.answers[0][0] == "token:proxy-token"
 

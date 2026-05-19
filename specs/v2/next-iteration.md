@@ -162,7 +162,8 @@ UX requirements:
 - Description editing must never show or log raw sensitive description content unless the user
   explicitly requested viewing it in chat.
 - `/server_source` is the explicit view command for selected station description source.
-- Description update flow must read original state and support rollback in live write tests.
+- `/server_description <text>` previews an update, and `/server_description_apply <revision> <text>`
+  applies it only when the current source revision still matches.
 
 ## Fixture Plan
 

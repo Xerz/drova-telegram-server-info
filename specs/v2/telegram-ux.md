@@ -122,6 +122,10 @@
 - Confirmation output must not include raw server description.
 - `/server_source` explicitly shows the selected station name and description source.
 - Server source output uses Telegram HTML escaping and may truncate long descriptions.
+- `/server_description <text>` previews a new description and returns an apply command with
+  a short non-reversible source revision hash.
+- `/server_description_apply <revision> <text>` rereads server source, rejects stale revision,
+  then updates description while preserving the current server name.
 
 ## Publish Confirmation
 

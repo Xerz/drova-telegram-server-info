@@ -30,6 +30,8 @@ from drova_bot.telegram.renderers import (
     render_promocode_issued,
     render_server_control_confirmation,
     render_server_control_result,
+    render_server_description_preview,
+    render_server_description_result,
     render_server_source,
     render_sessions,
     render_start_connected,
@@ -57,6 +59,7 @@ def test_start_and_help_messages_are_russian_and_safe() -> None:
     assert "/desktop_on - включить полный доступ на выбранной станции" in help_text
     assert "/updates_off - выключить обновления на выбранной станции" in help_text
     assert "/server_source - исходник описания выбранной станции" in help_text
+    assert "/server_description &lt;text&gt; - обновить описание выбранной станции" in help_text
     assert "/promocode &lt;minutes&gt; - выпустить prepaid-промокод" in help_text
     assert "/promocodes - неактивированные prepaid-промокоды" in help_text
     assert "/export_sessions - один XLSX со всеми сессиями" in help_text
@@ -162,6 +165,27 @@ def test_server_source_renderer_escapes_explicit_description_view(
     assert "Название: <code>Alpha Station</code>" in message.text
     assert "&lt;b&gt;raw &amp; station source&lt;/b&gt;" in message.text
     assert "<b>raw & station source</b>" not in message.text
+
+
+def test_server_description_update_renderers_use_revision_commands(
+    ui_stations: list[Station],
+) -> None:
+    station = ui_stations[0]
+    preview = render_server_description_preview(
+        station,
+        description="<b>new & source</b>",
+        revision="abc123",
+    )
+    assert "Новое описание для Alpha Station" in preview.text
+    assert (
+        "<code>/server_description_apply abc123 &lt;b&gt;new &amp; source&lt;/b&gt;</code>"
+        in preview.text
+    )
+    assert "station-online" not in preview.text
+
+    result = render_server_description_result(station, revision="def456")
+    assert "Описание обновлено: Alpha Station" in result.text
+    assert "<code>def456</code>" in result.text
 
 
 def test_game_management_renderers_are_command_friendly(

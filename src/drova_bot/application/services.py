@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 from collections.abc import Callable, Sequence
 from datetime import UTC, datetime
+from hashlib import sha256
 from uuid import uuid4
 
 from drova_bot.application.export_jobs import ExportJob
@@ -35,6 +36,8 @@ from drova_bot.telegram.renderers import (
     render_publish_confirmation,
     render_server_control_confirmation,
     render_server_control_result,
+    render_server_description_preview,
+    render_server_description_result,
     render_server_source,
     render_sessions,
     render_start_connected,
@@ -585,6 +588,74 @@ class BotService:
         finally:
             await client.aclose()
 
+    async def server_description_preview(
+        self,
+        telegram_chat_id: int,
+        raw_description: str | None,
+    ) -> RenderedMessage:
+        description = _parse_server_description(raw_description)
+        if description is None:
+            return render_error("invalid_server_description")
+        loaded = await self._load_client(telegram_chat_id)
+        if loaded is None:
+            return render_error("not_connected")
+        profile, client = loaded
+        try:
+            context = await self._selected_station_context(telegram_chat_id, profile, client)
+            if isinstance(context, RenderedMessage):
+                return context
+            station = context
+            source = await client.get_server_source(station.uuid, profile.drova_user_id or "")
+            return render_server_description_preview(
+                station,
+                description=description,
+                revision=_server_source_revision(source),
+            )
+        except (DrovaUnauthorized, DrovaPermissionDenied):
+            return render_error("drova_unauthorized")
+        except DrovaUnavailable:
+            return render_error("drova_unavailable")
+        finally:
+            await client.aclose()
+
+    async def server_description_apply(
+        self,
+        telegram_chat_id: int,
+        raw_payload: str | None,
+    ) -> RenderedMessage:
+        parsed = _parse_server_description_apply(raw_payload)
+        if parsed is None:
+            return render_error("invalid_server_description")
+        expected_revision, description = parsed
+        loaded = await self._load_client(telegram_chat_id)
+        if loaded is None:
+            return render_error("not_connected")
+        profile, client = loaded
+        try:
+            context = await self._selected_station_context(telegram_chat_id, profile, client)
+            if isinstance(context, RenderedMessage):
+                return context
+            station = context
+            source = await client.get_server_source(station.uuid, profile.drova_user_id or "")
+            if _server_source_revision(source) != expected_revision:
+                return render_error("stale_server_source")
+            await client.update_server_source(
+                station.uuid,
+                name=source.name,
+                description=description,
+            )
+            source = await client.get_server_source(station.uuid, profile.drova_user_id or "")
+            return render_server_description_result(
+                station,
+                revision=_server_source_revision(source),
+            )
+        except (DrovaUnauthorized, DrovaPermissionDenied):
+            return render_error("drova_unauthorized")
+        except DrovaUnavailable:
+            return render_error("drova_unavailable")
+        finally:
+            await client.aclose()
+
     async def export(self, telegram_chat_id: int, kind: ExportKind) -> ExportResult:
         loaded = await self._load_client(telegram_chat_id)
         if loaded is None:
@@ -957,6 +1028,30 @@ def _parse_product_id(raw_product_id: str | None) -> str | None:
         return None
     product_id = raw_product_id.strip()
     return product_id or None
+
+
+def _parse_server_description(raw_description: str | None) -> str | None:
+    if raw_description is None:
+        return None
+    description = raw_description.strip()
+    return description or None
+
+
+def _parse_server_description_apply(raw_payload: str | None) -> tuple[str, str] | None:
+    if raw_payload is None:
+        return None
+    revision, separator, description = raw_payload.strip().partition(" ")
+    if not separator or not revision.strip():
+        return None
+    parsed_description = _parse_server_description(description)
+    if parsed_description is None:
+        return None
+    return revision.strip(), parsed_description
+
+
+def _server_source_revision(source: ServerSource) -> str:
+    payload = f"{source.name}\0{source.description}".encode()
+    return sha256(payload).hexdigest()[:12]
 
 
 SERVER_CONTROL_ACTIONS = frozenset(

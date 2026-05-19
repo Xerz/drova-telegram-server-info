@@ -84,6 +84,7 @@ async def test_register_bot_commands_uses_runtime_command_list() -> None:
         "updates_on",
         "updates_off",
         "server_source",
+        "server_description",
         "promocode",
         "promocodes",
         "export_sessions",
