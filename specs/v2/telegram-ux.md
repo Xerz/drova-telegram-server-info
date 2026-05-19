@@ -43,7 +43,10 @@
 
 ## Sessions
 
-- Header: `Последние {limit} сессий` plus selected station name if set.
+- Header: `Последние {limit} сессий · {station_or_all} · стр. {page}`.
+- Render at most five sessions per page.
+- Drova sessions API has no offset/cursor; every page callback must make a fresh request.
+- If requested page is out of range after filtering, render the nearest existing page.
 - Group by date.
 - Per session line group:
   - bold numbered game title;
@@ -53,7 +56,7 @@
   - start-finish as `HH:MM-HH:MM` and compact duration;
   - billing/status with emoji labels;
   - feedback if present.
-- Buttons: `Обновить`, `Скрыть короткие` or `Показать все`.
+- Buttons: `Обновить`, optional `Назад`/`Вперед`, `Скрыть короткие` or `Показать все`.
 
 ## Current Dashboard
 

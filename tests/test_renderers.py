@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import datetime
 
 from drova_bot.domain.models import (
@@ -117,6 +118,51 @@ def test_sessions_renderer_matches_fixture_intent(
     assert "Отзыв: ok" in message.text
     assert "<b>3. Desktop Mode</b>" in message.text
     assert message.keyboard is not None
+
+
+def test_sessions_renderer_paginates_five_sessions_per_page(
+    ui_profile: ChatProfile,
+    ui_sessions: list[Session],
+    ui_stations: list[Station],
+    ui_now: datetime,
+) -> None:
+    profile = replace(ui_profile, session_limit=12)
+    sessions = [
+        replace(
+            ui_sessions[0],
+            uuid=f"session-page-{index}",
+            product_id=f"product-page-{index}",
+            created_on_ms=ui_sessions[0].created_on_ms - index * 60_000,
+        )
+        for index in range(7)
+    ]
+    catalog = {f"product-page-{index}": f"Game {index}" for index in range(7)}
+
+    first_page = render_sessions(profile, sessions, ui_stations, catalog, now=ui_now)
+    second_page = render_sessions(profile, sessions, ui_stations, catalog, now=ui_now, page=1)
+
+    assert "Последние 12 сессий · все станции · стр. 1" in first_page.text
+    assert "<b>1. Game 0</b>" in first_page.text
+    assert "<b>5. Game 4</b>" in first_page.text
+    assert "<b>6. Game 5</b>" not in first_page.text
+    assert first_page.keyboard is not None
+    assert [button.text for row in first_page.keyboard.rows for button in row] == [
+        "Обновить",
+        "Вперед",
+        "Скрыть короткие",
+    ]
+
+    assert "Последние 12 сессий · все станции · стр. 2" in second_page.text
+    assert "<b>6. Game 5</b>" in second_page.text
+    assert "<b>7. Game 6</b>" in second_page.text
+    assert "<b>5. Game 4</b>" not in second_page.text
+    assert second_page.keyboard is not None
+    assert [button.text for row in second_page.keyboard.rows for button in row] == [
+        "Обновить",
+        "Назад",
+        "Скрыть короткие",
+    ]
+    assert second_page.keyboard.rows[-1][0].callback_data.endswith("|p=1")
 
 
 def test_sessions_renderer_adds_ip_and_city_line(

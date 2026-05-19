@@ -56,6 +56,7 @@ class EndpointGeo:
 
 EndpointGeoResolver = Callable[[Endpoint], EndpointGeo | None]
 SessionGeoResolver = Callable[[Session], EndpointGeo | None]
+SESSION_PAGE_SIZE = 5
 
 
 def render_start_not_connected() -> RenderedMessage:
@@ -215,20 +216,24 @@ def render_sessions(
     *,
     now: datetime,
     short_mode: bool = False,
+    page: int = 0,
     geo_resolver: SessionGeoResolver | None = None,
 ) -> RenderedMessage:
     station_by_id = {station.uuid: station for station in stations}
     selected = station_by_id.get(profile.selected_station_id or "")
     selected_label = selected.name if selected is not None else "все станции"
-    header = f"Последние {profile.session_limit} сессий · {selected_label}"
     filtered = filter_sessions(sessions, short_mode=short_mode, now=now)
+    page_index = _bounded_page(page, len(filtered))
+    header = f"Последние {profile.session_limit} сессий · {selected_label} · стр. {page_index + 1}"
     if not filtered:
         return RenderedMessage(f"{html_escape(header)}\n\nСессии не найдены.")
 
     lines = [html_escape(header), ""]
-    index = 1
+    page_start = page_index * SESSION_PAGE_SIZE
+    page_sessions = filtered[page_start : page_start + SESSION_PAGE_SIZE]
+    index = page_start + 1
     current_date: str | None = None
-    for session in filtered[: profile.session_limit]:
+    for session in page_sessions:
         session_date = format_date(session.created_on_ms, profile.timezone)
         if session_date != current_date:
             current_date = session_date
@@ -273,18 +278,43 @@ def render_sessions(
         index += 1
         lines.append("")
 
-    keyboard = KeyboardSpec(
-        rows=[
-            [ButtonSpec("Обновить", CallbackSpec(action="sessions_refresh").pack())],
-            [
-                ButtonSpec(
-                    "Показать все" if short_mode else "Скрыть короткие",
-                    CallbackSpec(action="sessions_all" if short_mode else "sessions_short").pack(),
-                )
-            ],
+    keyboard = KeyboardSpec(rows=_session_keyboard_rows(short_mode, page_index, len(filtered)))
+    return RenderedMessage("\n".join(lines).rstrip(), keyboard)
+
+
+def _bounded_page(page: int, item_count: int) -> int:
+    if item_count <= 0:
+        return 0
+    last_page = (item_count - 1) // SESSION_PAGE_SIZE
+    return min(max(0, page), last_page)
+
+
+def _session_keyboard_rows(short_mode: bool, page: int, item_count: int) -> list[list[ButtonSpec]]:
+    page_action = "sessions_short_page" if short_mode else "sessions_page"
+    rows = [[ButtonSpec("Обновить", CallbackSpec(action=page_action, page=page).pack())]]
+    page_buttons: list[ButtonSpec] = []
+    if page > 0:
+        page_buttons.append(
+            ButtonSpec("Назад", CallbackSpec(action=page_action, page=page - 1).pack())
+        )
+    if (page + 1) * SESSION_PAGE_SIZE < item_count:
+        page_buttons.append(
+            ButtonSpec("Вперед", CallbackSpec(action=page_action, page=page + 1).pack())
+        )
+    if page_buttons:
+        rows.append(page_buttons)
+    rows.append(
+        [
+            ButtonSpec(
+                "Показать все" if short_mode else "Скрыть короткие",
+                CallbackSpec(
+                    action="sessions_all" if short_mode else "sessions_short",
+                    page=page,
+                ).pack(),
+            )
         ]
     )
-    return RenderedMessage("\n".join(lines).rstrip(), keyboard)
+    return rows
 
 
 def _billing_label(billing_type: str | None) -> str:

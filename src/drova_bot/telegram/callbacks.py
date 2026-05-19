@@ -16,6 +16,8 @@ ACTION_ALIASES = {
     "sessions_refresh": "sr",
     "sessions_short": "sh",
     "sessions_all": "sl",
+    "sessions_page": "sg",
+    "sessions_short_page": "sq",
     "current_refresh": "cr",
     "current_refresh_panel": "co",
     "publish_panel": "pp",

@@ -64,6 +64,7 @@ class FakeDrovaClient:
         self.closed = False
         self.published_calls: list[tuple[str, bool]] = []
         self.issued_promocode_minutes: list[int] = []
+        self.session_calls: list[tuple[str | None, str | None, int | None]] = []
 
     @property
     def proxy_token(self) -> str:
@@ -89,6 +90,7 @@ class FakeDrovaClient:
         server_id: str | None = None,
         limit: int | None = None,
     ) -> SessionPage:
+        self.session_calls.append((merchant_id, server_id, limit))
         if server_id in self.session_failures:
             raise DrovaUnavailable("session failure")
         sessions = [
@@ -263,6 +265,56 @@ async def test_sessions_uses_all_or_selected_station(
     assert "Space Farm" in all_message.text
     assert "Последние 5 сессий · Alpha Station" in selected_message.text
     assert "Desktop Mode" not in selected_message.text
+
+
+@pytest.mark.asyncio
+async def test_sessions_page_refetches_and_keeps_short_mode(
+    service_engine: AsyncEngine,
+    ui_stations: list[Station],
+    ui_sessions: list[Session],
+) -> None:
+    many_sessions = [
+        replace(
+            ui_sessions[0],
+            uuid=f"session-page-{index}",
+            product_id=f"product-page-{index}",
+            created_on_ms=ui_sessions[0].created_on_ms - index * 60_000,
+        )
+        for index in range(7)
+    ]
+    first_page_client = FakeDrovaClient(stations=ui_stations, sessions=many_sessions)
+    second_page_client = FakeDrovaClient(stations=ui_stations, sessions=many_sessions)
+    service = make_service(
+        service_engine,
+        FakeDrovaClientFactory(
+            FakeDrovaClient(
+                stations=ui_stations,
+                products=[
+                    CatalogProduct(f"product-page-{index}", f"Game {index}")
+                    for index in range(7)
+                ],
+            ),
+            first_page_client,
+            second_page_client,
+        ),
+    )
+    await service.connect_token(10001, "token")
+    await service.set_limit(10001, "10")
+
+    page_two = await service.sessions(10001, page=1)
+    refreshed_page_two = await service.handle_callback(
+        10001,
+        parse_callback_data(CallbackSpec(action="sessions_short_page", page=1).pack()),
+    )
+
+    assert first_page_client.session_calls == [("user-1", None, 10)]
+    assert second_page_client.session_calls == [("user-1", None, 10)]
+    assert "стр. 2" in page_two.text
+    assert "стр. 2" in refreshed_page_two.text
+    assert refreshed_page_two.keyboard is not None
+    assert "Показать все" in [
+        button.text for row in refreshed_page_two.keyboard.rows for button in row
+    ]
 
 
 @pytest.mark.asyncio

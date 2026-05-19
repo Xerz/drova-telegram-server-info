@@ -217,14 +217,20 @@ class BotService:
         finally:
             await client.aclose()
 
-    async def sessions(self, telegram_chat_id: int, *, short_mode: bool = False) -> RenderedMessage:
+    async def sessions(
+        self,
+        telegram_chat_id: int,
+        *,
+        short_mode: bool = False,
+        page: int = 0,
+    ) -> RenderedMessage:
         loaded = await self._load_client(telegram_chat_id)
         if loaded is None:
             return render_error("not_connected")
         profile, client = loaded
         try:
             stations = await client.get_servers(profile.drova_user_id or "")
-            page = await client.get_sessions(
+            sessions_page = await client.get_sessions(
                 merchant_id=None if profile.selected_station_id else profile.drova_user_id,
                 server_id=profile.selected_station_id,
                 limit=profile.session_limit,
@@ -234,11 +240,12 @@ class BotService:
                 await uow.station_cache.replace_for_chat(telegram_chat_id, stations)
             return render_sessions(
                 profile,
-                page.sessions,
+                sessions_page.sessions,
                 stations,
                 product_catalog,
                 now=self._clock(),
                 short_mode=short_mode,
+                page=page,
                 geo_resolver=self._session_geo_resolver,
             )
         except (DrovaUnauthorized, DrovaPermissionDenied):
@@ -484,11 +491,23 @@ class BotService:
         if callback.action == "station_page":
             return await self.station_picker(telegram_chat_id, page=callback.page or 0)
         if callback.action == "sessions_refresh":
-            return await self.sessions(telegram_chat_id)
+            return await self.sessions(telegram_chat_id, page=callback.page or 0)
+        if callback.action == "sessions_page":
+            return await self.sessions(telegram_chat_id, page=callback.page or 0)
+        if callback.action == "sessions_short_page":
+            return await self.sessions(
+                telegram_chat_id,
+                short_mode=True,
+                page=callback.page or 0,
+            )
         if callback.action == "sessions_short":
-            return await self.sessions(telegram_chat_id, short_mode=True)
+            return await self.sessions(
+                telegram_chat_id,
+                short_mode=True,
+                page=callback.page or 0,
+            )
         if callback.action == "sessions_all":
-            return await self.sessions(telegram_chat_id)
+            return await self.sessions(telegram_chat_id, page=callback.page or 0)
         if callback.action == "current_refresh":
             return await self.current(telegram_chat_id)
         if callback.action == "current_refresh_panel":
