@@ -20,6 +20,7 @@ from drova_bot.domain.models import (
     PrepaidStats,
     Promocode,
     ServerProductEdit,
+    ServerUsageStatistics,
     Session,
     SessionPage,
     Station,
@@ -54,6 +55,7 @@ class FakeDrovaClient:
         prepaid_stats: PrepaidStats | None = None,
         prepaid_settlements: list[PrepaidSettlement] | None = None,
         opened_deals: list[OpenedPrepaidDeal] | None = None,
+        usage_statistics: ServerUsageStatistics | None = None,
         station_products: dict[str, list[StationProduct]] | None = None,
         product_edits: dict[tuple[str, str], ServerProductEdit] | None = None,
         endpoints: dict[str, list[Endpoint]] | None = None,
@@ -76,6 +78,7 @@ class FakeDrovaClient:
         )
         self.prepaid_settlements = prepaid_settlements or []
         self.opened_deals = opened_deals or []
+        self.usage_statistics = usage_statistics
         self.station_products = station_products or {}
         self.product_edits = product_edits or {}
         self.endpoints = endpoints or {}
@@ -205,6 +208,11 @@ class FakeDrovaClient:
 
     async def get_opened_prepaid_deals(self) -> list[OpenedPrepaidDeal]:
         return self.opened_deals
+
+    async def get_server_usage_statistics(self) -> ServerUsageStatistics:
+        if self.usage_statistics is None:
+            raise DrovaUnavailable("usage statistics unavailable")
+        return self.usage_statistics
 
 
 class FakeDrovaClientFactory:
@@ -392,6 +400,38 @@ async def test_account_billing_uses_saved_profile_and_drova_data(
     assert "Баланс минут: скрыто" in message.text
     assert "60 мин · заказ" in message.text
     assert "сумма скрыто · к выплате скрыто" in message.text
+
+
+@pytest.mark.asyncio
+async def test_usage_statistics_uses_backend_stats_and_cached_titles(
+    service_engine: AsyncEngine,
+    ui_stations: list[Station],
+    ui_usage_statistics: ServerUsageStatistics,
+) -> None:
+    service = make_service(
+        service_engine,
+        FakeDrovaClientFactory(
+            FakeDrovaClient(
+                stations=ui_stations,
+                products=[
+                    CatalogProduct("product-a", "Cyber Rally"),
+                    CatalogProduct("product-b", "Space Farm"),
+                ],
+            ),
+            FakeDrovaClient(
+                stations=ui_stations,
+                usage_statistics=ui_usage_statistics,
+            ),
+        ),
+    )
+    await service.connect_token(10001, "token")
+
+    message = await service.usage_statistics(10001)
+
+    assert "Статистика использования" in message.text
+    assert "Сегодня: 2 сессий · 2 ч 10 мин" in message.text
+    assert "1. Alpha Station · 8 сессий · 12 ч 0 мин" in message.text
+    assert "1. Cyber Rally · 6 сессий · 10 ч 0 мин" in message.text
 
 
 @pytest.mark.asyncio

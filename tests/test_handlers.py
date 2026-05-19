@@ -40,6 +40,7 @@ from drova_bot.telegram.routers.core import (
     token_command,
     unknown_command,
     unknown_text,
+    usage_command,
 )
 
 
@@ -142,6 +143,10 @@ class FakeService:
         self.calls.append(("account_billing", (chat_id,), {}))
         return RenderedMessage("account")
 
+    async def usage_statistics(self, chat_id: int) -> RenderedMessage:
+        self.calls.append(("usage_statistics", (chat_id,), {}))
+        return RenderedMessage("usage")
+
     async def disabled(self, chat_id: int) -> RenderedMessage:
         self.calls.append(("disabled", (chat_id,), {}))
         return RenderedMessage("disabled")
@@ -235,6 +240,7 @@ async def test_basic_command_handlers_route_to_service_or_help() -> None:
     help_message = FakeMessage("/help")
     current_message = FakeMessage("/current")
     account_message = FakeMessage("/account")
+    usage_message = FakeMessage("/usage")
     disabled_message = FakeMessage("/disabled")
     stations_message = FakeMessage("/stations")
 
@@ -242,6 +248,7 @@ async def test_basic_command_handlers_route_to_service_or_help() -> None:
     await help_command(cast(Message, help_message))
     await current_command(cast(Message, current_message), service)  # type: ignore[arg-type]
     await account_command(cast(Message, account_message), service)  # type: ignore[arg-type]
+    await usage_command(cast(Message, usage_message), service)  # type: ignore[arg-type]
     await disabled_command(cast(Message, disabled_message), service)  # type: ignore[arg-type]
     await stations_command(cast(Message, stations_message), service)  # type: ignore[arg-type]
 
@@ -249,6 +256,7 @@ async def test_basic_command_handlers_route_to_service_or_help() -> None:
         ("start", (10001,), {}),
         ("current", (10001,), {}),
         ("account_billing", (10001,), {}),
+        ("usage_statistics", (10001,), {}),
         ("disabled", (10001,), {}),
         ("stations", (10001,), {}),
     ]
@@ -256,6 +264,7 @@ async def test_basic_command_handlers_route_to_service_or_help() -> None:
     assert "Команды:" in help_message.answers[0][0]
     assert current_message.answers[0][0] == "current"
     assert account_message.answers[0][0] == "account"
+    assert usage_message.answers[0][0] == "usage"
     assert disabled_message.answers[0][0] == "disabled"
     assert stations_message.answers[0][0] == "stations"
 

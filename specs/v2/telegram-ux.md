@@ -80,6 +80,14 @@
   (`заказ` / `без заказа`).
 - Redacted or unavailable monetary values render as `скрыто`.
 
+## Usage Statistics
+
+- `/usage` shows backend-prepared usage statistics.
+- The summary includes today, week and month total sessions and total usage duration.
+- Month details include top stations and top games sorted by usage duration.
+- Product ids and station ids are shown only when a cached title/name is unavailable.
+- Redacted income values are not shown.
+
 ## Promocodes
 
 - `/promocode <minutes>` issues one prepaid promocode for a positive integer number of minutes.

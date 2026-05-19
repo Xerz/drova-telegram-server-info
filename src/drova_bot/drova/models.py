@@ -17,10 +17,13 @@ from drova_bot.domain.models import (
     Promocode,
     ServerProductEdit,
     ServerSource,
+    ServerUsageStatistics,
     Session,
     SessionPage,
     Station,
     StationProduct,
+    UsagePeriod,
+    UsageStat,
 )
 
 
@@ -238,6 +241,63 @@ class OpenedPrepaidDealResponse(DrovaApiModel):
             payout_amount=self.payout_amount,
             gross_amount=self.gross_amount,
             terminal_index=self.terminal_index,
+        )
+
+
+class UsageStatResponse(DrovaApiModel):
+    session_count: int = Field(alias="sessionCount")
+    total_msecs: int = Field(alias="totalMsecs")
+
+    def to_domain(self) -> UsageStat:
+        return UsageStat(
+            session_count=self.session_count,
+            total_msecs=self.total_msecs,
+        )
+
+
+class UsageServerStatsResponse(DrovaApiModel):
+    per_game_stats: dict[str, UsageStatResponse] = Field(
+        default_factory=dict,
+        alias="perGameStats",
+    )
+    total_stat: UsageStatResponse = Field(alias="totalStat")
+
+
+class UsagePeriodResponse(DrovaApiModel):
+    per_game_stats: dict[str, UsageStatResponse] = Field(
+        default_factory=dict,
+        alias="perGameStats",
+    )
+    per_server_stats: dict[str, UsageServerStatsResponse] = Field(
+        default_factory=dict,
+        alias="perServerStats",
+    )
+    total_stat: UsageStatResponse = Field(alias="totalStat")
+
+    def to_domain(self) -> UsagePeriod:
+        return UsagePeriod(
+            total=self.total_stat.to_domain(),
+            per_server={
+                server_id: server_stats.total_stat.to_domain()
+                for server_id, server_stats in self.per_server_stats.items()
+            },
+            per_game={
+                product_id: game_stats.to_domain()
+                for product_id, game_stats in self.per_game_stats.items()
+            },
+        )
+
+
+class ServerUsageStatisticsResponse(DrovaApiModel):
+    today: UsagePeriodResponse = Field(alias="todayStat")
+    week: UsagePeriodResponse = Field(alias="weekStat")
+    month: UsagePeriodResponse = Field(alias="monthStat")
+
+    def to_domain(self) -> ServerUsageStatistics:
+        return ServerUsageStatistics(
+            today=self.today.to_domain(),
+            week=self.week.to_domain(),
+            month=self.month.to_domain(),
         )
 
 

@@ -181,12 +181,17 @@ async def test_next_account_read_endpoints_parse_typed_payloads_and_auth_headers
         )
         usage_route = router.get(
             "https://services.drova.io/accounting/statistics/myserverusageprepared"
-        ).mock(return_value=httpx.Response(200, json={"rows": []}))
+        ).mock(
+            return_value=httpx.Response(
+                200,
+                json=load_api_response("server_usage_statistics.json"),
+            )
+        )
         async with DrovaClient(proxy_token="token") as client:
             stats = await client.get_prepaid_stats("user-1")
             settlements = await client.get_prepaid_settlements("user-1")
             deals = await client.get_opened_prepaid_deals()
-            assert await client.get_server_usage_statistics() == {"rows": []}
+            usage = await client.get_server_usage_statistics()
 
     assert stats.allowed_to_sell_minutes > 0
     assert stats.balance is None
@@ -194,6 +199,8 @@ async def test_next_account_read_endpoints_parse_typed_payloads_and_auth_headers
     assert settlements[0].created_on_ms > 0
     assert deals[0].payout_amount is None
     assert deals[0].gross_amount is None
+    assert usage.month.total.session_count == 215
+    assert usage.today.total.total_msecs == 7_815_251
     for route in [stats_route, settlements_route, deals_route, usage_route]:
         assert route.calls[0].request.headers["X-Auth-Token"] == "token"
 

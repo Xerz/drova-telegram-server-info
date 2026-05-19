@@ -31,7 +31,7 @@ async def test_live_read_contracts(
     assert prepaid_stats.merchant_id
     assert isinstance(prepaid_settlements, list)
     assert isinstance(opened_deals, list)
-    assert isinstance(usage_statistics, dict | list)
+    assert usage_statistics.month.total.session_count >= 0
 
     if stations:
         source = await live_client.get_server_source(stations[0].uuid, account.uuid)

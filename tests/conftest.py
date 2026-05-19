@@ -9,7 +9,16 @@ import pytest
 from _pytest.config import Config, Parser
 from _pytest.nodes import Item
 
-from drova_bot.domain.models import ChatProfile, Endpoint, Session, Station, StationProduct
+from drova_bot.domain.models import (
+    ChatProfile,
+    Endpoint,
+    ServerUsageStatistics,
+    Session,
+    Station,
+    StationProduct,
+    UsagePeriod,
+    UsageStat,
+)
 from tests.live.harness import live_skip_reason
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -152,6 +161,33 @@ def ui_now(ui_state: dict[str, Any]) -> datetime:
 @pytest.fixture
 def ui_catalog(ui_state: dict[str, Any]) -> dict[str, str]:
     return dict(ui_state["product_catalog"])
+
+
+@pytest.fixture
+def ui_usage_statistics() -> ServerUsageStatistics:
+    return ServerUsageStatistics(
+        today=UsagePeriod(
+            total=UsageStat(session_count=2, total_msecs=7_800_000),
+            per_server={"station-online": UsageStat(session_count=2, total_msecs=7_800_000)},
+            per_game={"product-a": UsageStat(session_count=2, total_msecs=7_800_000)},
+        ),
+        week=UsagePeriod(
+            total=UsageStat(session_count=7, total_msecs=33_000_000),
+            per_server={"station-online": UsageStat(session_count=7, total_msecs=33_000_000)},
+            per_game={"product-a": UsageStat(session_count=7, total_msecs=33_000_000)},
+        ),
+        month=UsagePeriod(
+            total=UsageStat(session_count=10, total_msecs=57_600_000),
+            per_server={
+                "station-online": UsageStat(session_count=8, total_msecs=43_200_000),
+                "station-hidden": UsageStat(session_count=2, total_msecs=14_400_000),
+            },
+            per_game={
+                "product-a": UsageStat(session_count=6, total_msecs=36_000_000),
+                "product-b": UsageStat(session_count=4, total_msecs=21_600_000),
+            },
+        ),
+    )
 
 
 def load_api_response(filename: str) -> Any:

@@ -125,6 +125,26 @@ class OpenedPrepaidDeal:
 
 
 @dataclass(frozen=True, slots=True)
+class UsageStat:
+    session_count: int
+    total_msecs: int
+
+
+@dataclass(frozen=True, slots=True)
+class UsagePeriod:
+    total: UsageStat
+    per_server: dict[str, UsageStat] = field(default_factory=dict)
+    per_game: dict[str, UsageStat] = field(default_factory=dict)
+
+
+@dataclass(frozen=True, slots=True)
+class ServerUsageStatistics:
+    today: UsagePeriod
+    week: UsagePeriod
+    month: UsagePeriod
+
+
+@dataclass(frozen=True, slots=True)
 class ServerSource:
     uuid: str
     user_id: str

@@ -14,6 +14,7 @@ from drova_bot.domain.models import (
     PrepaidStats,
     Promocode,
     ServerProductEdit,
+    ServerUsageStatistics,
     SessionPage,
     Station,
     StationProduct,
@@ -73,6 +74,8 @@ class DrovaClientProtocol(Protocol):
     async def get_prepaid_settlements(self, merchant_id: str) -> list[PrepaidSettlement]: ...
 
     async def get_opened_prepaid_deals(self) -> list[OpenedPrepaidDeal]: ...
+
+    async def get_server_usage_statistics(self) -> ServerUsageStatistics: ...
 
 
 class DrovaClientFactory(Protocol):

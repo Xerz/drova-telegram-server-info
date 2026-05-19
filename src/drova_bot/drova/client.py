@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Awaitable, Callable, Mapping
-from typing import Any, cast
+from typing import Any
 
 import httpx
 from pydantic import ValidationError
@@ -19,6 +19,7 @@ from drova_bot.domain.models import (
     Promocode,
     ServerProductEdit,
     ServerSource,
+    ServerUsageStatistics,
     SessionPage,
     Station,
     StationProduct,
@@ -34,6 +35,7 @@ from drova_bot.drova.models import (
     PromocodeResponse,
     ServerProductEditResponse,
     ServerSourceResponse,
+    ServerUsageStatisticsResponse,
     SessionPageResponse,
     StationProductResponse,
     StationResponse,
@@ -41,7 +43,6 @@ from drova_bot.drova.models import (
 
 TokenPersister = Callable[[str], Awaitable[None]]
 QueryValue = str | int | float | bool | None
-type JsonPayload = dict[str, object] | list[object]
 
 
 class DrovaClient:
@@ -233,12 +234,15 @@ class DrovaClient:
         except ValidationError as exc:
             raise DrovaUnavailable("opened prepaid deals response has unexpected shape") from exc
 
-    async def get_server_usage_statistics(self) -> JsonPayload:
+    async def get_server_usage_statistics(self) -> ServerUsageStatistics:
         payload = await self._request(
             "GET",
             "/accounting/statistics/myserverusageprepared",
         )
-        return _parse_json_payload(payload, "server usage statistics")
+        try:
+            return ServerUsageStatisticsResponse.model_validate(payload).to_domain()
+        except ValidationError as exc:
+            raise DrovaUnavailable("server usage statistics response has unexpected shape") from exc
 
     async def get_server_product_edit(self, server_id: str, product_id: str) -> ServerProductEdit:
         payload = await self._request(
@@ -400,10 +404,3 @@ def _parse_promocodes(payload: object) -> list[Promocode]:
     except ValidationError as exc:
         raise DrovaUnavailable("promocodes response has unexpected shape") from exc
 
-
-def _parse_json_payload(payload: object, label: str) -> JsonPayload:
-    if isinstance(payload, dict):
-        return cast(dict[str, object], payload)
-    if isinstance(payload, list):
-        return cast(list[object], payload)
-    raise DrovaUnavailable(f"{label} response is not a JSON object or list")

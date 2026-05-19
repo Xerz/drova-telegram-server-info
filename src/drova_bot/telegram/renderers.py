@@ -13,6 +13,7 @@ import structlog
 from drova_bot.domain.formatters import (
     filter_sessions,
     format_date,
+    format_duration_compact,
     format_session_duration,
     format_time_short,
     group_endpoints,
@@ -34,9 +35,12 @@ from drova_bot.domain.models import (
     PrepaidStats,
     Promocode,
     ServerProductEdit,
+    ServerUsageStatistics,
     Session,
     Station,
     StationProduct,
+    UsagePeriod,
+    UsageStat,
 )
 from drova_bot.telegram.callbacks import CallbackSpec
 from drova_bot.telegram.keyboards import ButtonSpec, KeyboardSpec
@@ -101,6 +105,7 @@ def render_help() -> RenderedMessage:
         "/sessions_short - последние сессии дольше 5 минут",
         "/current - состояние станций",
         "/account - баланс минут и выплаты",
+        "/usage - статистика использования",
         "/disabled - проблемные продукты",
         "/stations - станции и endpoints",
         "/games - игры выбранной станции",
@@ -254,6 +259,83 @@ def render_account_billing(
         lines.append("Операций нет.")
 
     return RenderedMessage("\n".join(lines))
+
+
+def render_usage_statistics(
+    statistics: ServerUsageStatistics,
+    stations: Sequence[Station],
+    product_catalog: Mapping[str, str],
+    *,
+    top_limit: int = 5,
+) -> RenderedMessage:
+    station_names = {station.uuid: station.name for station in stations}
+    lines = [
+        "Статистика использования",
+        "",
+        _usage_total_line("Сегодня", statistics.today.total),
+        _usage_total_line("Неделя", statistics.week.total),
+        _usage_total_line("Месяц", statistics.month.total),
+        "",
+        "Топ станций за месяц",
+    ]
+    lines.extend(
+        _usage_ranked_lines(
+            statistics.month,
+            labels=station_names,
+            top_limit=top_limit,
+            unknown_label="станция",
+            source="server",
+        )
+    )
+    lines.extend(["", "Топ игр за месяц"])
+    lines.extend(
+        _usage_ranked_lines(
+            statistics.month,
+            labels=product_catalog,
+            top_limit=top_limit,
+            unknown_label="product",
+            source="game",
+        )
+    )
+    return RenderedMessage("\n".join(lines))
+
+
+def _usage_total_line(label: str, stat: UsageStat) -> str:
+    return (
+        f"{label}: {_format_integer(stat.session_count)} сессий · "
+        f"{format_duration_compact(stat.total_msecs // 1000)}"
+    )
+
+
+def _usage_ranked_lines(
+    period: UsagePeriod,
+    *,
+    labels: Mapping[str, str],
+    top_limit: int,
+    unknown_label: str,
+    source: str,
+) -> list[str]:
+    data = period.per_server if source == "server" else period.per_game
+    rows = sorted(
+        data.items(),
+        key=lambda item: (item[1].total_msecs, item[1].session_count, item[0]),
+        reverse=True,
+    )[:top_limit]
+    if not rows:
+        return ["Нет данных."]
+    lines: list[str] = []
+    for index, (item_id, stat) in enumerate(rows, start=1):
+        label = labels.get(item_id)
+        rendered_label = (
+            html_escape(label)
+            if label is not None
+            else f"{unknown_label} <code>{html_escape(item_id)}</code>"
+        )
+        lines.append(
+            f"{index}. {rendered_label} · {_format_integer(stat.session_count)} сессий · "
+            f"{format_duration_compact(stat.total_msecs // 1000)}"
+        )
+    return lines
 
 
 def render_station_games(

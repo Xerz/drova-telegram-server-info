@@ -41,6 +41,7 @@ from drova_bot.telegram.renderers import (
     render_station_picker,
     render_stations,
     render_unused_promocodes,
+    render_usage_statistics,
 )
 
 UnitOfWorkFactory = Callable[[], StorageUnitOfWork]
@@ -316,6 +317,25 @@ class BotService:
                 failed_station_ids=failed_station_ids,
                 geo_resolver=self._session_geo_resolver,
             )
+        except (DrovaUnauthorized, DrovaPermissionDenied):
+            return render_error("drova_unauthorized")
+        except DrovaUnavailable:
+            return render_error("drova_unavailable")
+        finally:
+            await client.aclose()
+
+    async def usage_statistics(self, telegram_chat_id: int) -> RenderedMessage:
+        loaded = await self._load_client(telegram_chat_id)
+        if loaded is None:
+            return render_error("not_connected")
+        profile, client = loaded
+        try:
+            stations = await client.get_servers(profile.drova_user_id or "")
+            statistics = await client.get_server_usage_statistics()
+            catalog = await self._product_catalog(telegram_chat_id, client)
+            async with self._uow_factory() as uow:
+                await uow.station_cache.replace_for_chat(telegram_chat_id, stations)
+            return render_usage_statistics(statistics, stations, catalog)
         except (DrovaUnauthorized, DrovaPermissionDenied):
             return render_error("drova_unauthorized")
         except DrovaUnavailable:

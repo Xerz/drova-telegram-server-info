@@ -131,7 +131,11 @@ Planned client method:
 async def get_server_usage_statistics() -> ServerUsageStatistics
 ```
 
-UX is TBD after fixture shape is known.
+UX:
+
+- `/usage` renders today, week and month total sessions and usage duration.
+- Month details show top stations and top games sorted by usage duration.
+- Redacted income values are ignored.
 
 ### Server Controls
 

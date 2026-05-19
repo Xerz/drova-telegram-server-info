@@ -22,7 +22,7 @@ async def get_unused_promocodes() -> list[Promocode]
 async def get_prepaid_stats(merchant_id: str) -> PrepaidStats
 async def get_prepaid_settlements(merchant_id: str) -> list[PrepaidSettlement]
 async def get_opened_prepaid_deals() -> list[OpenedPrepaidDeal]
-async def get_server_usage_statistics() -> JsonPayload
+async def get_server_usage_statistics() -> ServerUsageStatistics
 async def get_server_product_edit(server_id: str, product_id: str) -> ServerProductEdit
 async def set_server_product_enabled(server_id: str, product_id: str, enabled: bool) -> None
 async def set_server_allow_desktop(server_id: str, allow_desktop: bool) -> None
@@ -31,8 +31,8 @@ async def get_server_source(server_id: str, merchant_id: str) -> ServerSource
 async def update_server_source(server_id: str, *, name: str, description: str) -> None
 ```
 
-Server statistics returns provisional raw JSON payload until live sanitized fixtures define
-stable DTO shapes.
+Server statistics is normalized into total/per-station/per-game usage stats for today,
+week and month. Redacted income values are ignored.
 
 ## Endpoint Mapping
 
@@ -51,7 +51,7 @@ stable DTO shapes.
 | `GET` | `/accounting/prepaid/prepaid_stats4merchant/{merchant_id}` | Yes | Provisional raw JSON until fixtures define DTO. |
 | `GET` | `/accounting/prepaid/list4merchant/{merchant_id}` | Yes | Provisional raw JSON until fixtures define DTO. |
 | `GET` | `/accounting/tinkoff/prepaid/getOpenedDeals` | Yes | Provisional raw JSON until fixtures define DTO. |
-| `GET` | `/accounting/statistics/myserverusageprepared` | Yes | Provisional raw JSON until fixtures define DTO. |
+| `GET` | `/accounting/statistics/myserverusageprepared` | Yes | Backend-prepared usage statistics. |
 | `GET` | `/server-manager/serverproduct/list4edit2/{server_id}/{product_id}` | Yes | Reads one station product edit/launch-params payload. |
 | `POST` | `/server-manager/serverproduct/set_enabled/{server_id}/{product_id}/{true\|false}` | Yes | Body `{}`; write, no automatic retry. |
 | `POST` | `/server-manager/servers/{server_id}/set_allow_desktop/{true\|false}` | Yes | Body `{}`; write, no automatic retry. |

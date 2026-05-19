@@ -12,6 +12,7 @@ from drova_bot.domain.models import (
     PrepaidStats,
     Promocode,
     ServerProductEdit,
+    ServerUsageStatistics,
     Session,
     Station,
     StationProduct,
@@ -34,6 +35,7 @@ from drova_bot.telegram.renderers import (
     render_station_picker,
     render_stations,
     render_unused_promocodes,
+    render_usage_statistics,
 )
 
 
@@ -47,6 +49,7 @@ def test_start_and_help_messages_are_russian_and_safe() -> None:
     ).text
     assert "/station_all - выбрать все станции" in help_text
     assert "/sessions_short - последние сессии дольше 5 минут" in help_text
+    assert "/usage - статистика использования" in help_text
     assert "/promocode &lt;minutes&gt; - выпустить prepaid-промокод" in help_text
     assert "/promocodes - неактивированные prepaid-промокоды" in help_text
     assert "/export_sessions - один XLSX со всеми сессиями" in help_text
@@ -94,6 +97,24 @@ def test_account_billing_renderer_formats_minutes_and_payments() -> None:
     assert "Баланс минут: 123.50" in message.text
     assert "2026-05-18 22:28 · 180 мин · заказ" in message.text
     assert "2026-05-01 05:00 · сумма 13 390.00 · к выплате 10 340.79" in message.text
+
+
+def test_usage_statistics_renderer_shows_totals_and_top_rows(
+    ui_stations: list[Station],
+    ui_catalog: dict[str, str],
+    ui_usage_statistics: ServerUsageStatistics,
+) -> None:
+    message = render_usage_statistics(ui_usage_statistics, ui_stations, ui_catalog)
+
+    assert "Статистика использования" in message.text
+    assert "Сегодня: 2 сессий · 2 ч 10 мин" in message.text
+    assert "Неделя: 7 сессий · 9 ч 10 мин" in message.text
+    assert "Месяц: 10 сессий · 16 ч 0 мин" in message.text
+    assert "1. Alpha Station · 8 сессий · 12 ч 0 мин" in message.text
+    assert "2. Beta Test Station · 2 сессий · 4 ч 0 мин" in message.text
+    assert "1. Cyber Rally · 6 сессий · 10 ч 0 мин" in message.text
+    assert "2. Space Farm · 4 сессий · 6 ч 0 мин" in message.text
+    assert "totalincome" not in message.text.lower()
 
 
 def test_game_management_renderers_are_command_friendly(
