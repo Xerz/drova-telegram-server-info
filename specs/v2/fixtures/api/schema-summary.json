@@ -2704,6 +2704,77 @@
     },
     "type": "object"
   },
+  "test_station_product_edit": {
+    "fields": {
+      "elapsed_ms": {
+        "type": "number"
+      },
+      "label": {
+        "type": "string"
+      },
+      "method": {
+        "type": "string"
+      },
+      "params": {
+        "fields": {},
+        "type": "object"
+      },
+      "path": {
+        "type": "string"
+      },
+      "response": {
+        "fields": {
+          "allowedPaths": {
+            "type": "null"
+          },
+          "args": {
+            "type": "null"
+          },
+          "available": {
+            "type": "boolean"
+          },
+          "defaultAllowedPaths": {
+            "type": "string"
+          },
+          "defaultArgs": {
+            "type": "string"
+          },
+          "defaultGamePath": {
+            "type": "string"
+          },
+          "defaultWorkPath": {
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "gamePath": {
+            "type": "null"
+          },
+          "productId": {
+            "type": "string"
+          },
+          "published": {
+            "type": "boolean"
+          },
+          "title": {
+            "type": "string"
+          },
+          "verified": {
+            "type": "integer"
+          },
+          "workPath": {
+            "type": "null"
+          }
+        },
+        "type": "object"
+      },
+      "status": {
+        "type": "integer"
+      }
+    },
+    "type": "object"
+  },
   "test_station_source": {
     "fields": {
       "elapsed_ms": {

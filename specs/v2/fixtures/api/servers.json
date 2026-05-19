@@ -1,5 +1,5 @@
 {
-  "elapsed_ms": 64.4,
+  "elapsed_ms": 56.9,
   "label": "servers",
   "method": "GET",
   "params": {
@@ -17,7 +17,7 @@
       "disable_updates": false,
       "distance": null,
       "groups_list": [],
-      "last_heartbeat": 1779176231126,
+      "last_heartbeat": 1779177198525,
       "latitude": "<latitude:redacted>",
       "longitude": "<longitude:redacted>",
       "name": "<name:redacted>",
@@ -95,7 +95,7 @@
       "disable_updates": false,
       "distance": null,
       "groups_list": [],
-      "last_heartbeat": 1779176227202,
+      "last_heartbeat": 1779177209902,
       "latitude": "<latitude:redacted>",
       "longitude": "<longitude:redacted>",
       "name": "<name:redacted>",

@@ -1,7 +1,7 @@
 {
   "requests": [
     {
-      "elapsed_ms": 253.9,
+      "elapsed_ms": 337.9,
       "label": "account",
       "method": "GET",
       "path": "/accounting/myaccount",
@@ -9,7 +9,7 @@
       "status": 200
     },
     {
-      "elapsed_ms": 350.7,
+      "elapsed_ms": 422.1,
       "label": "products_full",
       "method": "GET",
       "path": "/product-manager/product/listfull2",
@@ -17,7 +17,7 @@
       "status": 200
     },
     {
-      "elapsed_ms": 64.4,
+      "elapsed_ms": 56.9,
       "label": "servers",
       "method": "GET",
       "path": "/server-manager/servers",
@@ -25,7 +25,7 @@
       "status": 200
     },
     {
-      "elapsed_ms": 412.6,
+      "elapsed_ms": 382.6,
       "label": "sessions_all_limit_5",
       "method": "GET",
       "path": "/session-manager/sessions",
@@ -33,7 +33,7 @@
       "status": 200
     },
     {
-      "elapsed_ms": 55.2,
+      "elapsed_ms": 54.7,
       "label": "promocodes_unused",
       "method": "GET",
       "path": "/accounting/prepaid/list_unused_promocodes/false",
@@ -41,7 +41,7 @@
       "status": 200
     },
     {
-      "elapsed_ms": 51.4,
+      "elapsed_ms": 54.3,
       "label": "server_1_sessions_limit_5",
       "method": "GET",
       "path": "/session-manager/sessions",
@@ -49,7 +49,7 @@
       "status": 200
     },
     {
-      "elapsed_ms": 117.5,
+      "elapsed_ms": 57.1,
       "label": "server_1_products",
       "method": "GET",
       "path": "/server-manager/serverproduct/list4edit2/<uuid:954>",
@@ -57,7 +57,7 @@
       "status": 200
     },
     {
-      "elapsed_ms": 52.1,
+      "elapsed_ms": 56.9,
       "label": "server_1_endpoints_limit_5",
       "method": "GET",
       "path": "/server-manager/serverendpoint/list/<uuid:954>",
@@ -65,7 +65,7 @@
       "status": 200
     },
     {
-      "elapsed_ms": 48.9,
+      "elapsed_ms": 108.4,
       "label": "server_2_sessions_limit_5",
       "method": "GET",
       "path": "/session-manager/sessions",
@@ -73,7 +73,7 @@
       "status": 200
     },
     {
-      "elapsed_ms": 51.0,
+      "elapsed_ms": 56.3,
       "label": "server_2_products",
       "method": "GET",
       "path": "/server-manager/serverproduct/list4edit2/<uuid:955>",
@@ -81,7 +81,7 @@
       "status": 200
     },
     {
-      "elapsed_ms": 50.9,
+      "elapsed_ms": 55.1,
       "label": "server_2_endpoints_limit_5",
       "method": "GET",
       "path": "/server-manager/serverendpoint/list/<uuid:955>",
@@ -89,7 +89,7 @@
       "status": 200
     },
     {
-      "elapsed_ms": 62.5,
+      "elapsed_ms": 64.6,
       "label": "server_3_sessions_limit_5",
       "method": "GET",
       "path": "/session-manager/sessions",
@@ -97,7 +97,7 @@
       "status": 200
     },
     {
-      "elapsed_ms": 54.5,
+      "elapsed_ms": 55.9,
       "label": "server_3_products",
       "method": "GET",
       "path": "/server-manager/serverproduct/list4edit2/<uuid:956>",
@@ -105,7 +105,7 @@
       "status": 200
     },
     {
-      "elapsed_ms": 51.4,
+      "elapsed_ms": 55.2,
       "label": "server_3_endpoints_limit_5",
       "method": "GET",
       "path": "/server-manager/serverendpoint/list/<uuid:956>",
@@ -113,7 +113,7 @@
       "status": 200
     },
     {
-      "elapsed_ms": 233.3,
+      "elapsed_ms": 225.9,
       "label": "account_prepaid_stats",
       "method": "GET",
       "path": "/accounting/prepaid/prepaid_stats4merchant/<uuid:957>",
@@ -121,7 +121,7 @@
       "status": 200
     },
     {
-      "elapsed_ms": 56.3,
+      "elapsed_ms": 60.9,
       "label": "account_prepaid_settlements",
       "method": "GET",
       "path": "/accounting/prepaid/list4merchant/<uuid:957>",
@@ -129,7 +129,7 @@
       "status": 200
     },
     {
-      "elapsed_ms": 58.5,
+      "elapsed_ms": 60.5,
       "label": "account_tinkoff_opened_deals",
       "method": "GET",
       "path": "/accounting/tinkoff/prepaid/getOpenedDeals",
@@ -137,7 +137,7 @@
       "status": 200
     },
     {
-      "elapsed_ms": 56.4,
+      "elapsed_ms": 58.1,
       "label": "server_usage_statistics",
       "method": "GET",
       "path": "/accounting/statistics/myserverusageprepared",
@@ -145,10 +145,18 @@
       "status": 200
     },
     {
-      "elapsed_ms": 51.8,
+      "elapsed_ms": 53.6,
       "label": "test_station_source",
       "method": "GET",
       "path": "/server-manager/servers/<uuid:955>",
+      "proxy_fallback_used": false,
+      "status": 200
+    },
+    {
+      "elapsed_ms": 54.6,
+      "label": "test_station_product_edit",
+      "method": "GET",
+      "path": "/server-manager/serverproduct/list4edit2/<uuid:955>/<uuid:401>",
       "proxy_fallback_used": false,
       "status": 200
     }

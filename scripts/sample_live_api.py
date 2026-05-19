@@ -342,6 +342,7 @@ class DrovaSampler:
         )
         require_status("promocodes_unused", unused_promocodes_status, 200)
 
+        test_station_products: List[Dict[str, Any]] = []
         for index, server in enumerate(servers, start=1):
             server_uuid = server.get("uuid")
             if not server_uuid:
@@ -355,13 +356,17 @@ class DrovaSampler:
             )
             require_status(f"{suffix}_sessions_limit_5", status, 200)
 
-            _, status = self.request(
+            server_products, status = self.request(
                 f"{suffix}_products",
                 "GET",
                 f"/server-manager/serverproduct/list4edit2/{server_uuid}",
                 params={"user_id": user_id},
             )
             require_status(f"{suffix}_products", status, 200)
+            if server_uuid == self.test_station_uuid and isinstance(server_products, list):
+                test_station_products = [
+                    item for item in server_products if isinstance(item, dict)
+                ]
 
             _, status = self.request(
                 f"{suffix}_endpoints_limit_5",
@@ -371,7 +376,7 @@ class DrovaSampler:
             )
             require_status(f"{suffix}_endpoints_limit_5", status, 200)
 
-        self.sample_next_iteration_read_fixtures(user_id, servers)
+        self.sample_next_iteration_read_fixtures(user_id, servers, test_station_products)
         if include_writes:
             self.sample_publish_write_flow(servers, user_id)
         write_json(FIXTURE_DIR / "schema-summary.json", self.schema_summary)
@@ -381,6 +386,7 @@ class DrovaSampler:
         self,
         user_id: str,
         servers: List[Dict[str, Any]],
+        test_station_products: List[Dict[str, Any]],
     ) -> None:
         if find_test_server(servers, self.test_station_uuid) is None:
             raise RuntimeError("TEST_STATION_UUID is not present in /server-manager/servers")
@@ -421,13 +427,14 @@ class DrovaSampler:
         )
         require_status("test_station_source", status, 200)
 
-        if self.test_product_uuid:
+        product_uuid = self.test_product_uuid or first_product_uuid(test_station_products)
+        if product_uuid:
             _, status = self.request(
                 "test_station_product_edit",
                 "GET",
                 (
                     "/server-manager/serverproduct/list4edit2/"
-                    f"{self.test_station_uuid}/{self.test_product_uuid}"
+                    f"{self.test_station_uuid}/{product_uuid}"
                 ),
             )
             require_status("test_station_product_edit", status, 200)
@@ -479,6 +486,14 @@ class DrovaSampler:
 
 def find_test_server(servers: List[Dict[str, Any]], station_uuid: str) -> Dict[str, Any] | None:
     return next((server for server in servers if server.get("uuid") == station_uuid), None)
+
+
+def first_product_uuid(products: List[Dict[str, Any]]) -> str | None:
+    for product in products:
+        product_uuid = product.get("productId") or product.get("product_id")
+        if isinstance(product_uuid, str) and product_uuid:
+            return product_uuid
+    return None
 
 
 def require_published_state(data: Any, server_uuid: str, expected: bool, label: str) -> None:

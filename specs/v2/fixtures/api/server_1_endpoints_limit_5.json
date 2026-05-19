@@ -1,5 +1,5 @@
 {
-  "elapsed_ms": 52.1,
+  "elapsed_ms": 56.9,
   "label": "server_1_endpoints_limit_5",
   "method": "GET",
   "params": {
@@ -24,7 +24,7 @@
       "ip": "<ip:9>",
       "priority": 0,
       "server_id": "<server_id:2>",
-      "updated_on": 1779176231126,
+      "updated_on": 1779177198525,
       "user_defined": false,
       "uuid": "<uuid:15>"
     }

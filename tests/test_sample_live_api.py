@@ -35,7 +35,7 @@ def test_sampler_next_iteration_read_endpoints_are_explicit(
 
     monkeypatch.setattr(sampler, "request", fake_request)
 
-    sampler.sample_next_iteration_read_fixtures("merchant-1", [{"uuid": "station-1"}])
+    sampler.sample_next_iteration_read_fixtures("merchant-1", [{"uuid": "station-1"}], [])
 
     assert calls == [
         (
@@ -102,7 +102,40 @@ def test_sampler_sanitizer_redacts_sensitive_values_and_uuid_keys() -> None:
     }
 
 
-def test_sampler_next_iteration_product_edit_requires_test_product(
+def test_sampler_next_iteration_product_edit_derives_product_from_test_station_products(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    sampler = DrovaSampler({"DROVA_PROXY_TOKEN": "token", "TEST_STATION_UUID": "station-1"})
+    calls: list[tuple[str, str]] = []
+
+    def fake_request(
+        label: str,
+        method: str,
+        path: str,
+        *,
+        params: dict[str, Any] | None = None,
+        json_body: dict[str, Any] | None = None,
+        auth: bool = True,
+    ) -> tuple[Any, int]:
+        del method, params, json_body, auth
+        calls.append((label, path))
+        return {}, 200
+
+    monkeypatch.setattr(sampler, "request", fake_request)
+
+    sampler.sample_next_iteration_read_fixtures(
+        "merchant-1",
+        [{"uuid": "station-1"}],
+        [{"productId": "derived-product"}],
+    )
+
+    assert (
+        "test_station_product_edit",
+        "/server-manager/serverproduct/list4edit2/station-1/derived-product",
+    ) in calls
+
+
+def test_sampler_next_iteration_skips_product_edit_without_product(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     sampler = DrovaSampler({"DROVA_PROXY_TOKEN": "token", "TEST_STATION_UUID": "station-1"})
@@ -123,7 +156,7 @@ def test_sampler_next_iteration_product_edit_requires_test_product(
 
     monkeypatch.setattr(sampler, "request", fake_request)
 
-    sampler.sample_next_iteration_read_fixtures("merchant-1", [{"uuid": "station-1"}])
+    sampler.sample_next_iteration_read_fixtures("merchant-1", [{"uuid": "station-1"}], [])
 
     assert "test_station_product_edit" not in labels
 
@@ -132,7 +165,7 @@ def test_sampler_next_iteration_requires_test_station() -> None:
     sampler = DrovaSampler({"DROVA_PROXY_TOKEN": "token", "TEST_STATION_UUID": "station-1"})
 
     with pytest.raises(RuntimeError, match="TEST_STATION_UUID"):
-        sampler.sample_next_iteration_read_fixtures("merchant-1", [{"uuid": "station-2"}])
+        sampler.sample_next_iteration_read_fixtures("merchant-1", [{"uuid": "station-2"}], [])
 
 
 def test_sampler_run_skips_writes_unless_enabled(monkeypatch: pytest.MonkeyPatch) -> None:
