@@ -70,7 +70,7 @@ Canonical live sanitized fixtures live under `fixtures/api/`.
 
 ## Live Contract Checks
 
-- Read-only checks may run against all stations from `.env.specing`.
+- Read-only checks may run against all stations from `.env.specing` and may list unused promocodes.
 - Write check may run only when `TEST_STATION_UUID` is set.
 - Write check sequence:
   1. Read servers and find test station.

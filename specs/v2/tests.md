@@ -46,7 +46,8 @@ No command handler is considered done without handler tests and renderer tests.
 
 ## Live Contract Safety
 
-- Read-only live tests can run for account, products, servers, sessions, server products and endpoints.
+- Read-only live tests can run for account, products, servers, sessions, server products,
+  endpoints and unused promocodes.
 - Write live test must only target `TEST_STATION_UUID`.
 - Write live test must use `try/finally` rollback and fail if rollback verification fails.
 - CI must not run live tests by default.

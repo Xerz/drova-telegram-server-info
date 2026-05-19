@@ -15,10 +15,12 @@ async def test_live_read_contracts(live_client: DrovaClient) -> None:
     products = await live_client.get_products_full()
     stations = await live_client.get_servers(account.uuid)
     account_sessions = await live_client.get_sessions(merchant_id=account.uuid, limit=5)
+    unused_promocodes = await live_client.get_unused_promocodes()
 
     assert account.uuid
     assert products
     assert len(account_sessions.sessions) <= 5
+    assert isinstance(unused_promocodes, list)
 
     for station in stations:
         station_sessions = await live_client.get_sessions(server_id=station.uuid, limit=5)

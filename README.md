@@ -20,6 +20,8 @@ network access or real tokens.
 
 Live checks use the V2 `DrovaClient` against real Drova endpoints and are skipped unless
 explicitly enabled. Put secrets only in `.env.specing`; it is ignored by git.
+Read-only checks include account, products, stations, sessions, endpoints, station products
+and unused promocodes.
 
 Read-only checks:
 
