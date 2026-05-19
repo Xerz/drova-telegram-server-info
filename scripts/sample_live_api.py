@@ -332,6 +332,13 @@ class DrovaSampler:
         )
         require_status("sessions_all_limit_5", sessions_status, 200)
 
+        _, unused_promocodes_status = self.request(
+            "promocodes_unused",
+            "GET",
+            "/accounting/prepaid/list_unused_promocodes/false",
+        )
+        require_status("promocodes_unused", unused_promocodes_status, 200)
+
         for index, server in enumerate(servers, start=1):
             server_uuid = server.get("uuid")
             if not server_uuid:
