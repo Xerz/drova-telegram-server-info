@@ -19,7 +19,20 @@ async def get_server_endpoints(server_id: str, limit: int | None = None) -> list
 async def set_server_published(server_id: str, published: bool) -> None
 async def issue_promocode(minutes: int) -> list[Promocode]
 async def get_unused_promocodes() -> list[Promocode]
+async def get_prepaid_stats(merchant_id: str) -> JsonPayload
+async def get_prepaid_settlements(merchant_id: str) -> JsonPayload
+async def get_opened_prepaid_deals() -> JsonPayload
+async def get_server_usage_statistics() -> JsonPayload
+async def get_server_product_edit(server_id: str, product_id: str) -> JsonPayload
+async def set_server_product_enabled(server_id: str, product_id: str, enabled: bool) -> None
+async def set_server_allow_desktop(server_id: str, allow_desktop: bool) -> None
+async def set_server_disable_updates(server_id: str, disable_updates: bool) -> None
+async def get_server_source(server_id: str, merchant_id: str) -> JsonPayload
+async def update_server_source(server_id: str, *, name: str, description: str) -> None
 ```
+
+The next-iteration methods return provisional raw JSON payloads until live sanitized
+fixtures define stable DTO shapes.
 
 ## Endpoint Mapping
 
@@ -35,6 +48,16 @@ async def get_unused_promocodes() -> list[Promocode]
 | `POST` | `/server-manager/servers/{server_id}/set_published/{true\|false}` | Yes | No body required by observed API. |
 | `GET` | `/accounting/prepaid/issue_promocodes/1/{playtime_msecs}` | Yes | Issues one prepaid promocode. Treat as write and do not retry automatically. |
 | `GET` | `/accounting/prepaid/list_unused_promocodes/false` | Yes | Lists not-yet-activated promocodes. |
+| `GET` | `/accounting/prepaid/prepaid_stats4merchant/{merchant_id}` | Yes | Provisional raw JSON until fixtures define DTO. |
+| `GET` | `/accounting/prepaid/list4merchant/{merchant_id}` | Yes | Provisional raw JSON until fixtures define DTO. |
+| `GET` | `/accounting/tinkoff/prepaid/getOpenedDeals` | Yes | Provisional raw JSON until fixtures define DTO. |
+| `GET` | `/accounting/statistics/myserverusageprepared` | Yes | Provisional raw JSON until fixtures define DTO. |
+| `GET` | `/server-manager/serverproduct/list4edit2/{server_id}/{product_id}` | Yes | Reads one station product edit/launch-params payload. |
+| `POST` | `/server-manager/serverproduct/set_enabled/{server_id}/{product_id}/{true\|false}` | Yes | Body `{}`; write, no automatic retry. |
+| `POST` | `/server-manager/servers/{server_id}/set_allow_desktop/{true\|false}` | Yes | Body `{}`; write, no automatic retry. |
+| `POST` | `/server-manager/servers/{server_id}/set_disable_updates/{true\|false}` | Yes | Body `{}`; write, no automatic retry. |
+| `GET` | `/server-manager/servers/{server_id}` | Yes | Query `user_id`; source payload provisional raw JSON. |
+| `PUT` | `/server-manager/servers/{server_id}` | Yes | Body `{description, name}`; write, no automatic retry. |
 
 ## Token Renewal
 
@@ -48,7 +71,8 @@ async def get_unused_promocodes() -> list[Promocode]
 
 - Default timeout: 10 seconds connect/read total budget unless implementation chooses separate `httpx.Timeout` fields.
 - Retry only idempotent read requests on network timeout, max 2 attempts with small jitter.
-- Do not automatically retry `set_server_published` or `issue_promocode`.
+- Do not automatically retry publish, promocode issue, station-product enabled toggles,
+  desktop/update toggles, or server-source writes.
 - Validate JSON shape through Pydantic models; unknown fields are allowed and preserved only when useful for logging/tests.
 
 ## Live Contract Fixtures
@@ -64,6 +88,12 @@ Canonical live sanitized fixtures live under `fixtures/api/`.
 - `products_full.json`
 - `promocodes_issue_60.json`
 - `promocodes_unused.json`
+- `account_prepaid_stats.json`
+- `account_prepaid_settlements.json`
+- `account_tinkoff_opened_deals.json`
+- `server_usage_statistics.json`
+- `test_station_source.json`
+- `test_station_product_edit.json`
 - `test_station_publish_*.json`
 - `schema-summary.json`
 - `sampling-report.json`

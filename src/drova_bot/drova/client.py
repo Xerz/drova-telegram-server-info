@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Awaitable, Callable, Mapping
-from typing import Any
+from typing import Any, cast
 
 import httpx
 from pydantic import ValidationError
@@ -31,6 +31,7 @@ from drova_bot.drova.models import (
 
 TokenPersister = Callable[[str], Awaitable[None]]
 QueryValue = str | int | float | bool | None
+type JsonPayload = dict[str, object] | list[object]
 
 
 class DrovaClient:
@@ -188,6 +189,95 @@ class DrovaClient:
         )
         return _parse_promocodes(payload)
 
+    async def get_prepaid_stats(self, merchant_id: str) -> JsonPayload:
+        payload = await self._request(
+            "GET",
+            f"/accounting/prepaid/prepaid_stats4merchant/{merchant_id}",
+        )
+        return _parse_json_payload(payload, "prepaid stats")
+
+    async def get_prepaid_settlements(self, merchant_id: str) -> JsonPayload:
+        payload = await self._request(
+            "GET",
+            f"/accounting/prepaid/list4merchant/{merchant_id}",
+        )
+        return _parse_json_payload(payload, "prepaid settlements")
+
+    async def get_opened_prepaid_deals(self) -> JsonPayload:
+        payload = await self._request(
+            "GET",
+            "/accounting/tinkoff/prepaid/getOpenedDeals",
+        )
+        return _parse_json_payload(payload, "opened prepaid deals")
+
+    async def get_server_usage_statistics(self) -> JsonPayload:
+        payload = await self._request(
+            "GET",
+            "/accounting/statistics/myserverusageprepared",
+        )
+        return _parse_json_payload(payload, "server usage statistics")
+
+    async def get_server_product_edit(self, server_id: str, product_id: str) -> JsonPayload:
+        payload = await self._request(
+            "GET",
+            f"/server-manager/serverproduct/list4edit2/{server_id}/{product_id}",
+        )
+        return _parse_json_payload(payload, "server product edit")
+
+    async def set_server_product_enabled(
+        self,
+        server_id: str,
+        product_id: str,
+        enabled: bool,
+    ) -> None:
+        value = str(enabled).lower()
+        await self._request(
+            "POST",
+            f"/server-manager/serverproduct/set_enabled/{server_id}/{product_id}/{value}",
+            json_body={},
+            retry_read=False,
+        )
+
+    async def set_server_allow_desktop(self, server_id: str, allow_desktop: bool) -> None:
+        value = str(allow_desktop).lower()
+        await self._request(
+            "POST",
+            f"/server-manager/servers/{server_id}/set_allow_desktop/{value}",
+            json_body={},
+            retry_read=False,
+        )
+
+    async def set_server_disable_updates(self, server_id: str, disable_updates: bool) -> None:
+        value = str(disable_updates).lower()
+        await self._request(
+            "POST",
+            f"/server-manager/servers/{server_id}/set_disable_updates/{value}",
+            json_body={},
+            retry_read=False,
+        )
+
+    async def get_server_source(self, server_id: str, merchant_id: str) -> JsonPayload:
+        payload = await self._request(
+            "GET",
+            f"/server-manager/servers/{server_id}",
+            params={"user_id": merchant_id},
+        )
+        return _parse_json_payload(payload, "server source")
+
+    async def update_server_source(
+        self,
+        server_id: str,
+        *,
+        name: str,
+        description: str,
+    ) -> None:
+        await self._request(
+            "PUT",
+            f"/server-manager/servers/{server_id}",
+            json_body={"description": description, "name": name},
+            retry_read=False,
+        )
+
     async def _request(
         self,
         method: str,
@@ -280,3 +370,11 @@ def _parse_promocodes(payload: object) -> list[Promocode]:
         return [PromocodeResponse.model_validate(item).to_domain() for item in payload]
     except ValidationError as exc:
         raise DrovaUnavailable("promocodes response has unexpected shape") from exc
+
+
+def _parse_json_payload(payload: object, label: str) -> JsonPayload:
+    if isinstance(payload, dict):
+        return cast(dict[str, object], payload)
+    if isinstance(payload, list):
+        return cast(list[object], payload)
+    raise DrovaUnavailable(f"{label} response is not a JSON object or list")

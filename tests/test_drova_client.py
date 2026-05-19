@@ -150,3 +150,89 @@ async def test_get_unused_promocodes_parses_list() -> None:
         "27400125",
     ]
     assert route.calls[0].request.headers["X-Auth-Token"] == "token"
+
+
+@pytest.mark.asyncio
+async def test_next_account_read_endpoints_return_raw_payloads_and_auth_headers() -> None:
+    with respx.mock(assert_all_called=True) as router:
+        stats_route = router.get(
+            "https://services.drova.io/accounting/prepaid/prepaid_stats4merchant/user-1"
+        ).mock(return_value=httpx.Response(200, json={"minutes": 120}))
+        settlements_route = router.get(
+            "https://services.drova.io/accounting/prepaid/list4merchant/user-1"
+        ).mock(return_value=httpx.Response(200, json=[{"id": 1}]))
+        deals_route = router.get(
+            "https://services.drova.io/accounting/tinkoff/prepaid/getOpenedDeals"
+        ).mock(return_value=httpx.Response(200, json=[]))
+        usage_route = router.get(
+            "https://services.drova.io/accounting/statistics/myserverusageprepared"
+        ).mock(return_value=httpx.Response(200, json={"rows": []}))
+        async with DrovaClient(proxy_token="token") as client:
+            assert await client.get_prepaid_stats("user-1") == {"minutes": 120}
+            assert await client.get_prepaid_settlements("user-1") == [{"id": 1}]
+            assert await client.get_opened_prepaid_deals() == []
+            assert await client.get_server_usage_statistics() == {"rows": []}
+
+    for route in [stats_route, settlements_route, deals_route, usage_route]:
+        assert route.calls[0].request.headers["X-Auth-Token"] == "token"
+
+
+@pytest.mark.asyncio
+async def test_next_station_product_and_server_control_endpoints() -> None:
+    with respx.mock(assert_all_called=True) as router:
+        product_edit_route = router.get(
+            "https://services.drova.io/server-manager/serverproduct/list4edit2/station-1/product-1"
+        ).mock(return_value=httpx.Response(200, json={"launch_params": []}))
+        enabled_route = router.post(
+            "https://services.drova.io/server-manager/serverproduct/set_enabled/"
+            "station-1/product-1/false"
+        ).mock(return_value=httpx.Response(200, content=b""))
+        desktop_route = router.post(
+            "https://services.drova.io/server-manager/servers/station-1/set_allow_desktop/true"
+        ).mock(return_value=httpx.Response(200, content=b""))
+        updates_route = router.post(
+            "https://services.drova.io/server-manager/servers/station-1/set_disable_updates/true"
+        ).mock(return_value=httpx.Response(200, content=b""))
+        source_route = router.get(
+            "https://services.drova.io/server-manager/servers/station-1"
+        ).mock(return_value=httpx.Response(200, json={"name": "Station", "description": "source"}))
+        update_route = router.put("https://services.drova.io/server-manager/servers/station-1").mock(
+            return_value=httpx.Response(200, content=b"")
+        )
+        async with DrovaClient(proxy_token="token") as client:
+            assert await client.get_server_product_edit("station-1", "product-1") == {
+                "launch_params": []
+            }
+            await client.set_server_product_enabled("station-1", "product-1", False)
+            await client.set_server_allow_desktop("station-1", True)
+            await client.set_server_disable_updates("station-1", True)
+            assert await client.get_server_source("station-1", "user-1") == {
+                "name": "Station",
+                "description": "source",
+            }
+            await client.update_server_source(
+                "station-1",
+                name="Station",
+                description="source",
+            )
+
+    assert product_edit_route.calls[0].request.headers["X-Auth-Token"] == "token"
+    assert enabled_route.calls[0].request.content == b"{}"
+    assert desktop_route.calls[0].request.content == b"{}"
+    assert updates_route.calls[0].request.content == b"{}"
+    assert source_route.calls[0].request.url.params["user_id"] == "user-1"
+    assert update_route.calls[0].request.read() == b'{"description":"source","name":"Station"}'
+
+
+@pytest.mark.asyncio
+async def test_next_write_endpoints_do_not_retry_timeout() -> None:
+    with respx.mock(assert_all_called=True) as router:
+        route = router.post(
+            "https://services.drova.io/server-manager/serverproduct/set_enabled/"
+            "station-1/product-1/true"
+        ).mock(side_effect=httpx.ReadTimeout("timeout"))
+        async with DrovaClient(proxy_token="token") as client:
+            with pytest.raises(DrovaUnavailable):
+                await client.set_server_product_enabled("station-1", "product-1", True)
+
+    assert len(route.calls) == 1
