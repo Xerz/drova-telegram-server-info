@@ -89,5 +89,23 @@ The compose file mounts `./data` as the SQLite data directory and reads secrets 
 `.env`; secrets are not baked into the image. Healthcheck uses
 `python -m drova_bot.tools.healthcheck` and does not call Telegram or Drova.
 
-CI runs the normal network-free gates and verifies the Docker image builds. Live contract
-checks stay manual and opt-in.
+Published image:
+
+```bash
+docker pull ghcr.io/<owner>/<repo>:latest
+docker run --rm --env-file .env -v "$PWD/data:/data" ghcr.io/<owner>/<repo>:latest
+```
+
+For a real deployment, replace `<owner>/<repo>` with the GitHub repository path in
+lowercase. The container expects `TELEGRAM_BOT_TOKEN`, `BOT_SECRET_KEY`, and optionally
+`DATABASE_URL`; the default database URL points at `/data/drova_bot.sqlite3`.
+
+CI runs the normal network-free gates and verifies the Docker image builds. On pushes to
+`main` and `v*.*.*` tags it publishes `linux/amd64` images to GHCR as:
+
+- `latest` for `main`;
+- `sha-<shortsha>` for published commits;
+- `<major>.<minor>.<patch>` and `<major>.<minor>` for version tags.
+
+Runtime secrets stay in `.env` or the deployment environment and are never baked into the
+image. Live contract checks stay manual and opt-in.
