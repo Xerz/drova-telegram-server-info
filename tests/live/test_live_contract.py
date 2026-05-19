@@ -28,9 +28,9 @@ async def test_live_read_contracts(
     assert products
     assert len(account_sessions.sessions) <= 5
     assert isinstance(unused_promocodes, list)
-    assert isinstance(prepaid_stats, dict | list)
-    assert isinstance(prepaid_settlements, dict | list)
-    assert isinstance(opened_deals, dict | list)
+    assert prepaid_stats.merchant_id
+    assert isinstance(prepaid_settlements, list)
+    assert isinstance(opened_deals, list)
     assert isinstance(usage_statistics, dict | list)
 
     if stations:

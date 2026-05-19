@@ -13,6 +13,9 @@ from drova_bot.domain.models import (
     Account,
     CatalogProduct,
     Endpoint,
+    OpenedPrepaidDeal,
+    PrepaidSettlement,
+    PrepaidStats,
     Promocode,
     SessionPage,
     Station,
@@ -23,6 +26,9 @@ from drova_bot.drova.models import (
     AccountResponse,
     CatalogProductResponse,
     EndpointResponse,
+    OpenedPrepaidDealResponse,
+    PrepaidSettlementResponse,
+    PrepaidStatsResponse,
     PromocodeResponse,
     SessionPageResponse,
     StationProductResponse,
@@ -189,26 +195,39 @@ class DrovaClient:
         )
         return _parse_promocodes(payload)
 
-    async def get_prepaid_stats(self, merchant_id: str) -> JsonPayload:
+    async def get_prepaid_stats(self, merchant_id: str) -> PrepaidStats:
         payload = await self._request(
             "GET",
             f"/accounting/prepaid/prepaid_stats4merchant/{merchant_id}",
         )
-        return _parse_json_payload(payload, "prepaid stats")
+        try:
+            return PrepaidStatsResponse.model_validate(payload).to_domain()
+        except ValidationError as exc:
+            raise DrovaUnavailable("prepaid stats response has unexpected shape") from exc
 
-    async def get_prepaid_settlements(self, merchant_id: str) -> JsonPayload:
+    async def get_prepaid_settlements(self, merchant_id: str) -> list[PrepaidSettlement]:
         payload = await self._request(
             "GET",
             f"/accounting/prepaid/list4merchant/{merchant_id}",
         )
-        return _parse_json_payload(payload, "prepaid settlements")
+        if not isinstance(payload, list):
+            raise DrovaUnavailable("prepaid settlements response is not a list")
+        try:
+            return [PrepaidSettlementResponse.model_validate(item).to_domain() for item in payload]
+        except ValidationError as exc:
+            raise DrovaUnavailable("prepaid settlements response has unexpected shape") from exc
 
-    async def get_opened_prepaid_deals(self) -> JsonPayload:
+    async def get_opened_prepaid_deals(self) -> list[OpenedPrepaidDeal]:
         payload = await self._request(
             "GET",
             "/accounting/tinkoff/prepaid/getOpenedDeals",
         )
-        return _parse_json_payload(payload, "opened prepaid deals")
+        if not isinstance(payload, list):
+            raise DrovaUnavailable("opened prepaid deals response is not a list")
+        try:
+            return [OpenedPrepaidDealResponse.model_validate(item).to_domain() for item in payload]
+        except ValidationError as exc:
+            raise DrovaUnavailable("opened prepaid deals response has unexpected shape") from exc
 
     async def get_server_usage_statistics(self) -> JsonPayload:
         payload = await self._request(

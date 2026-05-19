@@ -19,9 +19,9 @@ async def get_server_endpoints(server_id: str, limit: int | None = None) -> list
 async def set_server_published(server_id: str, published: bool) -> None
 async def issue_promocode(minutes: int) -> list[Promocode]
 async def get_unused_promocodes() -> list[Promocode]
-async def get_prepaid_stats(merchant_id: str) -> JsonPayload
-async def get_prepaid_settlements(merchant_id: str) -> JsonPayload
-async def get_opened_prepaid_deals() -> JsonPayload
+async def get_prepaid_stats(merchant_id: str) -> PrepaidStats
+async def get_prepaid_settlements(merchant_id: str) -> list[PrepaidSettlement]
+async def get_opened_prepaid_deals() -> list[OpenedPrepaidDeal]
 async def get_server_usage_statistics() -> JsonPayload
 async def get_server_product_edit(server_id: str, product_id: str) -> JsonPayload
 async def set_server_product_enabled(server_id: str, product_id: str, enabled: bool) -> None
@@ -31,8 +31,8 @@ async def get_server_source(server_id: str, merchant_id: str) -> JsonPayload
 async def update_server_source(server_id: str, *, name: str, description: str) -> None
 ```
 
-The next-iteration methods return provisional raw JSON payloads until live sanitized
-fixtures define stable DTO shapes.
+Server statistics, server source and station-product edit methods return provisional raw JSON
+payloads until live sanitized fixtures define stable DTO shapes.
 
 ## Endpoint Mapping
 

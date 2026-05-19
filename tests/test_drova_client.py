@@ -153,26 +153,47 @@ async def test_get_unused_promocodes_parses_list() -> None:
 
 
 @pytest.mark.asyncio
-async def test_next_account_read_endpoints_return_raw_payloads_and_auth_headers() -> None:
+async def test_next_account_read_endpoints_parse_typed_payloads_and_auth_headers() -> None:
     with respx.mock(assert_all_called=True) as router:
         stats_route = router.get(
             "https://services.drova.io/accounting/prepaid/prepaid_stats4merchant/user-1"
-        ).mock(return_value=httpx.Response(200, json={"minutes": 120}))
+        ).mock(
+            return_value=httpx.Response(
+                200,
+                json=load_api_response("account_prepaid_stats.json"),
+            )
+        )
         settlements_route = router.get(
             "https://services.drova.io/accounting/prepaid/list4merchant/user-1"
-        ).mock(return_value=httpx.Response(200, json=[{"id": 1}]))
+        ).mock(
+            return_value=httpx.Response(
+                200,
+                json=load_api_response("account_prepaid_settlements.json"),
+            )
+        )
         deals_route = router.get(
             "https://services.drova.io/accounting/tinkoff/prepaid/getOpenedDeals"
-        ).mock(return_value=httpx.Response(200, json=[]))
+        ).mock(
+            return_value=httpx.Response(
+                200,
+                json=load_api_response("account_tinkoff_opened_deals.json"),
+            )
+        )
         usage_route = router.get(
             "https://services.drova.io/accounting/statistics/myserverusageprepared"
         ).mock(return_value=httpx.Response(200, json={"rows": []}))
         async with DrovaClient(proxy_token="token") as client:
-            assert await client.get_prepaid_stats("user-1") == {"minutes": 120}
-            assert await client.get_prepaid_settlements("user-1") == [{"id": 1}]
-            assert await client.get_opened_prepaid_deals() == []
+            stats = await client.get_prepaid_stats("user-1")
+            settlements = await client.get_prepaid_settlements("user-1")
+            deals = await client.get_opened_prepaid_deals()
             assert await client.get_server_usage_statistics() == {"rows": []}
 
+    assert stats.allowed_to_sell_minutes > 0
+    assert stats.balance is None
+    assert settlements[0].playtime_msecs > 0
+    assert settlements[0].created_on_ms > 0
+    assert deals[0].payout_amount is None
+    assert deals[0].gross_amount is None
     for route in [stats_route, settlements_route, deals_route, usage_route]:
         assert route.calls[0].request.headers["X-Auth-Token"] == "token"
 

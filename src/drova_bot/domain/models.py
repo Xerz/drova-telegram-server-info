@@ -95,3 +95,30 @@ class Promocode:
     expired: bool
     merchant_id: str
     playtime_msecs: int
+
+
+@dataclass(frozen=True, slots=True)
+class PrepaidStats:
+    merchant_id: str
+    allowed_to_sell_minutes: int
+    sold_minutes: int
+    used_minutes: int
+    balance: float | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class PrepaidSettlement:
+    uuid: str
+    client_id: str | None
+    created_on_ms: int
+    has_order: bool
+    playtime_msecs: int
+
+
+@dataclass(frozen=True, slots=True)
+class OpenedPrepaidDeal:
+    created_on_ms: int
+    deal_id: str | None
+    payout_amount: float | None
+    gross_amount: float | None
+    terminal_index: int | None = None

@@ -10,6 +10,9 @@ from drova_bot.domain.models import (
     Account,
     CatalogProduct,
     Endpoint,
+    OpenedPrepaidDeal,
+    PrepaidSettlement,
+    PrepaidStats,
     Promocode,
     Session,
     SessionPage,
@@ -171,4 +174,65 @@ class PromocodeResponse(DrovaApiModel):
             expired=self.expired,
             merchant_id=self.merchant_id,
             playtime_msecs=self.playtime_msecs,
+        )
+
+
+class PrepaidStatsResponse(DrovaApiModel):
+    merchant_id: str
+    allowed_to_sell_minutes: int
+    sold_minutes: int
+    used_minutes: int
+    balance: float | None = None
+
+    @field_validator("balance", mode="before")
+    @classmethod
+    def sanitize_redacted_balance(cls, value: object) -> float | None:
+        return _optional_float(value)
+
+    def to_domain(self) -> PrepaidStats:
+        return PrepaidStats(
+            merchant_id=self.merchant_id,
+            allowed_to_sell_minutes=self.allowed_to_sell_minutes,
+            sold_minutes=self.sold_minutes,
+            used_minutes=self.used_minutes,
+            balance=self.balance,
+        )
+
+
+class PrepaidSettlementResponse(DrovaApiModel):
+    uuid: str
+    client_id: str | None = None
+    created_on_ms: int = Field(alias="created_on")
+    has_order: bool
+    playtime_msecs: int
+
+    def to_domain(self) -> PrepaidSettlement:
+        return PrepaidSettlement(
+            uuid=self.uuid,
+            client_id=self.client_id,
+            created_on_ms=self.created_on_ms,
+            has_order=self.has_order,
+            playtime_msecs=self.playtime_msecs,
+        )
+
+
+class OpenedPrepaidDealResponse(DrovaApiModel):
+    created_on_ms: int = Field(alias="created_on")
+    deal_id: str | None = Field(default=None, alias="dealId")
+    payout_amount: float | None = Field(default=None, alias="payout")
+    gross_amount: float | None = Field(default=None, alias="sum")
+    terminal_index: int | None = None
+
+    @field_validator("payout_amount", "gross_amount", mode="before")
+    @classmethod
+    def sanitize_redacted_money(cls, value: object) -> float | None:
+        return _optional_float(value)
+
+    def to_domain(self) -> OpenedPrepaidDeal:
+        return OpenedPrepaidDeal(
+            created_on_ms=self.created_on_ms,
+            deal_id=self.deal_id,
+            payout_amount=self.payout_amount,
+            gross_amount=self.gross_amount,
+            terminal_index=self.terminal_index,
         )

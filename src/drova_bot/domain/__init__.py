@@ -5,6 +5,9 @@ from drova_bot.domain.models import (
     CatalogProduct,
     ChatProfile,
     Endpoint,
+    OpenedPrepaidDeal,
+    PrepaidSettlement,
+    PrepaidStats,
     Session,
     SessionPage,
     Station,
@@ -16,9 +19,11 @@ __all__ = [
     "CatalogProduct",
     "ChatProfile",
     "Endpoint",
+    "OpenedPrepaidDeal",
+    "PrepaidSettlement",
+    "PrepaidStats",
     "Session",
     "SessionPage",
     "Station",
     "StationProduct",
 ]
-
