@@ -17,6 +17,7 @@ from drova_bot.domain.models import (
     PrepaidSettlement,
     PrepaidStats,
     Promocode,
+    ServerProductEdit,
     ServerSource,
     SessionPage,
     Station,
@@ -31,6 +32,7 @@ from drova_bot.drova.models import (
     PrepaidSettlementResponse,
     PrepaidStatsResponse,
     PromocodeResponse,
+    ServerProductEditResponse,
     ServerSourceResponse,
     SessionPageResponse,
     StationProductResponse,
@@ -238,12 +240,15 @@ class DrovaClient:
         )
         return _parse_json_payload(payload, "server usage statistics")
 
-    async def get_server_product_edit(self, server_id: str, product_id: str) -> JsonPayload:
+    async def get_server_product_edit(self, server_id: str, product_id: str) -> ServerProductEdit:
         payload = await self._request(
             "GET",
             f"/server-manager/serverproduct/list4edit2/{server_id}/{product_id}",
         )
-        return _parse_json_payload(payload, "server product edit")
+        try:
+            return ServerProductEditResponse.model_validate(payload).to_domain()
+        except ValidationError as exc:
+            raise DrovaUnavailable("server product edit response has unexpected shape") from exc
 
     async def set_server_product_enabled(
         self,

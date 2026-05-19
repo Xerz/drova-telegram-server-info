@@ -42,7 +42,7 @@ async def test_live_read_contracts(
             live_settings.test_station_uuid,
             live_settings.test_product_uuid,
         )
-        assert isinstance(product_edit, dict | list)
+        assert product_edit.product_id
 
     for station in stations:
         station_sessions = await live_client.get_sessions(server_id=station.uuid, limit=5)

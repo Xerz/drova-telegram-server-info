@@ -10,10 +10,12 @@ from drova_bot.domain.models import (
     Account,
     CatalogProduct,
     Endpoint,
+    LaunchParameters,
     OpenedPrepaidDeal,
     PrepaidSettlement,
     PrepaidStats,
     Promocode,
+    ServerProductEdit,
     ServerSource,
     Session,
     SessionPage,
@@ -263,4 +265,43 @@ class ServerSourceResponse(DrovaApiModel):
             allow_desktop=self.allow_desktop,
             disable_updates=self.disable_updates,
             product_ids=self.product_ids,
+        )
+
+
+class ServerProductEditResponse(DrovaApiModel):
+    product_id: str = Field(alias="productId")
+    title: str
+    enabled: bool
+    published: bool
+    available: bool
+    verified: int | None = None
+    default_allowed_paths: str | None = Field(default=None, alias="defaultAllowedPaths")
+    default_args: str | None = Field(default=None, alias="defaultArgs")
+    default_game_path: str | None = Field(default=None, alias="defaultGamePath")
+    default_work_path: str | None = Field(default=None, alias="defaultWorkPath")
+    allowed_paths: str | None = Field(default=None, alias="allowedPaths")
+    args: str | None = None
+    game_path: str | None = Field(default=None, alias="gamePath")
+    work_path: str | None = Field(default=None, alias="workPath")
+
+    def to_domain(self) -> ServerProductEdit:
+        return ServerProductEdit(
+            product_id=self.product_id,
+            title=self.title,
+            enabled=self.enabled,
+            published=self.published,
+            available=self.available,
+            verified=self.verified,
+            default_launch=LaunchParameters(
+                allowed_paths=self.default_allowed_paths,
+                args=self.default_args,
+                game_path=self.default_game_path,
+                work_path=self.default_work_path,
+            ),
+            current_launch=LaunchParameters(
+                allowed_paths=self.allowed_paths,
+                args=self.args,
+                game_path=self.game_path,
+                work_path=self.work_path,
+            ),
         )

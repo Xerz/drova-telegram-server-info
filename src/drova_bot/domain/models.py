@@ -136,3 +136,23 @@ class ServerSource:
     allow_desktop: bool
     disable_updates: bool
     product_ids: list[str] = field(default_factory=list)
+
+
+@dataclass(frozen=True, slots=True)
+class LaunchParameters:
+    allowed_paths: str | None = None
+    args: str | None = None
+    game_path: str | None = None
+    work_path: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class ServerProductEdit:
+    product_id: str
+    title: str
+    enabled: bool
+    published: bool
+    available: bool
+    verified: int | None
+    default_launch: LaunchParameters
+    current_launch: LaunchParameters

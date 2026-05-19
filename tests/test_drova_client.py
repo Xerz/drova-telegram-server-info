@@ -203,7 +203,12 @@ async def test_next_station_product_and_server_control_endpoints() -> None:
     with respx.mock(assert_all_called=True) as router:
         product_edit_route = router.get(
             "https://services.drova.io/server-manager/serverproduct/list4edit2/station-1/product-1"
-        ).mock(return_value=httpx.Response(200, json={"launch_params": []}))
+        ).mock(
+            return_value=httpx.Response(
+                200,
+                json=load_api_response("test_station_product_edit.json"),
+            )
+        )
         enabled_route = router.post(
             "https://services.drova.io/server-manager/serverproduct/set_enabled/"
             "station-1/product-1/false"
@@ -221,9 +226,7 @@ async def test_next_station_product_and_server_control_endpoints() -> None:
             return_value=httpx.Response(200, content=b"")
         )
         async with DrovaClient(proxy_token="token") as client:
-            assert await client.get_server_product_edit("station-1", "product-1") == {
-                "launch_params": []
-            }
+            product_edit = await client.get_server_product_edit("station-1", "product-1")
             await client.set_server_product_enabled("station-1", "product-1", False)
             await client.set_server_allow_desktop("station-1", True)
             await client.set_server_disable_updates("station-1", True)
@@ -235,6 +238,11 @@ async def test_next_station_product_and_server_control_endpoints() -> None:
             )
 
     assert product_edit_route.calls[0].request.headers["X-Auth-Token"] == "token"
+    assert product_edit.product_id == "6a28acf4-cac9-4580-9428-daae5b554ae2"
+    assert product_edit.title == "Desperados III"
+    assert product_edit.default_launch.game_path is not None
+    assert product_edit.default_launch.game_path.endswith("Steam.exe")
+    assert "steam://rungameid" in (product_edit.default_launch.args or "")
     assert source.allow_desktop is False
     assert source.disable_updates is True
     assert source.product_ids
