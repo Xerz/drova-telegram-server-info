@@ -4,6 +4,7 @@ from typing import Any
 
 import pytest
 
+from scripts import sample_live_api
 from scripts.sample_live_api import DrovaSampler
 
 
@@ -102,3 +103,42 @@ def test_sampler_next_iteration_requires_test_station() -> None:
 
     with pytest.raises(RuntimeError, match="TEST_STATION_UUID"):
         sampler.sample_next_iteration_read_fixtures("merchant-1", [{"uuid": "station-2"}])
+
+
+def test_sampler_run_skips_writes_unless_enabled(monkeypatch: pytest.MonkeyPatch) -> None:
+    sampler = DrovaSampler({"DROVA_PROXY_TOKEN": "token", "TEST_STATION_UUID": "station-1"})
+    write_flows: list[tuple[list[dict[str, Any]], str]] = []
+
+    def fake_request(
+        label: str,
+        method: str,
+        path: str,
+        *,
+        params: dict[str, Any] | None = None,
+        json_body: dict[str, Any] | None = None,
+        auth: bool = True,
+    ) -> tuple[Any, int]:
+        del method, path, params, json_body, auth
+        if label == "account":
+            return {"uuid": "merchant-1"}, 200
+        if label == "servers":
+            return [{"uuid": "station-1", "published": True}], 200
+        return [], 200
+
+    def fake_write_flow(servers: list[dict[str, Any]], user_id: str) -> None:
+        write_flows.append((servers, user_id))
+
+    monkeypatch.setattr(sampler, "request", fake_request)
+    monkeypatch.setattr(sampler, "sample_publish_write_flow", fake_write_flow)
+    monkeypatch.setattr(sample_live_api, "write_json", lambda path, payload: None)
+
+    sampler.run()
+    assert write_flows == []
+
+    sampler.run(include_writes=True)
+    assert write_flows == [([{"uuid": "station-1", "published": True}], "merchant-1")]
+
+
+def test_sampler_cli_requires_explicit_write_flag() -> None:
+    assert sample_live_api.parse_args([]).include_writes is False
+    assert sample_live_api.parse_args(["--include-writes"]).include_writes is True

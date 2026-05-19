@@ -13,6 +13,7 @@ import os
 import re
 import sys
 import time
+from argparse import ArgumentParser, Namespace
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
@@ -288,7 +289,7 @@ class DrovaSampler:
             return True
         return False
 
-    def run(self) -> None:
+    def run(self, *, include_writes: bool = False) -> None:
         account, status = self.request("account", "GET", "/accounting/myaccount")
         if status == 401:
             print("account returned 401; attempting token renewal")
@@ -363,7 +364,8 @@ class DrovaSampler:
             require_status(f"{suffix}_endpoints_limit_5", status, 200)
 
         self.sample_next_iteration_read_fixtures(user_id, servers)
-        self.sample_publish_write_flow(servers, user_id)
+        if include_writes:
+            self.sample_publish_write_flow(servers, user_id)
         write_json(FIXTURE_DIR / "schema-summary.json", self.schema_summary)
         write_json(FIXTURE_DIR / "sampling-report.json", {"requests": self.summary})
 
@@ -495,7 +497,18 @@ def write_json(path: Path, payload: Any) -> None:
     )
 
 
-def main() -> int:
+def parse_args(argv: List[str] | None = None) -> Namespace:
+    parser = ArgumentParser(description="Collect sanitized Drova API fixtures")
+    parser.add_argument(
+        "--include-writes",
+        action="store_true",
+        help="also run TEST_STATION_UUID write/rollback fixture flows",
+    )
+    return parser.parse_args(argv)
+
+
+def main(argv: List[str] | None = None) -> int:
+    args = parse_args(argv)
     env = load_env_file(ENV_PATH)
     for key, value in env.items():
         if value:
@@ -507,9 +520,11 @@ def main() -> int:
         return 2
 
     sampler = DrovaSampler(env)
-    sampler.run()
+    sampler.run(include_writes=bool(args.include_writes))
     print(f"wrote sanitized fixtures to {FIXTURE_DIR}")
     print(f"wrote raw fixtures to ignored directory {RAW_DIR}")
+    if not args.include_writes:
+        print("write/rollback fixture sampling was skipped; pass --include-writes to enable it")
     return 0
 
 

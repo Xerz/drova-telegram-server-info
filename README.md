@@ -45,7 +45,12 @@ python3 scripts/sample_live_api.py
 ```
 
 The sampler requires `DROVA_PROXY_TOKEN` and `TEST_STATION_UUID`. Set `TEST_PRODUCT_UUID`
-when sampling the next station-product edit fixture.
+when sampling the next station-product edit fixture. Write/rollback fixtures are skipped
+by default; enable them only when intentionally touching the test station:
+
+```bash
+python3 scripts/sample_live_api.py --include-writes
+```
 
 ## Runtime
 
