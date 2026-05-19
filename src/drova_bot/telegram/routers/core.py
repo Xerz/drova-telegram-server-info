@@ -367,7 +367,10 @@ async def callback_query(callback: CallbackQuery, bot_service: BotService) -> No
     except InvalidCallbackData:
         rendered = render_error("unknown_command")
     await edit_or_answer_rendered(callback, rendered)
-    await callback.answer()
+    if rendered.toast:
+        await callback.answer(rendered.toast)
+    else:
+        await callback.answer()
 
 
 async def unknown_command(message: Message) -> None:

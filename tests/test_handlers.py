@@ -482,6 +482,15 @@ def test_callback_payloads_fit_telegram_limit_and_parse_legacy_format() -> None:
     assert parsed_product.action == "game_select"
     assert parsed_product.product_id == product_uuid
     assert parsed_product.page == 3
+    hide_all_confirm_payload = CallbackSpec(
+        action="game_hide_all_confirm",
+        product_id=product_uuid,
+        page=3,
+    ).pack()
+    assert len(hide_all_confirm_payload.encode("utf-8")) <= 64
+    parsed_confirm = parse_callback_data(hide_all_confirm_payload)
+    assert parsed_confirm.action == "game_hide_all_confirm"
+    assert parsed_confirm.product_id == product_uuid
 
     legacy = f"publish_select|station={station_uuid}|published=1"
     parsed_legacy = parse_callback_data(legacy)
@@ -505,6 +514,22 @@ async def test_callback_handler_parses_payload_and_answers() -> None:
     assert service.calls[0][0] == "handle_callback"
     assert callback.message.edits[0][0] == "callback"
     assert callback.answers
+
+
+@pytest.mark.asyncio
+async def test_callback_handler_uses_rendered_toast() -> None:
+    class ToastService(FakeService):
+        async def handle_callback(self, chat_id: int, callback: object) -> RenderedMessage:
+            self.calls.append(("handle_callback", (chat_id, callback), {}))
+            return RenderedMessage("callback", toast="Игра скрыта.")
+
+    service = ToastService()
+    callback = FakeCallback(CallbackSpec(action="game_hide", product_id="product-a").pack())
+
+    await callback_query(cast(CallbackQuery, callback), service)  # type: ignore[arg-type]
+
+    assert callback.message.edits[0][0] == "callback"
+    assert callback.answers == [{"args": ("Игра скрыта.",), "kwargs": {}}]
 
 
 @pytest.mark.asyncio

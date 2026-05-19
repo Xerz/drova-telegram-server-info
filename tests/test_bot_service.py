@@ -859,6 +859,7 @@ async def test_game_commands_use_selected_station_without_callback_uuid_pairs(
             game_client,
             game_client,
             game_client,
+            game_client,
         ),
     )
     await service.connect_token(10001, "token")
@@ -883,9 +884,15 @@ async def test_game_commands_use_selected_station_without_callback_uuid_pairs(
         10001,
         parse_callback_data(CallbackSpec(action="game_show", product_id="product-a").pack()),
     )
-    hidden_all = await service.handle_callback(
+    hide_all_confirmation = await service.handle_callback(
         10001,
         parse_callback_data(CallbackSpec(action="game_hide_all", product_id="product-b").pack()),
+    )
+    hidden_all = await service.handle_callback(
+        10001,
+        parse_callback_data(
+            CallbackSpec(action="game_hide_all_confirm", product_id="product-b").pack()
+        ),
     )
 
     assert "Игры станции Alpha Station" in games.text
@@ -894,8 +901,16 @@ async def test_game_commands_use_selected_station_without_callback_uuid_pairs(
     assert games.keyboard.rows[0][0].text == "✅ Cyber Rally"
     assert "Игры станции Alpha Station" in page.text
     assert "Путь: <code>C:\\Steam\\Steam.exe</code>" in detail.text
-    assert "Игра скрыта: <b>Cyber Rally</b>" in hidden.text
-    assert "Игра открыта: <b>Cyber Rally</b>" in opened.text
+    assert "Статус: отключена · опубликована · доступна" in hidden.text
+    assert hidden.keyboard is not None
+    assert hidden.keyboard.rows[0][0].text == "Открыть на станции"
+    assert hidden.toast == "Игра скрыта."
+    assert "Статус: включена · опубликована · доступна" in opened.text
+    assert opened.keyboard is not None
+    assert opened.keyboard.rows[0][0].text == "Скрыть на станции"
+    assert opened.toast == "Игра открыта."
+    assert "Скрыть игру на всех станциях?" in hide_all_confirmation.text
+    assert hide_all_confirmation.keyboard is not None
     assert "Обновлено станций: 3" in hidden_all.text
     assert game_client.product_enabled_calls == [
         ("station-online", "product-a", False),

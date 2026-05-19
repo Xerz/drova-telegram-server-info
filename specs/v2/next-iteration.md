@@ -111,8 +111,11 @@ UX requirements:
   by human-readable game title, not product-id-first commands.
 - Each page shows no more than 10 games; callbacks may carry one product id only and
   must not carry both station id and product id.
-- Hide/show a game on one station via inline button and confirmation.
+- Hide/show a game on one station via inline button without confirmation.
 - Hide a game on all stations via a separate confirmation flow.
+- Hide/show on one station updates the current game panel in place and reports
+  success through callback toast text.
+- Hide on all stations requires an explicit confirmation callback before writes.
 - "Hide on all stations" must run per-station writes with partial-failure reporting; do not
   pretend the operation is atomic.
 - Write operations must reread affected station product state before rendering success.

@@ -30,6 +30,8 @@ ACTION_ALIASES = {
     "game_hide": "gh",
     "game_show": "gw",
     "game_hide_all": "ga",
+    "game_hide_all_prompt": "gt",
+    "game_hide_all_confirm": "gc",
 }
 ACTION_BY_ALIAS = {alias: action for action, alias in ACTION_ALIASES.items()}
 KEY_ALIASES = {

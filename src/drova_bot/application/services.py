@@ -32,6 +32,7 @@ from drova_bot.telegram.renderers import (
     render_disabled,
     render_error,
     render_game_enabled_result,
+    render_game_hide_all_confirmation,
     render_promocode_issued,
     render_publish_confirmation,
     render_server_control_confirmation,
@@ -447,6 +448,8 @@ class BotService:
         raw_product_id: str | None,
         *,
         enabled: bool,
+        page: int = 0,
+        render_panel: bool = False,
     ) -> RenderedMessage:
         product_id = _parse_product_id(raw_product_id)
         if product_id is None:
@@ -462,12 +465,49 @@ class BotService:
             station = context
             await client.set_server_product_enabled(station.uuid, product_id, enabled)
             product = await client.get_server_product_edit(station.uuid, product_id)
+            if render_panel:
+                toast = "Игра открыта." if enabled else "Игра скрыта."
+                rendered = render_station_game_detail(station, product, page=page)
+                return RenderedMessage(
+                    rendered.text,
+                    rendered.keyboard,
+                    rendered.parse_mode,
+                    toast,
+                )
             return render_game_enabled_result(
                 product_title=product.title,
                 product_id=product.product_id,
                 enabled=enabled,
                 updated_station_names=[station.name],
             )
+        except (DrovaUnauthorized, DrovaPermissionDenied):
+            return render_error("drova_unauthorized")
+        except DrovaUnavailable:
+            return render_error("drova_unavailable")
+        finally:
+            await client.aclose()
+
+    async def hide_game_all_confirmation(
+        self,
+        telegram_chat_id: int,
+        raw_product_id: str | None,
+        *,
+        page: int = 0,
+    ) -> RenderedMessage:
+        product_id = _parse_product_id(raw_product_id)
+        if product_id is None:
+            return render_error("invalid_product_id")
+        loaded = await self._load_client(telegram_chat_id)
+        if loaded is None:
+            return render_error("not_connected")
+        profile, client = loaded
+        try:
+            context = await self._selected_station_context(telegram_chat_id, profile, client)
+            if isinstance(context, RenderedMessage):
+                return context
+            station = context
+            product = await client.get_server_product_edit(station.uuid, product_id)
+            return render_game_hide_all_confirmation(station, product, page=page)
         except (DrovaUnauthorized, DrovaPermissionDenied):
             return render_error("drova_unauthorized")
         except DrovaUnavailable:
@@ -856,14 +896,24 @@ class BotService:
                 telegram_chat_id,
                 callback.product_id,
                 enabled=False,
+                page=callback.page or 0,
+                render_panel=True,
             )
         if callback.action == "game_show":
             return await self.set_station_game_enabled(
                 telegram_chat_id,
                 callback.product_id,
                 enabled=True,
+                page=callback.page or 0,
+                render_panel=True,
             )
-        if callback.action == "game_hide_all":
+        if callback.action in {"game_hide_all", "game_hide_all_prompt"}:
+            return await self.hide_game_all_confirmation(
+                telegram_chat_id,
+                callback.product_id,
+                page=callback.page or 0,
+            )
+        if callback.action == "game_hide_all_confirm":
             return await self.hide_game_all(telegram_chat_id, callback.product_id)
         return render_error("unknown_command")
 

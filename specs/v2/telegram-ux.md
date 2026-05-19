@@ -108,6 +108,12 @@
   default and override values.
 - The selected-game panel has buttons to hide/show the game on the selected station,
   hide the game on all stations, and return to the paginated list.
+- Hide/show on the selected station updates the same selected-game panel in place:
+  the status line and primary button change, and the short success text is shown as
+  a Telegram toast instead of replacing the panel with a separate result message.
+- Hide on all stations is dangerous enough to require an explicit confirmation panel;
+  only the confirmation action performs writes and may replace the panel with a
+  summary message.
 - Game callbacks may carry one product id only; station id comes from the chat's
   selected station, and callbacks never carry tokens.
 - `/game <product_id>`, `/game_hide <product_id>`, `/game_show <product_id>`,

@@ -54,6 +54,7 @@ class RenderedMessage:
     text: str
     keyboard: KeyboardSpec | None = None
     parse_mode: str = "HTML"
+    toast: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -573,7 +574,7 @@ def render_station_game_detail(
                 ButtonSpec(
                     "Скрыть на всех станциях",
                     CallbackSpec(
-                        action="game_hide_all",
+                        action="game_hide_all_prompt",
                         product_id=product.product_id,
                         page=page,
                     ).pack(),
@@ -588,6 +589,45 @@ def render_station_game_detail(
         ]
     )
     return RenderedMessage("\n".join(lines), keyboard)
+
+
+def render_game_hide_all_confirmation(
+    station: Station,
+    product: ServerProductEdit,
+    *,
+    page: int = 0,
+) -> RenderedMessage:
+    keyboard = KeyboardSpec(
+        [
+            [
+                ButtonSpec(
+                    "Да, скрыть на всех",
+                    CallbackSpec(
+                        action="game_hide_all_confirm",
+                        product_id=product.product_id,
+                        page=page,
+                    ).pack(),
+                )
+            ],
+            [
+                ButtonSpec(
+                    "Отмена",
+                    CallbackSpec(
+                        action="game_select",
+                        product_id=product.product_id,
+                        page=page,
+                    ).pack(),
+                )
+            ],
+        ]
+    )
+    return RenderedMessage(
+        "Скрыть игру на всех станциях?\n"
+        f"<b>{html_escape(product.title)}</b>\n"
+        f"Текущая станция: {html_escape(station.name)}\n\n"
+        "Действие применится ко всем станциям аккаунта.",
+        keyboard,
+    )
 
 
 def render_game_enabled_result(

@@ -27,6 +27,7 @@ from drova_bot.telegram.renderers import (
     render_disabled,
     render_error,
     render_game_enabled_result,
+    render_game_hide_all_confirmation,
     render_help,
     render_promocode_issued,
     render_server_control_confirmation,
@@ -233,6 +234,11 @@ def test_game_management_renderers_are_command_friendly(
     assert detail.keyboard.rows[0][0].text == "Скрыть на станции"
     assert parse_callback_data(detail.keyboard.rows[0][0].callback_data).action == "game_hide"
     assert parse_callback_data(detail.keyboard.rows[0][0].callback_data).product_id == "product-a"
+    assert detail.keyboard.rows[1][0].text == "Скрыть на всех станциях"
+    assert (
+        parse_callback_data(detail.keyboard.rows[1][0].callback_data).action
+        == "game_hide_all_prompt"
+    )
 
     result = render_game_enabled_result(
         product_title="Space Farm",
@@ -244,6 +250,38 @@ def test_game_management_renderers_are_command_friendly(
     assert "Игра скрыта: <b>Space Farm</b>" in result.text
     assert "Обновлено станций: 2" in result.text
     assert "Ошибки: Beta Test Station" in result.text
+
+
+def test_game_hide_all_confirmation_requires_explicit_confirm(
+    ui_stations: list[Station],
+) -> None:
+    confirmation = render_game_hide_all_confirmation(
+        ui_stations[0],
+        ServerProductEdit(
+            product_id="product-a",
+            title="Cyber Rally",
+            enabled=True,
+            published=True,
+            available=True,
+            verified=2,
+            default_launch=LaunchParameters(),
+            current_launch=LaunchParameters(),
+        ),
+        page=2,
+    )
+
+    assert "Скрыть игру на всех станциях?" in confirmation.text
+    assert "<b>Cyber Rally</b>" in confirmation.text
+    assert confirmation.keyboard is not None
+    assert confirmation.keyboard.rows[0][0].text == "Да, скрыть на всех"
+    confirm = parse_callback_data(confirmation.keyboard.rows[0][0].callback_data)
+    assert confirm.action == "game_hide_all_confirm"
+    assert confirm.product_id == "product-a"
+    assert confirm.page == 2
+    cancel = parse_callback_data(confirmation.keyboard.rows[1][0].callback_data)
+    assert cancel.action == "game_select"
+    assert cancel.product_id == "product-a"
+    assert cancel.page == 2
 
 
 def test_station_games_renderer_paginates_large_lists(ui_stations: list[Station]) -> None:
