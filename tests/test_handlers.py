@@ -15,17 +15,22 @@ from drova_bot.telegram.renderers import RenderedMessage
 from drova_bot.telegram.routers import build_router
 from drova_bot.telegram.routers.core import (
     callback_query,
+    current_command,
     deliver_export_job,
+    disabled_command,
     export_command,
     export_kind_from_message,
+    help_command,
     limit_command,
     logout_command,
     promocode_command,
     promocodes_command,
     sessions_command,
     sessions_short_command,
+    start_command,
     station_all_command,
     station_command,
+    stations_command,
     token_command,
     unknown_command,
     unknown_text,
@@ -95,6 +100,10 @@ class FakeService:
     def __init__(self) -> None:
         self.calls: list[tuple[str, tuple[Any, ...], dict[str, Any]]] = []
 
+    async def start(self, chat_id: int) -> RenderedMessage:
+        self.calls.append(("start", (chat_id,), {}))
+        return RenderedMessage("start")
+
     async def connect_token(self, chat_id: int, token: str) -> RenderedMessage:
         self.calls.append(("connect_token", (chat_id, token), {}))
         return RenderedMessage(f"token:{token}")
@@ -118,6 +127,18 @@ class FakeService:
     async def sessions(self, chat_id: int, *, short_mode: bool = False) -> RenderedMessage:
         self.calls.append(("sessions", (chat_id,), {"short_mode": short_mode}))
         return RenderedMessage(f"sessions:{short_mode}")
+
+    async def current(self, chat_id: int) -> RenderedMessage:
+        self.calls.append(("current", (chat_id,), {}))
+        return RenderedMessage("current")
+
+    async def disabled(self, chat_id: int) -> RenderedMessage:
+        self.calls.append(("disabled", (chat_id,), {}))
+        return RenderedMessage("disabled")
+
+    async def stations(self, chat_id: int) -> RenderedMessage:
+        self.calls.append(("stations", (chat_id,), {}))
+        return RenderedMessage("stations")
 
     async def issue_promocode(self, chat_id: int, raw_minutes: str) -> RenderedMessage:
         self.calls.append(("issue_promocode", (chat_id, raw_minutes), {}))
@@ -173,6 +194,34 @@ class FakeExportJob:
 def test_build_router_exposes_aiogram_router() -> None:
     router = build_router()
     assert router.name == "drova_bot_core"
+
+
+@pytest.mark.asyncio
+async def test_basic_command_handlers_route_to_service_or_help() -> None:
+    service = FakeService()
+    start_message = FakeMessage("/start")
+    help_message = FakeMessage("/help")
+    current_message = FakeMessage("/current")
+    disabled_message = FakeMessage("/disabled")
+    stations_message = FakeMessage("/stations")
+
+    await start_command(cast(Message, start_message), service)  # type: ignore[arg-type]
+    await help_command(cast(Message, help_message))
+    await current_command(cast(Message, current_message), service)  # type: ignore[arg-type]
+    await disabled_command(cast(Message, disabled_message), service)  # type: ignore[arg-type]
+    await stations_command(cast(Message, stations_message), service)  # type: ignore[arg-type]
+
+    assert service.calls == [
+        ("start", (10001,), {}),
+        ("current", (10001,), {}),
+        ("disabled", (10001,), {}),
+        ("stations", (10001,), {}),
+    ]
+    assert start_message.answers[0][0] == "start"
+    assert "Команды:" in help_message.answers[0][0]
+    assert current_message.answers[0][0] == "current"
+    assert disabled_message.answers[0][0] == "disabled"
+    assert stations_message.answers[0][0] == "stations"
 
 
 @pytest.mark.asyncio
