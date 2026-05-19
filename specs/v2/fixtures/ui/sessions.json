@@ -1,0 +1,43 @@
+{
+  "sessions": [
+    {
+      "uuid": "session-3",
+      "server_id": "station-busy",
+      "merchant_id": "user-1",
+      "product_id": "product-b",
+      "client_id": "client-abcdef",
+      "creator_ip": "198.51.100.30",
+      "created_on": 1779104400000,
+      "finished_on": null,
+      "billing_type": "trial",
+      "status": "ACTIVE",
+      "score_text": null
+    },
+    {
+      "uuid": "session-2",
+      "server_id": "station-online",
+      "merchant_id": "user-1",
+      "product_id": "product-a",
+      "client_id": "client-222222",
+      "creator_ip": "203.0.113.20",
+      "created_on": 1779102000000,
+      "finished_on": 1779102600000,
+      "billing_type": "prepaid",
+      "status": "FINISHED",
+      "score_text": "ok"
+    },
+    {
+      "uuid": "session-1",
+      "server_id": "station-online",
+      "merchant_id": "user-1",
+      "product_id": "product-c",
+      "client_id": "client-111111",
+      "creator_ip": "203.0.113.10",
+      "created_on": 1779015600000,
+      "finished_on": 1779015720000,
+      "billing_type": "subscription",
+      "status": "FINISHED",
+      "score_text": null
+    }
+  ]
+}

@@ -1,0 +1,38 @@
+{
+  "elapsed_ms": 53.6,
+  "label": "test_station_source",
+  "method": "GET",
+  "params": {
+    "user_id": "<user_id:1>"
+  },
+  "path": "/server-manager/servers/<uuid:955>",
+  "response": {
+    "alive_since": null,
+    "allow_desktop": false,
+    "city_name": null,
+    "created_on": 1779108463455,
+    "deleted": false,
+    "description": "<description:redacted>",
+    "disable_updates": true,
+    "distance": null,
+    "groups_list": [],
+    "last_heartbeat": 0,
+    "latitude": "<latitude:redacted>",
+    "longitude": "<longitude:redacted>",
+    "name": "<name:redacted>",
+    "options_mask": 0,
+    "product_id": null,
+    "product_list": [
+      "<uuid:785>",
+      "<uuid:504>",
+      "<uuid:401>"
+    ],
+    "published": false,
+    "session_id": null,
+    "state": "UNVERIFIED",
+    "user_id": "<user_id:1>",
+    "uuid": "<uuid:3>",
+    "verified": "READY"
+  },
+  "status": 200
+}

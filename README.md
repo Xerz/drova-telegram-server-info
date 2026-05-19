@@ -1,264 +1,111 @@
-# Telegram Drova Session Manager Bot
+# Drova Telegram Bot V2
 
-Telegram-бот для владельцев станций Drova. Бот работает через API Drova, хранит пользовательский `X-Auth-Token` и позволяет смотреть сессии, получать краткую сводку по станциям и выгружать данные в файлы.
+New implementation scaffold for the Drova Telegram bot. The product source of truth is
+`specs/v2`; production code lives under `src/drova_bot`.
 
-Поддержать авторов: Xerz и dreamer2
+## Local Workflow
 
-## Что умеет бот
-
-- сохраняет `X-Auth-Token` для Telegram-чата;
-- показывает последние сессии по выбранной станции или по всем станциям;
-- выводит краткий список станций и последних сессий командой `/current`;
-- позволяет переключать публикацию станции из интерфейса `/current`;
-- показывает отключенные игры и список станций с адресами;
-- выгружает данные по сессиям и установленным продуктам в `csv` и `xlsx`.
-
-## Актуальные требования
-
-- Python `3.12` рекомендуется для локального запуска;
-- Docker-образ проекта собирается на `python:3.12-slim`;
-- зависимости описаны в `requirements.txt`:
-  - `python-telegram-bot>=21.0,<22.0`
-  - `requests`
-  - `geoip2`
-  - `openpyxl`
-  - `python-dotenv`
-
-При старте бот пытается загрузить базы `GeoLite2-City.mmdb` и `GeoLite2-ASN.mmdb`, если их нет рядом с проектом. Если среда не имеет доступа в интернет, эти файлы можно положить в корень репозитория заранее.
-
-## Переменные окружения
-
-Обязательная:
-
-- `TELEGRAM_BOT_TOKEN` — токен бота из [BotFather](https://core.telegram.org/bots#6-botfather).
-
-Опциональные:
-
-- `HTTP_PROXY` — прокси для исходящих HTTP-запросов;
-- `HTTPS_PROXY` — прокси для исходящих HTTPS-запросов;
-- `LOG_LEVEL` — уровень логирования, по умолчанию `INFO`.
-- `TELEGRAM_CONNECT_TIMEOUT` — таймаут соединения к Telegram API, по умолчанию `15`;
-- `TELEGRAM_READ_TIMEOUT` — таймаут чтения ответа Telegram API, по умолчанию `30`;
-- `TELEGRAM_WRITE_TIMEOUT` — таймаут записи запроса Telegram API, по умолчанию `30`;
-- `TELEGRAM_POOL_TIMEOUT` — таймаут ожидания соединения из пула `httpx`, по умолчанию `15`;
-- `TELEGRAM_GET_UPDATES_TIMEOUT` — long polling timeout для `getUpdates`, по умолчанию `30`;
-- `TELEGRAM_BOOTSTRAP_RETRIES` — количество повторных попыток только на этапе старта polling, по умолчанию `0`.
-
-Для локального запуска `.env` подхватывается автоматически через `python-dotenv`. В docker-сценарии контейнер `bot` получает `HTTP_PROXY` и `HTTPS_PROXY` не из `.env`, а из `docker-compose.yml`: оба значения указывают на внутренний сервис `xray`.
-
-## Локальный запуск
-
-1. Склонируйте репозиторий.
-2. Создайте и активируйте виртуальное окружение.
-3. Установите зависимости.
-4. Скопируйте `.env.example` в `.env` и заполните `TELEGRAM_BOT_TOKEN`.
-5. Запустите бота.
-
-Пример для Linux/macOS:
+This project uses `uv` with Python 3.12+:
 
 ```bash
-python3.12 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-cp .env.example .env
-python bot.py
+python3 -m uv run pytest
+python3 -m uv run ruff check
+python3 -m uv run mypy src tests
 ```
 
-Пример для Windows PowerShell:
+Live Drova checks are opt-in and use `.env.specing`. Normal unit tests must not require
+network access or real tokens.
 
-```powershell
-py -3.12 -m venv .venv
-.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-Copy-Item .env.example .env
-python .\bot.py
-```
+## Live Contract Checks
 
-Для Windows также можно использовать `startbot.cmd`, предварительно заменив в нём `REPLACE-TO-YOUR-TELEGRAM-BOT-TOKEN` на реальный токен.
+Live checks use the V2 `DrovaClient` against real Drova endpoints and are skipped unless
+explicitly enabled. Put secrets only in `.env.specing`; it is ignored by git.
+Read-only checks include account, products, stations, sessions, endpoints, station products
+and unused promocodes.
 
-## Запуск через Docker
-
-В репозитории уже есть `Dockerfile` и `docker-compose.yml`. Основной сценарий запуска — через `docker compose`.
-
-1. Подготовьте `.env`:
+Read-only checks:
 
 ```bash
-cp .env.example .env
+python3 -m uv run pytest tests/live --run-live
 ```
 
-2. Укажите в `.env` минимум `TELEGRAM_BOT_TOKEN`. При необходимости добавьте `LOG_LEVEL`.
-
-Пример:
-
-```dotenv
-TELEGRAM_BOT_TOKEN=123456:replace-with-real-token
-LOG_LEVEL=INFO
-TELEGRAM_CONNECT_TIMEOUT=15
-TELEGRAM_READ_TIMEOUT=30
-TELEGRAM_WRITE_TIMEOUT=30
-TELEGRAM_POOL_TIMEOUT=15
-TELEGRAM_GET_UPDATES_TIMEOUT=30
-```
-
-3. Подготовьте рабочий конфиг Xray. В каталоге `xray-config` есть два шаблона:
-
-- `config.json.example-vless` — весь трафик `bot` идёт через `mixed -> vless`;
-- `config.json.example-direct` — весь трафик `bot` идёт через `mixed -> direct`, без удалённого прокси; удобно для быстрой проверки связки `bot -> xray`.
-
-Если нужен VLESS-маршрут, скопируйте шаблон и заполните параметры сервера:
+Write checks for publish and station-product enabled toggles:
 
 ```bash
-cp xray-config/config.json.example-vless xray-config/config.json
+python3 -m uv run pytest tests/live --run-live --run-live-write
 ```
 
-Далее замените шаблонные значения на параметры вашего VLESS-сервера:
+Write checks only target `TEST_STATION_UUID`, verify the toggled state, and roll back
+in `finally`. For the station-product enabled toggle, set `TEST_PRODUCT_UUID` to force a
+specific game; otherwise the test uses the first product returned for `TEST_STATION_UUID`.
 
-- `address` — адрес сервера;
-- `port` — порт VLESS;
-- `id` — UUID клиента;
-- `serverName` — SNI / домен TLS;
-- при необходимости адаптируйте `streamSettings`, если на сервере используется не `tcp + tls`, а, например, `ws`, `grpc` или `reality`.
-
-Если нужен прямой выход без VLESS, используйте:
+Fixture sampling for spec work also uses `.env.specing`:
 
 ```bash
-cp xray-config/config.json.example-direct xray-config/config.json
+python3 scripts/sample_live_api.py
 ```
 
-Текущий пример настроен как клиент `mixed -> vless`:
-
-- `xray` слушает внутренний mixed proxy на `0.0.0.0:10808`;
-- порт `10808` доступен только другим сервисам compose через `expose`, наружу он не публикуется;
-- контейнер `bot` использует этот proxy через `HTTP_PROXY=http://xray:10808` и `HTTPS_PROXY=http://xray:10808`.
-
-4. Соберите и запустите контейнеры:
+The sampler requires `DROVA_PROXY_TOKEN` and `TEST_STATION_UUID`. Set `TEST_PRODUCT_UUID`
+when sampling a specific station-product edit fixture. Write/rollback fixtures are skipped
+by default; enable them only when intentionally touching the test station:
 
 ```bash
-docker compose up --build -d
+python3 scripts/sample_live_api.py --include-writes
 ```
 
-5. Посмотрите логи:
+## Runtime
+
+Create `.env` from `.env.example` and set `TELEGRAM_BOT_TOKEN` plus a Fernet
+`BOT_SECRET_KEY`. A key can be generated with:
 
 ```bash
-docker compose logs -f xray bot
+python3 -m uv run python -c "from drova_bot.storage import TokenEncryptor; print(TokenEncryptor.generate_key())"
 ```
 
-6. Остановите контейнеры:
+Run locally:
 
 ```bash
-docker compose down
+python3 -m uv run drova-bot
 ```
 
-Что важно знать про текущую docker-конфигурацию:
+Startup validates required env, runs packaged Alembic migrations, registers Telegram
+commands, wires storage/application services into aiogram, and starts polling.
 
-- compose-манифест монтирует весь репозиторий в контейнер как `./:/app`;
-- папка `xray-config` монтируется в контейнер `xray` как `/etc/xray`;
-- файл `persistentData.json` хранит токены, выбранные станции и лимиты и сохраняется на хосте;
-- кэш `products.json` и базы `GeoLite2-*.mmdb` тоже остаются в рабочей директории проекта;
-- изменения в исходниках сразу видны контейнеру из-за bind mount;
-- перед запуском в `xray-config` должен существовать файл `config.json`; его удобно создавать копированием одного из шаблонов `config.json.example-*`;
-- если `xray-config/config.json` собран из VLESS-шаблона, но оставлен с шаблонными значениями, контейнер `xray` стартует, но трафик бота через такой VLESS-маршрут работать не будет;
-- после изменения зависимостей или `Dockerfile` контейнер нужно пересобрать через `docker compose up --build`.
+GeoLite lookup is optional and local-only. Put these files next to the bot process, or
+override `GEOLITE_CITY_DB` / `GEOLITE_ASN_DB`:
 
-Если у вас старая версия Docker Compose, вместо `docker compose` используйте `docker-compose`.
-
-## Доступные команды
-
-1. `/start`
-
-Показывает краткую справку по основным командам.
-
-2. `/token ваш_токен`
-
-Сохраняет `X-Auth-Token`. Токен можно получить на странице "Мои сервера", считав QR-код для авторизации в мобильном приложении. Не отправляйте токен в непроверенные боты: он даёт доступ к вашему аккаунту.
-
-3. `/removeToken`
-
-Удаляет сохранённый токен из хранилища бота.
-
-4. `/station`
-
-Показывает список доступных станций и даёт выбрать активную станцию кнопкой.
-
-5. `/station id_станции`
-
-Устанавливает станцию вручную по её ID.
-
-6. `/sessions`
-
-Показывает последние сессии по выбранной станции или по всем станциям.
-
-7. `/sessions short`
-
-Показывает только сессии длиннее пяти минут.
-
-8. `/limit число`
-
-Меняет количество сессий в выдаче. По умолчанию используется `5`.
-
-9. `/current`
-
-Показывает краткий список станций и последних сессий. В сообщении доступны кнопки `Update` и `Show Publication Buttons`, через которые можно обновить список и переключать публикацию станций.
-
-10. `/disabled`
-
-Показывает по станциям список отключенных игр.
-
-11. `/stationsInfo`
-
-Выводит список станций с адресами.
-
-12. `/dumpall`
-
-Экспортирует последние `1000` сессий каждой станции отдельными файлами.
-
-13. `/dumpOnefile`
-
-Экспортирует последние `1000` сессий каждой станции одним `xlsx`-файлом.
-
-14. `/dumpStationsProducts`
-
-Экспортирует список станций и установленных на них продуктов.
-
-15. `/dumpStationsProductsWithTime`
-
-Экспортирует список станций и установленных на них продуктов со временем.
-
-16. `/dumpStationsProductsMonth`
-
-Экспортирует список станций и установленных на них продуктов со временем за месяц.
-
-## Подсказки для BotFather
-
-Если хотите добавить меню команд через `/setcommands`, можно использовать такой список:
-
-```text
-start - краткая справка по боту
-token - установить токен из QR-кода личного кабинета мерчанта
-removetoken - удалить токен пользователя из бота
-current - краткий список последних сессий по всем станциям
-disabled - список отключенного на станции
-station - выбор станции из списка или ручным вводом её id
-stationsinfo - список станций с их адресами
-limit - смена ограничения на вывод сессий
-sessions - просмотр сессий со всех или с выбранной станции
-dumpall - экспорт сессий по серверам
-dumponefile - экспорт сессий одним файлом
-dumpstationsproducts - экспорт списка установленного на станциях
-dumpstationsproductswithtime - экспорт списка установленного на станциях со временем
-dumpstationsproductsmonth - экспорт списка установленного на станциях со временем за месяц
+```bash
+curl -L -o GeoLite2-City.mmdb https://github.com/P3TERX/GeoLite.mmdb/raw/download/GeoLite2-City.mmdb
+curl -L -o GeoLite2-ASN.mmdb https://github.com/P3TERX/GeoLite.mmdb/raw/download/GeoLite2-ASN.mmdb
 ```
 
-## TODO
+Docker runtime:
 
-- [x] Перевод станций в частный режим из опубликованного и обратно
-- [x] Отдельная команда для короткого списка сессий
-- [x] Общая отказоустойчивость и обработка ошибок в частности
-  - [x] возможность запуска через прокси
-  - [x] обработка ошибок при запросах к API и Telegram Bot API
-  - [x] обработка ошибок при работе с базами данных GeoLite
-  - [x] обработка ошибок при работе с базой данных бота
-  - [x] автоматическое обновление истёкшего токена
-- [ ] Уведомления
-  - [ ] об отключенных играх
-- [x] Определение города и провайдера клиента и расстояния от станции до него
+```bash
+docker compose up --build
+```
+
+The compose file mounts `./data` as the SQLite data directory and reads secrets from
+`.env`; secrets are not baked into the image. Healthcheck uses
+`python -m drova_bot.tools.healthcheck` and does not call Telegram or Drova.
+
+Published image:
+
+```bash
+docker pull ghcr.io/<owner>/<repo>:latest
+docker run --rm --env-file .env -v "$PWD/data:/data" ghcr.io/<owner>/<repo>:latest
+```
+
+For a real deployment, replace `<owner>/<repo>` with the GitHub repository path in
+lowercase. The container expects `TELEGRAM_BOT_TOKEN`, `BOT_SECRET_KEY`, and optionally
+`DATABASE_URL`; the default database URL points at `/data/drova_bot.sqlite3`.
+
+CI runs the normal network-free gates and verifies the Docker image builds. On pushes to
+`main` and `v*.*.*` tags it publishes `linux/amd64` images to GHCR as:
+
+- `latest` for `main`;
+- `sha-<shortsha>` for published commits;
+- `<major>.<minor>.<patch>` and `<major>.<minor>` for version tags.
+
+Runtime secrets stay in `.env` or the deployment environment and are never baked into the
+image. Live contract checks stay manual and opt-in.

@@ -1,17 +1,24 @@
-# Bot local store with auth tokens and other
+# Local secrets and legacy runtime data
 persistentData.json
 xray-config/config.json
+data/
+*.swp
+*.swo
 
-# GeoLite2 IP Database
+# GeoLite2 IP databases
 GeoLite2-City.mmdb
 GeoLite2-ASN.mmdb
 
-# products list
+# Product cache
 products.json
 
-# sessions export
+# Export outputs
 *.csv
 *.xlsx
+
+# Live API sampling raw dumps. Sanitized fixtures under specs/v2/fixtures/api
+# are intentionally tracked.
+specs/v2/fixtures/api/raw/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -118,6 +125,7 @@ celerybeat.pid
 
 # Environments
 .env
+.env.specing
 .venv
 env/
 venv/
@@ -142,4 +150,7 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# IDE project files
+.idea/
 .vscode/settings.json

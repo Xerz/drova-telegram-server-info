@@ -1,0 +1,14 @@
+{
+  "elapsed_ms": 108.4,
+  "label": "server_2_sessions_limit_5",
+  "method": "GET",
+  "params": {
+    "limit": 5,
+    "server_id": "<server_id:3>"
+  },
+  "path": "/session-manager/sessions",
+  "response": {
+    "sessions": []
+  },
+  "status": 200
+}

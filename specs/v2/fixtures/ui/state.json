@@ -1,0 +1,17 @@
+{
+  "chat_profile": {
+    "telegram_chat_id": 10001,
+    "drova_user_id": "user-1",
+    "selected_station_id": null,
+    "session_limit": 5,
+    "timezone": "Asia/Yekaterinburg"
+  },
+  "clock": {
+    "now_utc": "2026-05-18T12:00:00Z"
+  },
+  "product_catalog": {
+    "product-a": "Cyber Rally",
+    "product-b": "Space Farm",
+    "product-c": "Desktop Mode"
+  }
+}

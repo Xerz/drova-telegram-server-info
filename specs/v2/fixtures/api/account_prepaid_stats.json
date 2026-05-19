@@ -1,0 +1,15 @@
+{
+  "elapsed_ms": 225.9,
+  "label": "account_prepaid_stats",
+  "method": "GET",
+  "params": {},
+  "path": "/accounting/prepaid/prepaid_stats4merchant/<uuid:957>",
+  "response": {
+    "allowed_to_sell_minutes": 2683,
+    "balance": "<balance:redacted>",
+    "merchant_id": "<merchant_id:1>",
+    "sold_minutes": 205126,
+    "used_minutes": 207817
+  },
+  "status": 200
+}

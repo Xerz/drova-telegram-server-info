@@ -1,0 +1,24 @@
+{
+  "elapsed_ms": 54.6,
+  "label": "test_station_product_edit",
+  "method": "GET",
+  "params": {},
+  "path": "/server-manager/serverproduct/list4edit2/<uuid:955>/<uuid:401>",
+  "response": {
+    "allowedPaths": null,
+    "args": null,
+    "available": true,
+    "defaultAllowedPaths": "",
+    "defaultArgs": "-language russian -nochatui -nofriendsui steam://rungameid/610370",
+    "defaultGamePath": "C:\\Program Files (x86)\\Steam\\Steam.exe",
+    "defaultWorkPath": "C:\\Program Files (x86)\\Steam\\",
+    "enabled": true,
+    "gamePath": null,
+    "productId": "6a28acf4-cac9-4580-9428-daae5b554ae2",
+    "published": true,
+    "title": "Desperados III",
+    "verified": 2,
+    "workPath": null
+  },
+  "status": 200
+}

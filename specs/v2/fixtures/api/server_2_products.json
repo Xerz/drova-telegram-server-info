@@ -1,0 +1,42 @@
+{
+  "elapsed_ms": 56.3,
+  "label": "server_2_products",
+  "method": "GET",
+  "params": {
+    "user_id": "<user_id:1>"
+  },
+  "path": "/server-manager/serverproduct/list4edit2/<uuid:955>",
+  "response": [
+    {
+      "available": true,
+      "enabled": true,
+      "needVpn": false,
+      "productId": "6a28acf4-cac9-4580-9428-daae5b554ae2",
+      "published": true,
+      "title": "Desperados III",
+      "useDefaultDesktop": false,
+      "verified": 2
+    },
+    {
+      "available": true,
+      "enabled": true,
+      "needVpn": false,
+      "productId": "d5f88d94-87d5-11e7-bb31-000000003729",
+      "published": true,
+      "title": "Dota 2",
+      "useDefaultDesktop": false,
+      "verified": 2
+    },
+    {
+      "available": true,
+      "enabled": true,
+      "needVpn": false,
+      "productId": "8a1286bb-583b-476e-89c7-2a3bcb9ae695",
+      "published": true,
+      "title": "Active Matter",
+      "useDefaultDesktop": true,
+      "verified": 2
+    }
+  ],
+  "status": 200
+}

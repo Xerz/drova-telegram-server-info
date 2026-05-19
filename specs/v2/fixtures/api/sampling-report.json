@@ -1,0 +1,164 @@
+{
+  "requests": [
+    {
+      "elapsed_ms": 337.9,
+      "label": "account",
+      "method": "GET",
+      "path": "/accounting/myaccount",
+      "proxy_fallback_used": false,
+      "status": 200
+    },
+    {
+      "elapsed_ms": 422.1,
+      "label": "products_full",
+      "method": "GET",
+      "path": "/product-manager/product/listfull2",
+      "proxy_fallback_used": false,
+      "status": 200
+    },
+    {
+      "elapsed_ms": 56.9,
+      "label": "servers",
+      "method": "GET",
+      "path": "/server-manager/servers",
+      "proxy_fallback_used": false,
+      "status": 200
+    },
+    {
+      "elapsed_ms": 382.6,
+      "label": "sessions_all_limit_5",
+      "method": "GET",
+      "path": "/session-manager/sessions",
+      "proxy_fallback_used": false,
+      "status": 200
+    },
+    {
+      "elapsed_ms": 54.7,
+      "label": "promocodes_unused",
+      "method": "GET",
+      "path": "/accounting/prepaid/list_unused_promocodes/false",
+      "proxy_fallback_used": false,
+      "status": 200
+    },
+    {
+      "elapsed_ms": 54.3,
+      "label": "server_1_sessions_limit_5",
+      "method": "GET",
+      "path": "/session-manager/sessions",
+      "proxy_fallback_used": false,
+      "status": 200
+    },
+    {
+      "elapsed_ms": 57.1,
+      "label": "server_1_products",
+      "method": "GET",
+      "path": "/server-manager/serverproduct/list4edit2/<uuid:954>",
+      "proxy_fallback_used": false,
+      "status": 200
+    },
+    {
+      "elapsed_ms": 56.9,
+      "label": "server_1_endpoints_limit_5",
+      "method": "GET",
+      "path": "/server-manager/serverendpoint/list/<uuid:954>",
+      "proxy_fallback_used": false,
+      "status": 200
+    },
+    {
+      "elapsed_ms": 108.4,
+      "label": "server_2_sessions_limit_5",
+      "method": "GET",
+      "path": "/session-manager/sessions",
+      "proxy_fallback_used": false,
+      "status": 200
+    },
+    {
+      "elapsed_ms": 56.3,
+      "label": "server_2_products",
+      "method": "GET",
+      "path": "/server-manager/serverproduct/list4edit2/<uuid:955>",
+      "proxy_fallback_used": false,
+      "status": 200
+    },
+    {
+      "elapsed_ms": 55.1,
+      "label": "server_2_endpoints_limit_5",
+      "method": "GET",
+      "path": "/server-manager/serverendpoint/list/<uuid:955>",
+      "proxy_fallback_used": false,
+      "status": 200
+    },
+    {
+      "elapsed_ms": 64.6,
+      "label": "server_3_sessions_limit_5",
+      "method": "GET",
+      "path": "/session-manager/sessions",
+      "proxy_fallback_used": false,
+      "status": 200
+    },
+    {
+      "elapsed_ms": 55.9,
+      "label": "server_3_products",
+      "method": "GET",
+      "path": "/server-manager/serverproduct/list4edit2/<uuid:956>",
+      "proxy_fallback_used": false,
+      "status": 200
+    },
+    {
+      "elapsed_ms": 55.2,
+      "label": "server_3_endpoints_limit_5",
+      "method": "GET",
+      "path": "/server-manager/serverendpoint/list/<uuid:956>",
+      "proxy_fallback_used": false,
+      "status": 200
+    },
+    {
+      "elapsed_ms": 225.9,
+      "label": "account_prepaid_stats",
+      "method": "GET",
+      "path": "/accounting/prepaid/prepaid_stats4merchant/<uuid:957>",
+      "proxy_fallback_used": false,
+      "status": 200
+    },
+    {
+      "elapsed_ms": 60.9,
+      "label": "account_prepaid_settlements",
+      "method": "GET",
+      "path": "/accounting/prepaid/list4merchant/<uuid:957>",
+      "proxy_fallback_used": false,
+      "status": 200
+    },
+    {
+      "elapsed_ms": 60.5,
+      "label": "account_tinkoff_opened_deals",
+      "method": "GET",
+      "path": "/accounting/tinkoff/prepaid/getOpenedDeals",
+      "proxy_fallback_used": false,
+      "status": 200
+    },
+    {
+      "elapsed_ms": 58.1,
+      "label": "server_usage_statistics",
+      "method": "GET",
+      "path": "/accounting/statistics/myserverusageprepared",
+      "proxy_fallback_used": false,
+      "status": 200
+    },
+    {
+      "elapsed_ms": 53.6,
+      "label": "test_station_source",
+      "method": "GET",
+      "path": "/server-manager/servers/<uuid:955>",
+      "proxy_fallback_used": false,
+      "status": 200
+    },
+    {
+      "elapsed_ms": 54.6,
+      "label": "test_station_product_edit",
+      "method": "GET",
+      "path": "/server-manager/serverproduct/list4edit2/<uuid:955>/<uuid:401>",
+      "proxy_fallback_used": false,
+      "status": 200
+    }
+  ]
+}

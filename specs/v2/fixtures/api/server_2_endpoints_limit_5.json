@@ -1,0 +1,12 @@
+{
+  "elapsed_ms": 55.1,
+  "label": "server_2_endpoints_limit_5",
+  "method": "GET",
+  "params": {
+    "limit": 5,
+    "server_id": "<server_id:3>"
+  },
+  "path": "/server-manager/serverendpoint/list/<uuid:955>",
+  "response": [],
+  "status": 200
+}

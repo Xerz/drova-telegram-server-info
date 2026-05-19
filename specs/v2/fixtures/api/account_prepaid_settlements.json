@@ -1,0 +1,150 @@
+{
+  "elapsed_ms": 60.9,
+  "label": "account_prepaid_settlements",
+  "method": "GET",
+  "params": {},
+  "path": "/accounting/prepaid/list4merchant/<uuid:957>",
+  "response": [
+    {
+      "client_id": null,
+      "created_on": 1779125315305,
+      "has_order": true,
+      "playtime_msecs": 10800000,
+      "uuid": "<uuid:20>"
+    },
+    {
+      "client_id": null,
+      "created_on": 1779110613105,
+      "has_order": true,
+      "playtime_msecs": 10800000,
+      "uuid": "<uuid:21>"
+    },
+    {
+      "client_id": null,
+      "created_on": 1779012155824,
+      "has_order": true,
+      "playtime_msecs": 72000000,
+      "uuid": "<uuid:22>"
+    },
+    {
+      "client_id": null,
+      "created_on": 1778967626890,
+      "has_order": true,
+      "playtime_msecs": 7200000,
+      "uuid": "<uuid:23>"
+    },
+    {
+      "client_id": null,
+      "created_on": 1778967215533,
+      "has_order": true,
+      "playtime_msecs": 10800000,
+      "uuid": "<uuid:24>"
+    },
+    {
+      "client_id": null,
+      "created_on": 1778966837363,
+      "has_order": true,
+      "playtime_msecs": 10800000,
+      "uuid": "<uuid:25>"
+    },
+    {
+      "client_id": null,
+      "created_on": 1778966718792,
+      "has_order": true,
+      "playtime_msecs": 10800000,
+      "uuid": "<uuid:26>"
+    },
+    {
+      "client_id": null,
+      "created_on": 1778916841346,
+      "has_order": true,
+      "playtime_msecs": 36000000,
+      "uuid": "<uuid:27>"
+    },
+    {
+      "client_id": null,
+      "created_on": 1778615624770,
+      "has_order": true,
+      "playtime_msecs": 144000000,
+      "uuid": "<uuid:28>"
+    },
+    {
+      "client_id": null,
+      "created_on": 1778607014488,
+      "has_order": true,
+      "playtime_msecs": 10800000,
+      "uuid": "<uuid:29>"
+    },
+    {
+      "client_id": null,
+      "created_on": 1778592362783,
+      "has_order": true,
+      "playtime_msecs": 10800000,
+      "uuid": "<uuid:30>"
+    },
+    {
+      "client_id": "<client_id:10>",
+      "created_on": 1778589832908,
+      "has_order": false,
+      "playtime_msecs": 3900000,
+      "uuid": "<uuid:31>"
+    },
+    {
+      "client_id": "<client_id:11>",
+      "created_on": 1778582783284,
+      "has_order": false,
+      "playtime_msecs": 3600000,
+      "uuid": "<uuid:32>"
+    },
+    {
+      "client_id": "<client_id:11>",
+      "created_on": 1778582779424,
+      "has_order": false,
+      "playtime_msecs": 3600000,
+      "uuid": "<uuid:33>"
+    },
+    {
+      "client_id": null,
+      "created_on": 1778519036613,
+      "has_order": true,
+      "playtime_msecs": 10800000,
+      "uuid": "<uuid:34>"
+    },
+    {
+      "client_id": null,
+      "created_on": 1778496066593,
+      "has_order": true,
+      "playtime_msecs": 10800000,
+      "uuid": "<uuid:35>"
+    },
+    {
+      "client_id": null,
+      "created_on": 1778451675377,
+      "has_order": true,
+      "playtime_msecs": 7200000,
+      "uuid": "<uuid:36>"
+    },
+    {
+      "client_id": null,
+      "created_on": 1778427658246,
+      "has_order": true,
+      "playtime_msecs": 10800000,
+      "uuid": "<uuid:37>"
+    },
+    {
+      "client_id": null,
+      "created_on": 1778403296944,
+      "has_order": true,
+      "playtime_msecs": 36000000,
+      "uuid": "<uuid:38>"
+    },
+    {
+      "client_id": null,
+      "created_on": 1778347873284,
+      "has_order": true,
+      "playtime_msecs": 7200000,
+      "uuid": "<uuid:39>"
+    }
+  ],
+  "status": 200
+}

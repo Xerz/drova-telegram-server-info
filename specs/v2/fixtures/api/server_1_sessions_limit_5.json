@@ -1,0 +1,76 @@
+{
+  "elapsed_ms": 54.3,
+  "label": "server_1_sessions_limit_5",
+  "method": "GET",
+  "params": {
+    "limit": 5,
+    "server_id": "<server_id:2>"
+  },
+  "path": "/session-manager/sessions",
+  "response": {
+    "sessions": [
+      {
+        "billing_type": "prepaid",
+        "client_id": "<client_id:5>",
+        "created_on": 1779118505307,
+        "creator_ip": "<ip:5>",
+        "finished_on": 1779132239064,
+        "merchant_id": "<merchant_id:1>",
+        "product_id": "39e835b0-44a1-4bc9-9fb5-98bad5fdc959",
+        "server_id": "<server_id:2>",
+        "status": "FINISHED",
+        "uuid": "<uuid:9>"
+      },
+      {
+        "billing_type": "prepaid",
+        "client_id": "<client_id:6>",
+        "created_on": 1779106000196,
+        "creator_ip": "<ip:6>",
+        "finished_on": 1779106517648,
+        "merchant_id": "<merchant_id:1>",
+        "product_id": "39e835b0-44a1-4bc9-9fb5-98bad5fdc959",
+        "server_id": "<server_id:2>",
+        "status": "FINISHED",
+        "uuid": "<uuid:10>"
+      },
+      {
+        "abort_comment": "<abort_comment:redacted>",
+        "billing_type": "prepaid",
+        "client_id": "<client_id:6>",
+        "created_on": 1779101276016,
+        "creator_ip": "<ip:6>",
+        "finished_on": 1779101280677,
+        "merchant_id": "<merchant_id:1>",
+        "product_id": "39e835b0-44a1-4bc9-9fb5-98bad5fdc959",
+        "server_id": "<server_id:2>",
+        "status": "ABORTED",
+        "uuid": "<uuid:11>"
+      },
+      {
+        "billing_type": "prepaid",
+        "client_id": "<client_id:7>",
+        "created_on": 1779093291451,
+        "creator_ip": "<ip:7>",
+        "finished_on": 1779093846792,
+        "merchant_id": "<merchant_id:1>",
+        "product_id": "ce62e253-392a-484e-bdb1-536f1475233c",
+        "server_id": "<server_id:2>",
+        "status": "FINISHED",
+        "uuid": "<uuid:12>"
+      },
+      {
+        "abort_comment": "<abort_comment:redacted>",
+        "client_id": "<client_id:8>",
+        "created_on": 1779085427756,
+        "creator_ip": "<ip:8>",
+        "finished_on": 1779086658642,
+        "merchant_id": "<merchant_id:1>",
+        "product_id": "ce6bc498-ad54-4c84-b999-b7406c2e86ce",
+        "server_id": "<server_id:2>",
+        "status": "ABORTED",
+        "uuid": "<uuid:13>"
+      }
+    ]
+  },
+  "status": 200
+}
