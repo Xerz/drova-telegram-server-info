@@ -48,6 +48,8 @@ No command handler is considered done without handler tests and renderer tests.
 
 - Read-only live tests can run for account, products, servers, sessions, server products,
   endpoints and unused promocodes.
-- Write live test must only target `TEST_STATION_UUID`.
+- Write live tests must only target `TEST_STATION_UUID`.
+- Station-product write live tests may use `TEST_PRODUCT_UUID` or any product returned for
+  `TEST_STATION_UUID` when no product UUID is configured.
 - Write live test must use `try/finally` rollback and fail if rollback verification fails.
 - CI must not run live tests by default.

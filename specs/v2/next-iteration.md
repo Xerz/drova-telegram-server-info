@@ -175,9 +175,9 @@ Required `.env.specing` keys for this cycle:
 
 - `DROVA_PROXY_TOKEN`: required for all live sampling.
 - `TEST_STATION_UUID`: required for station-specific reads and every write fixture.
-- `TEST_PRODUCT_UUID`: required for station product write fixtures. If absent, product read
-  fixtures may choose a product from `TEST_STATION_UUID`, but write fixtures must skip/fail
-  closed.
+- `TEST_PRODUCT_UUID`: optional for station product write checks. If absent, live tests may
+  choose any product returned by `TEST_STATION_UUID`; if present, it must belong to that
+  station or the write check fails closed.
 
 Planned read fixtures:
 
@@ -210,7 +210,8 @@ Planned write/rollback fixtures:
 Do not add a write fixture unless:
 
 - target station is exactly `TEST_STATION_UUID`;
-- target product is exactly `TEST_PRODUCT_UUID` for product writes;
+- target product is exactly `TEST_PRODUCT_UUID` when it is configured, otherwise a product
+  read from `TEST_STATION_UUID`;
 - original state is read and stored in memory before mutation;
 - rollback runs in `finally`;
 - rollback is verified by a follow-up read;

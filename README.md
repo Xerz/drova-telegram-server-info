@@ -29,14 +29,15 @@ Read-only checks:
 python3 -m uv run pytest tests/live --run-live
 ```
 
-Write check for publish toggle:
+Write checks for publish and station-product enabled toggles:
 
 ```bash
 python3 -m uv run pytest tests/live --run-live --run-live-write
 ```
 
-The write check only targets `TEST_STATION_UUID`, verifies the toggled state, and rolls
-back in `finally`.
+Write checks only target `TEST_STATION_UUID`, verify the toggled state, and roll back
+in `finally`. For the station-product enabled toggle, set `TEST_PRODUCT_UUID` to force a
+specific game; otherwise the test uses the first product returned for `TEST_STATION_UUID`.
 
 Fixture sampling for spec work also uses `.env.specing`:
 
@@ -45,7 +46,7 @@ python3 scripts/sample_live_api.py
 ```
 
 The sampler requires `DROVA_PROXY_TOKEN` and `TEST_STATION_UUID`. Set `TEST_PRODUCT_UUID`
-when sampling the next station-product edit fixture. Write/rollback fixtures are skipped
+when sampling a specific station-product edit fixture. Write/rollback fixtures are skipped
 by default; enable them only when intentionally touching the test station:
 
 ```bash

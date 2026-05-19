@@ -43,7 +43,7 @@ asyncio_mode = "auto"
 testpaths = ["tests"]
 markers = [
     "live: opt-in live Drova API contract tests",
-    "live_write: opt-in live publish-toggle contract tests",
+    "live_write: opt-in live Drova write contract tests",
 ]
 
 [tool.ruff]

@@ -4,10 +4,12 @@ from pathlib import Path
 
 import pytest
 
+from drova_bot.domain.models import StationProduct
 from tests.live.harness import (
     DEFAULT_DROVA_BASE_URL,
     LiveSettings,
     MissingLiveEnvironment,
+    choose_live_station_product_id,
     live_client_config,
     live_skip_reason,
     load_env_file,
@@ -99,3 +101,27 @@ def test_live_skip_reason_requires_explicit_flags() -> None:
         )
         is None
     )
+
+
+def test_choose_live_station_product_id_prefers_configured_product_or_first() -> None:
+    products = [
+        StationProduct(
+            product_id="product-a",
+            title="A",
+            enabled=True,
+            published=True,
+            available=True,
+        ),
+        StationProduct(
+            product_id="product-b",
+            title="B",
+            enabled=True,
+            published=True,
+            available=True,
+        ),
+    ]
+
+    assert choose_live_station_product_id(products, None) == "product-a"
+    assert choose_live_station_product_id(products, "product-b") == "product-b"
+    assert choose_live_station_product_id(products, "missing") is None
+    assert choose_live_station_product_id([], None) is None

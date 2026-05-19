@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
+from drova_bot.domain.models import StationProduct
 from drova_bot.drova.client import DrovaClient
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -94,6 +95,19 @@ def live_skip_reason(
     if is_live_write and not run_live_write:
         return "live write contract tests require --run-live-write"
     return None
+
+
+def choose_live_station_product_id(
+    products: list[StationProduct],
+    preferred_product_uuid: str | None,
+) -> str | None:
+    if preferred_product_uuid is not None:
+        return (
+            preferred_product_uuid
+            if any(product.product_id == preferred_product_uuid for product in products)
+            else None
+        )
+    return products[0].product_id if products else None
 
 
 def _optional(value: str | None) -> str | None:

@@ -4,7 +4,7 @@ import pytest
 
 from drova_bot.domain.models import Station
 from drova_bot.drova.client import DrovaClient
-from tests.live.harness import LiveSettings
+from tests.live.harness import LiveSettings, choose_live_station_product_id
 
 pytestmark = pytest.mark.live
 
@@ -97,6 +97,73 @@ async def test_live_publish_toggle_rolls_back(
 
     if rollback_error is not None:
         raise AssertionError("TEST_STATION_UUID rollback failed") from rollback_error
+
+
+@pytest.mark.asyncio
+@pytest.mark.live_write
+async def test_live_station_product_enabled_toggle_rolls_back(
+    live_client: DrovaClient,
+    live_settings: LiveSettings,
+) -> None:
+    if live_settings.test_station_uuid is None:
+        pytest.skip("TEST_STATION_UUID is required in .env.specing")
+
+    account = await live_client.get_account()
+    stations = await live_client.get_servers(account.uuid)
+    station = _find_station(stations, live_settings.test_station_uuid)
+    if station is None:
+        pytest.fail("TEST_STATION_UUID is not present in account stations")
+
+    station_products = await live_client.get_server_products(
+        account.uuid,
+        live_settings.test_station_uuid,
+    )
+    product_id = choose_live_station_product_id(
+        station_products,
+        live_settings.test_product_uuid,
+    )
+    if product_id is None and live_settings.test_product_uuid is not None:
+        pytest.fail("TEST_PRODUCT_UUID is not present in TEST_STATION_UUID products")
+    if product_id is None:
+        pytest.fail("TEST_STATION_UUID has no station products to toggle")
+
+    original_product = await live_client.get_server_product_edit(
+        live_settings.test_station_uuid,
+        product_id,
+    )
+    original_enabled = original_product.enabled
+    toggled_enabled = not original_enabled
+    rollback_error: BaseException | None = None
+
+    try:
+        await live_client.set_server_product_enabled(
+            live_settings.test_station_uuid,
+            product_id,
+            toggled_enabled,
+        )
+        toggled_product = await live_client.get_server_product_edit(
+            live_settings.test_station_uuid,
+            product_id,
+        )
+        assert toggled_product.enabled is toggled_enabled
+    finally:
+        try:
+            await live_client.set_server_product_enabled(
+                live_settings.test_station_uuid,
+                product_id,
+                original_enabled,
+            )
+            restored_product = await live_client.get_server_product_edit(
+                live_settings.test_station_uuid,
+                product_id,
+            )
+            if restored_product.enabled is not original_enabled:
+                raise AssertionError("TEST_STATION_UUID product rollback verification failed")
+        except BaseException as exc:
+            rollback_error = exc
+
+    if rollback_error is not None:
+        raise AssertionError("TEST_STATION_UUID product rollback failed") from rollback_error
 
 
 def _find_station(stations: list[Station], station_uuid: str) -> Station | None:
