@@ -32,6 +32,21 @@ ACTION_ALIASES = {
     "game_hide_all": "ga",
     "game_hide_all_prompt": "gt",
     "game_hide_all_confirm": "gc",
+    "station_manage_page": "mp",
+    "station_manage_select": "ms",
+    "station_panel": "mn",
+    "station_publish_prompt": "mt",
+    "station_publish_confirm": "mf",
+    "station_control_toggle": "mo",
+    "station_games": "mg",
+    "station_source": "mx",
+    "station_description_begin": "mb",
+    "station_description_apply": "ma",
+    "station_description_cancel": "mz",
+    "account_menu": "am",
+    "account_balance": "ab",
+    "account_usage": "au",
+    "account_promocodes": "ap",
 }
 ACTION_BY_ALIAS = {alias: action for action, alias in ACTION_ALIASES.items()}
 KEY_ALIASES = {
@@ -39,6 +54,9 @@ KEY_ALIASES = {
     "product": "g",
     "page": "p",
     "published": "e",
+    "expected": "x",
+    "draft": "d",
+    "control": "c",
 }
 KEY_BY_ALIAS = {alias: key for key, alias in KEY_ALIASES.items()}
 
@@ -50,6 +68,9 @@ class CallbackSpec:
     product_id: str | None = None
     page: int | None = None
     expected_published: bool | None = None
+    expected_state: bool | None = None
+    draft_id: str | None = None
+    control: str | None = None
 
     def pack(self) -> str:
         parts = [_pack_action(self.action)]
@@ -61,6 +82,12 @@ class CallbackSpec:
             parts.append(f"{KEY_ALIASES['page']}={self.page}")
         if self.expected_published is not None:
             parts.append(f"{KEY_ALIASES['published']}={int(self.expected_published)}")
+        if self.expected_state is not None:
+            parts.append(f"{KEY_ALIASES['expected']}={int(self.expected_state)}")
+        if self.draft_id is not None:
+            parts.append(f"{KEY_ALIASES['draft']}={self.draft_id}")
+        if self.control is not None:
+            parts.append(f"{KEY_ALIASES['control']}={self.control}")
         return "|".join(parts)
 
 
@@ -71,6 +98,9 @@ class ParsedCallback:
     product_id: str | None = None
     page: int | None = None
     expected_published: bool | None = None
+    expected_state: bool | None = None
+    draft_id: str | None = None
+    control: str | None = None
 
 
 def parse_callback_data(data: str | None) -> ParsedCallback:
@@ -101,12 +131,21 @@ def parse_callback_data(data: str | None) -> ParsedCallback:
             raise InvalidCallbackData("invalid published flag")
         expected_published = values["published"] == "1"
 
+    expected_state: bool | None = None
+    if "expected" in values:
+        if values["expected"] not in {"0", "1"}:
+            raise InvalidCallbackData("invalid expected flag")
+        expected_state = values["expected"] == "1"
+
     return ParsedCallback(
         action=action,
         station_id=values.get("station"),
         product_id=values.get("product"),
         page=page,
         expected_published=expected_published,
+        expected_state=expected_state,
+        draft_id=values.get("draft"),
+        control=values.get("control"),
     )
 
 

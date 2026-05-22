@@ -1,5 +1,6 @@
 services:
   drova-bot:
+    container_name: drova-bot
     build: .
     restart: unless-stopped
     env_file:

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Callable, Sequence
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from hashlib import sha256
 from uuid import uuid4
@@ -28,6 +29,7 @@ from drova_bot.telegram.renderers import (
     SessionGeoResolver,
     latest_sessions_by_station,
     render_account_billing,
+    render_account_menu,
     render_current,
     render_disabled,
     render_error,
@@ -38,6 +40,7 @@ from drova_bot.telegram.renderers import (
     render_server_control_confirmation,
     render_server_control_result,
     render_server_description_preview,
+    render_server_description_request,
     render_server_description_result,
     render_server_source,
     render_sessions,
@@ -45,13 +48,32 @@ from drova_bot.telegram.renderers import (
     render_start_not_connected,
     render_station_game_detail,
     render_station_games,
+    render_station_manage_panel,
+    render_station_manage_picker,
     render_station_picker,
+    render_station_publish_manage_confirmation,
     render_stations,
     render_unused_promocodes,
     render_usage_statistics,
 )
 
 UnitOfWorkFactory = Callable[[], StorageUnitOfWork]
+DESCRIPTION_DRAFT_TTL_SECONDS = 30 * 60
+
+
+@dataclass(frozen=True, slots=True)
+class PendingDescriptionRequest:
+    station: Station
+    revision: str
+    created_at: datetime
+
+
+@dataclass(frozen=True, slots=True)
+class DescriptionDraft:
+    station_id: str
+    description: str
+    revision: str
+    created_at: datetime
 
 
 class DefaultDrovaClientFactory:
@@ -95,6 +117,8 @@ class BotService:
         self._export_row_limit = export_row_limit
         self._export_timeout_seconds = export_timeout_seconds
         self._session_geo_resolver = session_geo_resolver
+        self._description_requests: dict[int, PendingDescriptionRequest] = {}
+        self._description_drafts: dict[str, DescriptionDraft] = {}
 
     async def start(self, telegram_chat_id: int) -> RenderedMessage:
         async with self._uow_factory() as uow:
@@ -165,6 +189,70 @@ class BotService:
         finally:
             await client.aclose()
 
+    async def station_manage_picker(
+        self,
+        telegram_chat_id: int,
+        *,
+        page: int = 0,
+    ) -> RenderedMessage:
+        loaded = await self._load_client(telegram_chat_id)
+        if loaded is None:
+            return render_error("not_connected")
+        profile, client = loaded
+        try:
+            stations = await client.get_servers(profile.drova_user_id or "")
+            async with self._uow_factory() as uow:
+                await uow.station_cache.replace_for_chat(telegram_chat_id, stations)
+            return render_station_manage_picker(stations, page=page)
+        except (DrovaUnauthorized, DrovaPermissionDenied):
+            return render_error("drova_unauthorized")
+        except DrovaUnavailable:
+            return render_error("drova_unavailable")
+        finally:
+            await client.aclose()
+
+    async def station_manage_select(
+        self,
+        telegram_chat_id: int,
+        station_id: str | None,
+    ) -> RenderedMessage:
+        if station_id is None:
+            return render_error("station_not_found")
+        return await self.station_manage_panel(telegram_chat_id, station_id=station_id)
+
+    async def station_manage_panel(
+        self,
+        telegram_chat_id: int,
+        *,
+        station_id: str | None = None,
+        toast: str | None = None,
+    ) -> RenderedMessage:
+        loaded = await self._load_client(telegram_chat_id)
+        if loaded is None:
+            return render_error("not_connected")
+        profile, client = loaded
+        try:
+            if station_id is None:
+                station_id = profile.selected_station_id
+            if station_id is None:
+                return render_error("station_required")
+            station_source = await self._station_and_source(
+                telegram_chat_id,
+                profile,
+                client,
+                station_id,
+            )
+            if isinstance(station_source, RenderedMessage):
+                return station_source
+            station, source = station_source
+            return render_station_manage_panel(station, source, toast=toast)
+        except (DrovaUnauthorized, DrovaPermissionDenied):
+            return render_error("drova_unauthorized")
+        except DrovaUnavailable:
+            return render_error("drova_unavailable")
+        finally:
+            await client.aclose()
+
     async def select_station(self, telegram_chat_id: int, station_id: str) -> RenderedMessage:
         async with self._uow_factory() as uow:
             station_name = await uow.station_cache.station_name(telegram_chat_id, station_id)
@@ -177,6 +265,31 @@ class BotService:
         async with self._uow_factory() as uow:
             await uow.chat_profiles.set_selected_station(telegram_chat_id, None)
         return RenderedMessage("Выбраны все станции.")
+
+    async def account_menu(self, telegram_chat_id: int) -> RenderedMessage:
+        loaded = await self._load_client(telegram_chat_id)
+        if loaded is None:
+            return render_error("not_connected")
+        _profile, client = loaded
+        await client.aclose()
+        return render_account_menu()
+
+    async def account_menu_result(
+        self,
+        telegram_chat_id: int,
+        action: str,
+    ) -> RenderedMessage:
+        if action == "balance":
+            rendered = await self.account_billing(telegram_chat_id)
+        elif action == "usage":
+            rendered = await self.usage_statistics(telegram_chat_id)
+        elif action == "promocodes":
+            rendered = await self.unused_promocodes(telegram_chat_id)
+        else:
+            return render_error("unknown_command")
+        if rendered.text == render_error("not_connected").text:
+            return rendered
+        return render_account_menu(rendered.text)
 
     async def set_limit(self, telegram_chat_id: int, raw_limit: str | None) -> RenderedMessage:
         if raw_limit is None:
@@ -698,6 +811,269 @@ class BotService:
         finally:
             await client.aclose()
 
+    async def station_publish_manage_confirmation(
+        self,
+        telegram_chat_id: int,
+        station_id: str | None,
+        expected_published: bool | None,
+    ) -> RenderedMessage:
+        if station_id is None or expected_published is None:
+            return render_error("station_not_found")
+        loaded = await self._load_client(telegram_chat_id)
+        if loaded is None:
+            return render_error("not_connected")
+        profile, client = loaded
+        try:
+            stations = await client.get_servers(profile.drova_user_id or "")
+            station = _find_station(stations, station_id)
+            if station is None:
+                return render_error("station_not_found")
+            if station.published != expected_published:
+                return render_error("stale_publish")
+            async with self._uow_factory() as uow:
+                await uow.station_cache.replace_for_chat(telegram_chat_id, stations)
+                await uow.chat_profiles.set_selected_station(telegram_chat_id, station_id)
+            return render_station_publish_manage_confirmation(station)
+        except (DrovaUnauthorized, DrovaPermissionDenied):
+            return render_error("drova_unauthorized")
+        except DrovaUnavailable:
+            return render_error("drova_unavailable")
+        finally:
+            await client.aclose()
+
+    async def station_publish_manage_confirm(
+        self,
+        telegram_chat_id: int,
+        station_id: str | None,
+        expected_published: bool | None,
+    ) -> RenderedMessage:
+        if station_id is None or expected_published is None:
+            return render_error("station_not_found")
+        loaded = await self._load_client(telegram_chat_id)
+        if loaded is None:
+            return render_error("not_connected")
+        profile, client = loaded
+        try:
+            stations = await client.get_servers(profile.drova_user_id or "")
+            station = _find_station(stations, station_id)
+            if station is None:
+                return render_error("station_not_found")
+            if station.published != expected_published:
+                return render_error("stale_publish")
+            await client.set_server_published(station_id, not expected_published)
+            refreshed = await client.get_servers(profile.drova_user_id or "")
+            station = _find_station(refreshed, station_id)
+            if station is None:
+                return render_error("station_not_found")
+            source = await client.get_server_source(station.uuid, profile.drova_user_id or "")
+            async with self._uow_factory() as uow:
+                await uow.station_cache.replace_for_chat(telegram_chat_id, refreshed)
+                await uow.chat_profiles.set_selected_station(telegram_chat_id, station_id)
+            toast = "Станция опубликована." if station.published else "Станция скрыта."
+            return render_station_manage_panel(station, source, toast=toast)
+        except (DrovaUnauthorized, DrovaPermissionDenied):
+            return render_error("drova_unauthorized")
+        except DrovaUnavailable:
+            return render_error("drova_unavailable")
+        finally:
+            await client.aclose()
+
+    async def station_control_toggle(
+        self,
+        telegram_chat_id: int,
+        station_id: str | None,
+        control: str | None,
+        expected_state: bool | None,
+    ) -> RenderedMessage:
+        if station_id is None or control not in {"desktop", "updates"} or expected_state is None:
+            return render_error("invalid_server_control_confirmation")
+        loaded = await self._load_client(telegram_chat_id)
+        if loaded is None:
+            return render_error("not_connected")
+        profile, client = loaded
+        try:
+            station_source = await self._station_and_source(
+                telegram_chat_id,
+                profile,
+                client,
+                station_id,
+            )
+            if isinstance(station_source, RenderedMessage):
+                return station_source
+            station, source = station_source
+            current_on = (
+                source.allow_desktop if control == "desktop" else not source.disable_updates
+            )
+            if current_on != expected_state:
+                return render_error("stale_server_control")
+            target_on = not current_on
+            if control == "desktop":
+                await client.set_server_allow_desktop(station.uuid, target_on)
+            else:
+                await client.set_server_disable_updates(station.uuid, not target_on)
+            source = await client.get_server_source(station.uuid, profile.drova_user_id or "")
+            label = "Полный доступ" if control == "desktop" else "Обновления"
+            state = "включены" if target_on else "выключены"
+            if control == "desktop":
+                state = "включен" if target_on else "выключен"
+            return render_station_manage_panel(station, source, toast=f"{label} {state}.")
+        except (DrovaUnauthorized, DrovaPermissionDenied):
+            return render_error("drova_unauthorized")
+        except DrovaUnavailable:
+            return render_error("drova_unavailable")
+        finally:
+            await client.aclose()
+
+    async def station_manage_games(
+        self,
+        telegram_chat_id: int,
+        station_id: str | None,
+    ) -> RenderedMessage:
+        if station_id is None:
+            return render_error("station_not_found")
+        async with self._uow_factory() as uow:
+            await uow.chat_profiles.set_selected_station(telegram_chat_id, station_id)
+        return await self.station_games(telegram_chat_id)
+
+    async def station_manage_source(
+        self,
+        telegram_chat_id: int,
+        station_id: str | None,
+    ) -> RenderedMessage:
+        if station_id is None:
+            return render_error("station_not_found")
+        async with self._uow_factory() as uow:
+            await uow.chat_profiles.set_selected_station(telegram_chat_id, station_id)
+        return await self.server_source(telegram_chat_id)
+
+    async def begin_station_description_update(
+        self,
+        telegram_chat_id: int,
+        station_id: str | None,
+    ) -> RenderedMessage:
+        if station_id is None:
+            return render_error("station_not_found")
+        self._cleanup_description_state()
+        loaded = await self._load_client(telegram_chat_id)
+        if loaded is None:
+            return render_error("not_connected")
+        profile, client = loaded
+        try:
+            station_source = await self._station_and_source(
+                telegram_chat_id,
+                profile,
+                client,
+                station_id,
+            )
+            if isinstance(station_source, RenderedMessage):
+                return station_source
+            station, source = station_source
+            self._description_requests[telegram_chat_id] = PendingDescriptionRequest(
+                station=station,
+                revision=_server_source_revision(source),
+                created_at=self._clock(),
+            )
+            return render_server_description_request(station)
+        except (DrovaUnauthorized, DrovaPermissionDenied):
+            return render_error("drova_unauthorized")
+        except DrovaUnavailable:
+            return render_error("drova_unavailable")
+        finally:
+            await client.aclose()
+
+    async def consume_station_description_text(
+        self,
+        telegram_chat_id: int,
+        text: str | None,
+    ) -> RenderedMessage | None:
+        self._cleanup_description_state()
+        request = self._description_requests.get(telegram_chat_id)
+        if request is None:
+            return None
+        if self._is_description_state_expired(request.created_at):
+            self._description_requests.pop(telegram_chat_id, None)
+            return render_error("description_draft_expired")
+        description = _parse_server_description(text)
+        if description is None:
+            return render_error("invalid_server_description")
+        draft_id = uuid4().hex[:10]
+        self._description_drafts[draft_id] = DescriptionDraft(
+            station_id=request.station.uuid,
+            description=description,
+            revision=request.revision,
+            created_at=self._clock(),
+        )
+        self._description_requests.pop(telegram_chat_id, None)
+        return render_server_description_preview(
+            request.station,
+            description=description,
+            revision=request.revision,
+            draft_id=draft_id,
+        )
+
+    async def apply_station_description_draft(
+        self,
+        telegram_chat_id: int,
+        draft_id: str | None,
+    ) -> RenderedMessage:
+        if not draft_id:
+            return render_error("invalid_server_description")
+        self._cleanup_description_state()
+        draft = self._description_drafts.get(draft_id)
+        if draft is None or self._is_description_state_expired(draft.created_at):
+            self._description_drafts.pop(draft_id, None)
+            return render_error("description_draft_expired")
+        loaded = await self._load_client(telegram_chat_id)
+        if loaded is None:
+            return render_error("not_connected")
+        profile, client = loaded
+        try:
+            station_source = await self._station_and_source(
+                telegram_chat_id,
+                profile,
+                client,
+                draft.station_id,
+            )
+            if isinstance(station_source, RenderedMessage):
+                return station_source
+            station, source = station_source
+            if _server_source_revision(source) != draft.revision:
+                return render_error("stale_server_source")
+            await client.update_server_source(
+                station.uuid,
+                name=source.name,
+                description=draft.description,
+            )
+            self._description_drafts.pop(draft_id, None)
+            source = await client.get_server_source(station.uuid, profile.drova_user_id or "")
+            return render_station_manage_panel(station, source, toast="Описание обновлено.")
+        except (DrovaUnauthorized, DrovaPermissionDenied):
+            return render_error("drova_unauthorized")
+        except DrovaUnavailable:
+            return render_error("drova_unavailable")
+        finally:
+            await client.aclose()
+
+    async def cancel_station_description(
+        self,
+        telegram_chat_id: int,
+        *,
+        station_id: str | None = None,
+        draft_id: str | None = None,
+    ) -> RenderedMessage:
+        self._description_requests.pop(telegram_chat_id, None)
+        if draft_id is not None:
+            draft = self._description_drafts.pop(draft_id, None)
+            if station_id is None and draft is not None:
+                station_id = draft.station_id
+        if station_id is not None:
+            return await self.station_manage_panel(
+                telegram_chat_id,
+                station_id=station_id,
+                toast="Отменено.",
+            )
+        return RenderedMessage("Отменено.")
+
     async def export(self, telegram_chat_id: int, kind: ExportKind) -> ExportResult:
         loaded = await self._load_client(telegram_chat_id)
         if loaded is None:
@@ -847,6 +1223,62 @@ class BotService:
             return await self.select_station(telegram_chat_id, callback.station_id)
         if callback.action == "station_page":
             return await self.station_picker(telegram_chat_id, page=callback.page or 0)
+        if callback.action == "station_manage_page":
+            return await self.station_manage_picker(telegram_chat_id, page=callback.page or 0)
+        if callback.action == "station_manage_select":
+            return await self.station_manage_select(telegram_chat_id, callback.station_id)
+        if callback.action == "station_panel":
+            return await self.station_manage_panel(
+                telegram_chat_id,
+                station_id=callback.station_id,
+            )
+        if callback.action == "station_publish_prompt":
+            return await self.station_publish_manage_confirmation(
+                telegram_chat_id,
+                callback.station_id,
+                callback.expected_published,
+            )
+        if callback.action == "station_publish_confirm":
+            return await self.station_publish_manage_confirm(
+                telegram_chat_id,
+                callback.station_id,
+                callback.expected_published,
+            )
+        if callback.action == "station_control_toggle":
+            return await self.station_control_toggle(
+                telegram_chat_id,
+                callback.station_id,
+                callback.control,
+                callback.expected_state,
+            )
+        if callback.action == "station_games":
+            return await self.station_manage_games(telegram_chat_id, callback.station_id)
+        if callback.action == "station_source":
+            return await self.station_manage_source(telegram_chat_id, callback.station_id)
+        if callback.action == "station_description_begin":
+            return await self.begin_station_description_update(
+                telegram_chat_id,
+                callback.station_id,
+            )
+        if callback.action == "station_description_apply":
+            return await self.apply_station_description_draft(
+                telegram_chat_id,
+                callback.draft_id,
+            )
+        if callback.action == "station_description_cancel":
+            return await self.cancel_station_description(
+                telegram_chat_id,
+                station_id=callback.station_id,
+                draft_id=callback.draft_id,
+            )
+        if callback.action == "account_menu":
+            return await self.account_menu(telegram_chat_id)
+        if callback.action == "account_balance":
+            return await self.account_menu_result(telegram_chat_id, "balance")
+        if callback.action == "account_usage":
+            return await self.account_menu_result(telegram_chat_id, "usage")
+        if callback.action == "account_promocodes":
+            return await self.account_menu_result(telegram_chat_id, "promocodes")
         if callback.action == "sessions_refresh":
             return await self.sessions(telegram_chat_id, page=callback.page or 0)
         if callback.action == "sessions_page":
@@ -932,6 +1364,42 @@ class BotService:
         async with self._uow_factory() as uow:
             await uow.station_cache.replace_for_chat(telegram_chat_id, stations)
         return station
+
+    async def _station_and_source(
+        self,
+        telegram_chat_id: int,
+        profile: ChatProfile,
+        client: DrovaClientProtocol,
+        station_id: str,
+    ) -> tuple[Station, ServerSource] | RenderedMessage:
+        stations = await client.get_servers(profile.drova_user_id or "")
+        station = _find_station(stations, station_id)
+        if station is None:
+            return render_error("station_not_found")
+        source = await client.get_server_source(station.uuid, profile.drova_user_id or "")
+        async with self._uow_factory() as uow:
+            await uow.station_cache.replace_for_chat(telegram_chat_id, stations)
+            await uow.chat_profiles.set_selected_station(telegram_chat_id, station.uuid)
+        return station, source
+
+    def _cleanup_description_state(self) -> None:
+        expired_chats = [
+            chat_id
+            for chat_id, request in self._description_requests.items()
+            if self._is_description_state_expired(request.created_at)
+        ]
+        for chat_id in expired_chats:
+            self._description_requests.pop(chat_id, None)
+        expired_drafts = [
+            draft_id
+            for draft_id, draft in self._description_drafts.items()
+            if self._is_description_state_expired(draft.created_at)
+        ]
+        for draft_id in expired_drafts:
+            self._description_drafts.pop(draft_id, None)
+
+    def _is_description_state_expired(self, created_at: datetime) -> bool:
+        return (self._clock() - created_at).total_seconds() > DESCRIPTION_DRAFT_TTL_SECONDS
 
     async def _load_client(
         self,

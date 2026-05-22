@@ -69,6 +69,7 @@ EndpointGeoResolver = Callable[[Endpoint], EndpointGeo | None]
 SessionGeoResolver = Callable[[Session], EndpointGeo | None]
 SESSION_PAGE_SIZE = 5
 GAME_PAGE_SIZE = 10
+STATION_MANAGE_PAGE_SIZE = 8
 
 
 def render_start_not_connected() -> RenderedMessage:
@@ -103,10 +104,12 @@ def render_help() -> RenderedMessage:
         "/logout - удалить токен и настройки чата",
         "/station - выбрать станцию",
         "/station_all - выбрать все станции",
+        "/station_manage - управление станциями",
         "/limit &lt;N&gt; - лимит сессий 1..100",
         "/sessions - последние сессии",
         "/sessions_short - последние сессии дольше 5 минут",
         "/current - состояние станций",
+        "/account_menu - меню аккаунта",
         "/account - баланс минут и выплаты",
         "/usage - статистика использования",
         "/disabled - проблемные продукты",
@@ -147,6 +150,9 @@ def render_error(code: str) -> RenderedMessage:
         ),
         "stale_server_control": "Состояние уже изменилось. Обновите команду управления.",
         "stale_server_source": "Описание станции уже изменилось. Сначала выполните /server_source.",
+        "description_draft_expired": (
+            "Черновик описания устарел. Начните обновление описания заново."
+        ),
         "drova_unavailable": "Drova временно недоступен. Попробуйте позже.",
         "drova_unauthorized": "Токен недействителен. Подключите новый через /token.",
         "stale_publish": "Состояние станции изменилось. Обновите панель публикации.",
@@ -198,6 +204,168 @@ def render_station_picker(
         rows.append(nav)
 
     return RenderedMessage("Выберите станцию:", KeyboardSpec(rows))
+
+
+def render_station_manage_picker(
+    stations: Sequence[Station],
+    *,
+    page: int = 0,
+    page_size: int = STATION_MANAGE_PAGE_SIZE,
+) -> RenderedMessage:
+    ordered = sort_stations(stations)
+    page_count = max(1, (len(ordered) + page_size - 1) // page_size)
+    current_page = min(max(page, 0), page_count - 1)
+    start = current_page * page_size
+    visible = ordered[start : start + page_size]
+
+    rows: list[list[ButtonSpec]] = []
+    for station in visible:
+        rows.append(
+            [
+                ButtonSpec(
+                    station_display_name(station),
+                    CallbackSpec(
+                        action="station_manage_select",
+                        station_id=station.uuid,
+                    ).pack(),
+                )
+            ]
+        )
+    if page_count > 1:
+        nav: list[ButtonSpec] = []
+        if current_page > 0:
+            nav.append(
+                ButtonSpec(
+                    "Назад",
+                    CallbackSpec(
+                        action="station_manage_page",
+                        page=current_page - 1,
+                    ).pack(),
+                )
+            )
+        if current_page + 1 < page_count:
+            nav.append(
+                ButtonSpec(
+                    "Вперед",
+                    CallbackSpec(
+                        action="station_manage_page",
+                        page=current_page + 1,
+                    ).pack(),
+                )
+            )
+        rows.append(nav)
+
+    return RenderedMessage(
+        f"Управление станциями · стр. {current_page + 1}/{page_count}\n"
+        "Выберите станцию:",
+        KeyboardSpec(rows),
+    )
+
+
+def render_station_manage_panel(
+    station: Station,
+    source: ServerSource,
+    *,
+    toast: str | None = None,
+) -> RenderedMessage:
+    desktop_on = source.allow_desktop
+    updates_on = not source.disable_updates
+    publication_button = "Скрыть станцию" if station.published else "Опубликовать станцию"
+    desktop_button = "Выключить полный доступ" if desktop_on else "Включить полный доступ"
+    updates_button = "Выключить обновления" if updates_on else "Включить обновления"
+    rows = [
+        [
+            ButtonSpec(
+                publication_button,
+                CallbackSpec(
+                    action="station_publish_prompt",
+                    station_id=station.uuid,
+                    expected_published=station.published,
+                ).pack(),
+            )
+        ],
+        [
+            ButtonSpec(
+                desktop_button,
+                CallbackSpec(
+                    action="station_control_toggle",
+                    station_id=station.uuid,
+                    control="desktop",
+                    expected_state=desktop_on,
+                ).pack(),
+            ),
+            ButtonSpec(
+                updates_button,
+                CallbackSpec(
+                    action="station_control_toggle",
+                    station_id=station.uuid,
+                    control="updates",
+                    expected_state=updates_on,
+                ).pack(),
+            ),
+        ],
+        [
+            ButtonSpec(
+                "Игры",
+                CallbackSpec(action="station_games", station_id=station.uuid).pack(),
+            )
+        ],
+        [
+            ButtonSpec(
+                "Исходник описания",
+                CallbackSpec(action="station_source", station_id=station.uuid).pack(),
+            ),
+            ButtonSpec(
+                "Обновить описание",
+                CallbackSpec(
+                    action="station_description_begin",
+                    station_id=station.uuid,
+                ).pack(),
+            ),
+        ],
+        [
+            ButtonSpec(
+                "К выбору станции",
+                CallbackSpec(action="station_manage_page", page=0).pack(),
+            )
+        ],
+    ]
+    lines = [
+        "Управление станцией",
+        f"<b>{html_escape(station.name)}</b>",
+        f"Публикация: {_station_publication_word(station.published)}",
+        f"Полный доступ: {_enabled_word(desktop_on, singular=True)}",
+        f"Обновления: {_enabled_word(updates_on, singular=False)}",
+    ]
+    return RenderedMessage("\n".join(lines), KeyboardSpec(rows), toast=toast)
+
+
+def render_station_publish_manage_confirmation(station: Station) -> RenderedMessage:
+    target = "скрыта" if station.published else "опубликована"
+    action_text = "скрыть" if station.published else "опубликовать"
+    return RenderedMessage(
+        f'Изменить публикацию станции "{html_escape(station.name)}" на "{target}"?',
+        KeyboardSpec(
+            [
+                [
+                    ButtonSpec(
+                        f"Да, {action_text}",
+                        CallbackSpec(
+                            action="station_publish_confirm",
+                            station_id=station.uuid,
+                            expected_published=station.published,
+                        ).pack(),
+                    )
+                ],
+                [
+                    ButtonSpec(
+                        "Отмена",
+                        CallbackSpec(action="station_panel", station_id=station.uuid).pack(),
+                    )
+                ],
+            ]
+        ),
+    )
 
 
 def render_promocode_issued(
@@ -314,6 +482,34 @@ def render_usage_statistics(
     return RenderedMessage("\n".join(lines))
 
 
+def render_account_menu(result_text: str | None = None) -> RenderedMessage:
+    keyboard = KeyboardSpec(
+        [
+            [
+                ButtonSpec(
+                    "Баланс и выплаты",
+                    CallbackSpec(action="account_balance").pack(),
+                )
+            ],
+            [
+                ButtonSpec(
+                    "Статистика использования",
+                    CallbackSpec(action="account_usage").pack(),
+                )
+            ],
+            [
+                ButtonSpec(
+                    "Неактивированные промокоды",
+                    CallbackSpec(action="account_promocodes").pack(),
+                )
+            ],
+        ]
+    )
+    if result_text:
+        return RenderedMessage(f"{result_text}\n\nМеню аккаунта", keyboard)
+    return RenderedMessage("Меню аккаунта", keyboard)
+
+
 def render_server_control_confirmation(
     station: Station,
     source: ServerSource,
@@ -366,7 +562,7 @@ def render_server_source(station: Station, source: ServerSource) -> RenderedMess
         f"Название: <code>{html_escape(source.name)}</code>",
         "",
         "Описание:",
-        f"<pre>{html_escape(description)}</pre>",
+        f'<pre><code class="language-html">{html_escape(description)}</code></pre>',
     ]
     if truncated:
         lines.append("Описание обрезано до безопасной длины сообщения.")
@@ -378,23 +574,77 @@ def render_server_description_preview(
     *,
     description: str,
     revision: str,
+    draft_id: str | None = None,
 ) -> RenderedMessage:
     preview, truncated = _truncated_description(description)
-    command = f"/server_description_apply {revision} {description}"
-    command_preview, command_truncated = _truncated_description(command, max_length=1200)
     lines = [
         f"Новое описание для {html_escape(station.name)}",
         f"Ревизия текущего описания: <code>{html_escape(revision)}</code>",
         "",
         "Предпросмотр:",
-        f"<pre>{html_escape(preview)}</pre>",
-        "",
-        "Чтобы применить, отправьте:",
-        f"<code>{html_escape(command_preview)}</code>",
+        f'<pre><code class="language-html">{html_escape(preview)}</code></pre>',
     ]
-    if truncated or command_truncated:
-        lines.append("Длинное описание обрезано в предпросмотре; отправьте apply-команду вручную.")
-    return RenderedMessage("\n".join(lines))
+    if draft_id is None:
+        command = f"/server_description_apply {revision} {description}"
+        command_preview, command_truncated = _truncated_description(command, max_length=1200)
+        lines.extend(
+            [
+                "",
+                "Чтобы применить, отправьте:",
+                f"<code>{html_escape(command_preview)}</code>",
+            ]
+        )
+        if truncated or command_truncated:
+            lines.append(
+                "Длинное описание обрезано в предпросмотре; отправьте apply-команду вручную."
+            )
+        return RenderedMessage("\n".join(lines))
+    if truncated:
+        lines.append("Длинное описание обрезано в предпросмотре.")
+    keyboard = KeyboardSpec(
+        [
+            [
+                ButtonSpec(
+                    "Применить",
+                    CallbackSpec(
+                        action="station_description_apply",
+                        draft_id=draft_id,
+                    ).pack(),
+                )
+            ],
+            [
+                ButtonSpec(
+                    "Отмена",
+                    CallbackSpec(
+                        action="station_description_cancel",
+                        draft_id=draft_id,
+                    ).pack(),
+                )
+            ],
+        ]
+    )
+    return RenderedMessage("\n".join(lines), keyboard)
+
+
+def render_server_description_request(station: Station) -> RenderedMessage:
+    return RenderedMessage(
+        "Пришлите новое HTML-описание следующим сообщением.\n"
+        f"Станция: <b>{html_escape(station.name)}</b>\n"
+        "Бот покажет исходник и попросит подтвердить изменение.",
+        KeyboardSpec(
+            [
+                [
+                    ButtonSpec(
+                        "Отмена",
+                        CallbackSpec(
+                            action="station_description_cancel",
+                            station_id=station.uuid,
+                        ).pack(),
+                    )
+                ]
+            ]
+        ),
+    )
 
 
 def render_server_description_result(station: Station, *, revision: str) -> RenderedMessage:
@@ -432,6 +682,16 @@ def _server_control_state_word(action: str, enabled: bool) -> str:
     if action.startswith("updates_"):
         return "включены" if enabled else "выключены"
     return "включен" if enabled else "выключен"
+
+
+def _station_publication_word(published: bool) -> str:
+    return "опубликована" if published else "скрыта"
+
+
+def _enabled_word(enabled: bool, *, singular: bool) -> str:
+    if singular:
+        return "включен" if enabled else "выключен"
+    return "включены" if enabled else "выключены"
 
 
 def _usage_total_line(label: str, stat: UsageStat) -> str:
