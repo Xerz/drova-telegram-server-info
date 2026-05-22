@@ -74,7 +74,7 @@ python3 -m uv run mypy src tests
 ```dotenv
 TELEGRAM_BOT_TOKEN=
 BOT_SECRET_KEY=
-DATABASE_URL=sqlite+aiosqlite:///data/drova_bot.sqlite3
+DATABASE_URL=sqlite+aiosqlite:////data/drova_bot.sqlite3
 TZ=Asia/Yekaterinburg
 DROVA_BASE_URL=https://services.drova.io
 ```
@@ -102,18 +102,49 @@ Telegram и запускает polling.
 docker compose up --build
 ```
 
-`docker-compose.yml` читает секреты из `.env` и монтирует `./data` как директорию SQLite.
-Секреты не попадают в образ.
+`docker-compose.yml` читает секреты из `.env`, запускает контейнер с именем `drova-bot`
+и монтирует `./data` как `/data`. SQLite должен использовать
+`sqlite+aiosqlite:////data/drova_bot.sqlite3`, тогда файл базы остается в volume, а не
+внутри слоя контейнера. Секреты не попадают в образ.
 
 Опубликованный образ в GHCR:
 
 ```bash
 docker pull ghcr.io/<owner>/<repo>:latest
-docker run --rm --env-file .env -v "$PWD/data:/data" ghcr.io/<owner>/<repo>:latest
+mkdir -p data
+docker run -d \
+  --name drova-bot \
+  --restart unless-stopped \
+  --env-file .env \
+  -e DATABASE_URL=sqlite+aiosqlite:////data/drova_bot.sqlite3 \
+  -v "$PWD/data:/data" \
+  ghcr.io/<owner>/<repo>:latest
 ```
 
 Замените `<owner>/<repo>` на путь GitHub-репозитория в нижнем регистре. По умолчанию база
 ожидается в `/data/drova_bot.sqlite3`.
+
+Обновление уже запущенного контейнера:
+
+```bash
+docker pull ghcr.io/<owner>/<repo>:latest
+docker stop drova-bot
+docker rm drova-bot
+docker run -d \
+  --name drova-bot \
+  --restart unless-stopped \
+  --env-file .env \
+  -e DATABASE_URL=sqlite+aiosqlite:////data/drova_bot.sqlite3 \
+  -v "$PWD/data:/data" \
+  ghcr.io/<owner>/<repo>:latest
+```
+
+Если запускаете через compose:
+
+```bash
+docker compose build --pull
+docker compose up -d
+```
 
 ## GeoLite
 

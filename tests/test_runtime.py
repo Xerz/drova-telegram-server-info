@@ -153,11 +153,20 @@ def test_deployment_files_keep_secrets_out_of_image() -> None:
     root = Path(__file__).resolve().parents[1]
     dockerfile = (root / "Dockerfile").read_text(encoding="utf-8")
     compose = (root / "docker-compose.yml").read_text(encoding="utf-8")
+    env_example = (root / ".env.example").read_text(encoding="utf-8")
+    readme = (root / "README.md").read_text(encoding="utf-8")
 
     assert "FROM python:3.12-slim" in dockerfile
     assert "uv sync --frozen --no-dev" in dockerfile
     assert "python -m drova_bot.tools.healthcheck" in dockerfile
     assert "env_file:" in compose
+    assert "container_name: drova-bot" in compose
+    assert "- ./data:/data" in compose
+    assert "sqlite+aiosqlite:////data/drova_bot.sqlite3" in compose
+    assert "DATABASE_URL=sqlite+aiosqlite:////data/drova_bot.sqlite3" in env_example
+    assert "--name drova-bot" in readme
+    assert "-v \"$PWD/data:/data\"" in readme
+    assert "docker stop drova-bot" in readme
     assert "TELEGRAM_BOT_TOKEN" not in dockerfile
     assert "BOT_SECRET_KEY" not in dockerfile
 
