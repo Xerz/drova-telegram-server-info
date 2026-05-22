@@ -312,11 +312,7 @@ def render_station_manage_panel(
         ],
         [
             ButtonSpec(
-                "Исходник описания",
-                CallbackSpec(action="station_source", station_id=station.uuid).pack(),
-            ),
-            ButtonSpec(
-                "Обновить описание",
+                "Описание",
                 CallbackSpec(
                     action="station_description_begin",
                     station_id=station.uuid,
@@ -626,11 +622,25 @@ def render_server_description_preview(
     return RenderedMessage("\n".join(lines), keyboard)
 
 
-def render_server_description_request(station: Station) -> RenderedMessage:
+def render_server_description_request(
+    station: Station,
+    *,
+    current_description: str,
+) -> RenderedMessage:
+    description, truncated = _truncated_description(current_description)
+    lines = [
+        "Пришлите новое HTML-описание следующим сообщением.",
+        f"Станция: <b>{html_escape(station.name)}</b>",
+        "",
+        "Текущее описание:",
+        f'<pre><code class="language-html">{html_escape(description)}</code></pre>',
+        "",
+        "Бот покажет новый исходник и попросит подтвердить изменение.",
+    ]
+    if truncated:
+        lines.append("Текущее описание обрезано до безопасной длины сообщения.")
     return RenderedMessage(
-        "Пришлите новое HTML-описание следующим сообщением.\n"
-        f"Станция: <b>{html_escape(station.name)}</b>\n"
-        "Бот покажет исходник и попросит подтвердить изменение.",
+        "\n".join(lines),
         KeyboardSpec(
             [
                 [

@@ -973,7 +973,10 @@ class BotService:
                 revision=_server_source_revision(source),
                 created_at=self._clock(),
             )
-            return render_server_description_request(station)
+            return render_server_description_request(
+                station,
+                current_description=source.description,
+            )
         except (DrovaUnauthorized, DrovaPermissionDenied):
             return render_error("drova_unauthorized")
         except DrovaUnavailable:

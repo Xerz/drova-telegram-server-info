@@ -235,11 +235,21 @@ def test_station_management_renderers_are_button_first(
     assert panel.keyboard.rows[1][0].text == "Включить полный доступ"
     assert panel.keyboard.rows[1][1].text == "Включить обновления"
     assert panel.keyboard.rows[2][0].text == "Игры"
-    assert panel.keyboard.rows[3][0].text == "Исходник описания"
-    assert panel.keyboard.rows[3][1].text == "Обновить описание"
+    assert panel.keyboard.rows[3][0].text == "Описание"
+    assert (
+        parse_callback_data(panel.keyboard.rows[3][0].callback_data).action
+        == "station_description_begin"
+    )
 
-    request = render_server_description_request(ui_stations[0])
+    request = render_server_description_request(
+        ui_stations[0],
+        current_description="<b>current & source</b>",
+    )
     assert "Пришлите новое HTML-описание" in request.text
+    assert "Текущее описание:" in request.text
+    assert '<pre><code class="language-html">' in request.text
+    assert "&lt;b&gt;current &amp; source&lt;/b&gt;" in request.text
+    assert "<b>current & source</b>" not in request.text
     assert request.keyboard is not None
     assert parse_callback_data(request.keyboard.rows[0][0].callback_data).action == (
         "station_description_cancel"

@@ -777,6 +777,8 @@ async def test_station_manage_description_draft_flow(
     applied = await service.apply_station_description_draft(10001, draft_id)
 
     assert "Пришлите новое HTML-описание" in request.text
+    assert "Текущее описание:" in request.text
+    assert "&lt;description:redacted&gt;" in request.text
     assert '<pre><code class="language-html">' in draft.text
     assert "&lt;b&gt;New &amp; source&lt;/b&gt;" in draft.text
     assert applied.toast == "Описание обновлено."
