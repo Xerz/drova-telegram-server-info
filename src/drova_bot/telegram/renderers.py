@@ -761,7 +761,10 @@ def render_station_games(
     ]
     if not ordered:
         lines.append("Игры не найдены.")
-        return RenderedMessage("\n".join(lines))
+        return RenderedMessage(
+            "\n".join(lines),
+            KeyboardSpec([_station_panel_back_row(station)]),
+        )
 
     rows: list[list[ButtonSpec]] = []
     for product in visible:
@@ -797,6 +800,7 @@ def render_station_games(
                 )
             )
         rows.append(nav)
+    rows.append(_station_panel_back_row(station))
     return RenderedMessage("\n".join(lines), KeyboardSpec(rows))
 
 
@@ -856,9 +860,19 @@ def render_station_game_detail(
                     CallbackSpec(action="game_page", page=page).pack(),
                 )
             ],
+            _station_panel_back_row(station),
         ]
     )
     return RenderedMessage("\n".join(lines), keyboard)
+
+
+def _station_panel_back_row(station: Station) -> list[ButtonSpec]:
+    return [
+        ButtonSpec(
+            "К меню станции",
+            CallbackSpec(action="station_panel", station_id=station.uuid).pack(),
+        )
+    ]
 
 
 def render_game_hide_all_confirmation(

@@ -134,7 +134,8 @@
 - Publication requires inline confirmation and stale-state protection.
 - Desktop/update buttons are inline writes with stale-state protection; success returns
   the refreshed station panel and a short callback toast.
-- The `Games` button opens the selected station's game picker.
+- The `Games` button opens the selected station's game picker. Game list and game detail
+  messages include a button back to the station management panel.
 - The `Description` button shows the current escaped HTML description source and puts
   the chat into a 30-minute in-memory waiting state. The next non-command message is
   treated as HTML description draft, previewed with `Apply` and `Cancel` buttons, and
