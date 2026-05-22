@@ -288,6 +288,10 @@ def test_game_management_renderers_are_command_friendly(
     assert games.keyboard.rows[1][0].text == "🚫 Space Farm · отключен"
     assert parse_callback_data(games.keyboard.rows[0][0].callback_data).action == "game_select"
     assert parse_callback_data(games.keyboard.rows[0][0].callback_data).product_id == "product-a"
+    assert games.keyboard.rows[-1][0].text == "К меню станции"
+    game_back = parse_callback_data(games.keyboard.rows[-1][0].callback_data)
+    assert game_back.action == "station_panel"
+    assert game_back.station_id == "station-online"
 
     detail = render_station_game_detail(
         station,
@@ -321,6 +325,10 @@ def test_game_management_renderers_are_command_friendly(
         parse_callback_data(detail.keyboard.rows[1][0].callback_data).action
         == "game_hide_all_prompt"
     )
+    assert detail.keyboard.rows[-1][0].text == "К меню станции"
+    detail_back = parse_callback_data(detail.keyboard.rows[-1][0].callback_data)
+    assert detail_back.action == "station_panel"
+    assert detail_back.station_id == "station-online"
 
     result = render_game_enabled_result(
         product_title="Space Farm",
@@ -392,8 +400,10 @@ def test_station_games_renderer_paginates_large_lists(ui_stations: list[Station]
         "✅ Game 11",
         "✅ Game 12",
     ]
-    assert first.keyboard.rows[-1][0].text == "Вперед"
-    assert second.keyboard.rows[-1][0].text == "Назад"
+    assert first.keyboard.rows[-2][0].text == "Вперед"
+    assert second.keyboard.rows[-2][0].text == "Назад"
+    assert first.keyboard.rows[-1][0].text == "К меню станции"
+    assert second.keyboard.rows[-1][0].text == "К меню станции"
     for row in first.keyboard.rows:
         for button in row:
             assert len(button.callback_data.encode("utf-8")) <= 64

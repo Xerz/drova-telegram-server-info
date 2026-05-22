@@ -1123,6 +1123,11 @@ async def test_game_commands_use_selected_station_without_callback_uuid_pairs(
     assert "product-a" not in games.text
     assert games.keyboard is not None
     assert games.keyboard.rows[0][0].text == "✅ Cyber Rally"
+    assert games.keyboard.rows[-1][0].text == "К меню станции"
+    assert (
+        parse_callback_data(games.keyboard.rows[-1][0].callback_data).action
+        == "station_panel"
+    )
     assert "Игры станции Alpha Station" in page.text
     assert "Путь: <code>C:\\Steam\\Steam.exe</code>" in detail.text
     assert "Статус: отключена · опубликована · доступна" in hidden.text
