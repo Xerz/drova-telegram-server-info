@@ -128,18 +128,19 @@
 - It opens a paginated station picker, without an all-stations option, because station
   operations target one station.
 - Selecting a station persists it as the chat's selected station and opens a station
-  panel with publication, desktop, updates, games, source and description actions.
+  panel with publication, desktop, updates, games and description actions.
 - Station picker and game picker both paginate; callbacks may carry a station id or
   product id, but never both in one payload.
 - Publication requires inline confirmation and stale-state protection.
 - Desktop/update buttons are inline writes with stale-state protection; success returns
   the refreshed station panel and a short callback toast.
 - The `Games` button opens the selected station's game picker.
+- The `Description` button shows the current escaped HTML description source and puts
+  the chat into a 30-minute in-memory waiting state. The next non-command message is
+  treated as HTML description draft, previewed with `Apply` and `Cancel` buttons, and
+  applied only if the stored source revision is still current.
 - Source and description previews display escaped HTML source in
   `<pre><code class="language-html">...</code></pre>` blocks.
-- `Update description` puts the chat into a 30-minute in-memory waiting state. The next
-  non-command message is treated as HTML description draft, previewed with `Apply` and
-  `Cancel` buttons, and applied only if the stored source revision is still current.
 - `/desktop_*`, `/updates_*`, `/server_source`, `/server_description ...` and
   `/server_description_apply ...` remain direct compatibility commands.
 
