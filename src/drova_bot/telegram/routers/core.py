@@ -41,10 +41,12 @@ def build_router() -> Router:
     router.message.register(logout_command, Command("logout", "removeToken"))
     router.message.register(station_command, Command("station"))
     router.message.register(station_all_command, Command("station_all"))
+    router.message.register(station_manage_command, Command("station_manage"))
     router.message.register(limit_command, Command("limit"))
     router.message.register(sessions_command, Command("sessions"))
     router.message.register(sessions_short_command, Command("sessions_short"))
     router.message.register(current_command, Command("current"))
+    router.message.register(account_menu_command, Command("account_menu"))
     router.message.register(account_command, Command("account"))
     router.message.register(usage_command, Command("usage"))
     router.message.register(disabled_command, Command("disabled"))
@@ -119,6 +121,10 @@ async def station_all_command(message: Message, bot_service: BotService) -> None
     await answer_rendered(message, await bot_service.select_all_stations(message.chat.id))
 
 
+async def station_manage_command(message: Message, bot_service: BotService) -> None:
+    await answer_rendered(message, await bot_service.station_manage_picker(message.chat.id))
+
+
 async def limit_command(message: Message, bot_service: BotService) -> None:
     await answer_rendered(
         message,
@@ -145,6 +151,10 @@ async def sessions_short_command(message: Message, bot_service: BotService) -> N
 
 async def current_command(message: Message, bot_service: BotService) -> None:
     await answer_rendered(message, await bot_service.current(message.chat.id))
+
+
+async def account_menu_command(message: Message, bot_service: BotService) -> None:
+    await answer_rendered(message, await bot_service.account_menu(message.chat.id))
 
 
 async def account_command(message: Message, bot_service: BotService) -> None:
@@ -377,8 +387,11 @@ async def unknown_command(message: Message) -> None:
     await answer_rendered(message, render_error("unknown_command"))
 
 
-async def unknown_text(message: Message) -> None:
-    await answer_rendered(message, render_error("unknown_text"))
+async def unknown_text(message: Message, bot_service: BotService) -> None:
+    rendered = await bot_service.consume_station_description_text(message.chat.id, message.text)
+    if rendered is None:
+        rendered = render_error("unknown_text")
+    await answer_rendered(message, rendered)
 
 
 def _command_args(text: str | None) -> str:

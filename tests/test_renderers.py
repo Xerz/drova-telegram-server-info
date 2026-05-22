@@ -23,6 +23,7 @@ from drova_bot.telegram.renderers import (
     EndpointGeo,
     latest_sessions_by_station,
     render_account_billing,
+    render_account_menu,
     render_current,
     render_disabled,
     render_error,
@@ -33,6 +34,7 @@ from drova_bot.telegram.renderers import (
     render_server_control_confirmation,
     render_server_control_result,
     render_server_description_preview,
+    render_server_description_request,
     render_server_description_result,
     render_server_source,
     render_sessions,
@@ -40,6 +42,8 @@ from drova_bot.telegram.renderers import (
     render_start_not_connected,
     render_station_game_detail,
     render_station_games,
+    render_station_manage_panel,
+    render_station_manage_picker,
     render_station_picker,
     render_stations,
     render_unused_promocodes,
@@ -56,6 +60,8 @@ def test_start_and_help_messages_are_russian_and_safe() -> None:
         session_limit=5,
     ).text
     assert "/station_all - выбрать все станции" in help_text
+    assert "/station_manage - управление станциями" in help_text
+    assert "/account_menu - меню аккаунта" in help_text
     assert "/sessions_short - последние сессии дольше 5 минут" in help_text
     assert "/usage - статистика использования" in help_text
     assert "/desktop_on - включить полный доступ на выбранной станции" in help_text
@@ -167,6 +173,7 @@ def test_server_source_renderer_escapes_explicit_description_view(
 
     assert "Исходник описания станции Alpha Station" in message.text
     assert "Название: <code>Alpha Station</code>" in message.text
+    assert '<pre><code class="language-html">' in message.text
     assert "&lt;b&gt;raw &amp; station source&lt;/b&gt;" in message.text
     assert "<b>raw & station source</b>" not in message.text
 
@@ -181,6 +188,7 @@ def test_server_description_update_renderers_use_revision_commands(
         revision="abc123",
     )
     assert "Новое описание для Alpha Station" in preview.text
+    assert '<pre><code class="language-html">' in preview.text
     assert (
         "<code>/server_description_apply abc123 &lt;b&gt;new &amp; source&lt;/b&gt;</code>"
         in preview.text
@@ -190,6 +198,70 @@ def test_server_description_update_renderers_use_revision_commands(
     result = render_server_description_result(station, revision="def456")
     assert "Описание обновлено: Alpha Station" in result.text
     assert "<code>def456</code>" in result.text
+
+
+def test_station_management_renderers_are_button_first(
+    ui_stations: list[Station],
+    ui_server_source: ServerSource,
+) -> None:
+    many_stations = [
+        replace(ui_stations[0], uuid=f"station-{index:02}", name=f"Station {index:02}")
+        for index in range(30)
+    ]
+    picker = render_station_manage_picker(many_stations, page=0, page_size=8)
+    assert "Управление станциями · стр. 1/4" in picker.text
+    assert "Выберите станцию:" in picker.text
+    assert picker.keyboard is not None
+    assert picker.keyboard.rows[0][0].text == "Station 00"
+    assert picker.keyboard.rows[-1][0].text == "Вперед"
+    assert parse_callback_data(picker.keyboard.rows[0][0].callback_data).action == (
+        "station_manage_select"
+    )
+    assert parse_callback_data(picker.keyboard.rows[-1][0].callback_data).action == (
+        "station_manage_page"
+    )
+
+    panel = render_station_manage_panel(ui_stations[0], ui_server_source)
+    assert "Управление станцией" in panel.text
+    assert "<b>Alpha Station</b>" in panel.text
+    assert "Публикация: опубликована" in panel.text
+    assert "Полный доступ: выключен" in panel.text
+    assert "Обновления: выключены" in panel.text
+    assert panel.keyboard is not None
+    assert panel.keyboard.rows[0][0].text == "Скрыть станцию"
+    assert parse_callback_data(panel.keyboard.rows[0][0].callback_data).action == (
+        "station_publish_prompt"
+    )
+    assert panel.keyboard.rows[1][0].text == "Включить полный доступ"
+    assert panel.keyboard.rows[1][1].text == "Включить обновления"
+    assert panel.keyboard.rows[2][0].text == "Игры"
+    assert panel.keyboard.rows[3][0].text == "Исходник описания"
+    assert panel.keyboard.rows[3][1].text == "Обновить описание"
+
+    request = render_server_description_request(ui_stations[0])
+    assert "Пришлите новое HTML-описание" in request.text
+    assert request.keyboard is not None
+    assert parse_callback_data(request.keyboard.rows[0][0].callback_data).action == (
+        "station_description_cancel"
+    )
+
+
+def test_account_menu_keeps_buttons_under_results() -> None:
+    empty = render_account_menu()
+    with_result = render_account_menu("Баланс минут: скрыто")
+
+    assert empty.text == "Меню аккаунта"
+    assert empty.keyboard is not None
+    assert [row[0].text for row in empty.keyboard.rows] == [
+        "Баланс и выплаты",
+        "Статистика использования",
+        "Неактивированные промокоды",
+    ]
+    assert "Баланс минут: скрыто" in with_result.text
+    assert with_result.keyboard is not None
+    assert parse_callback_data(with_result.keyboard.rows[0][0].callback_data).action == (
+        "account_balance"
+    )
 
 
 def test_game_management_renderers_are_command_friendly(

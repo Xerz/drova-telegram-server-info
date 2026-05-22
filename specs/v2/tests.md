@@ -36,6 +36,10 @@ No command handler is considered done without handler tests and renderer tests.
 - `/sessions` full and short mode.
 - `/current` dashboard with mixed station states.
 - Publish confirmation success, cancel and stale-state failure.
+- `/station_manage` station picker, station panel, publication, desktop/update toggles,
+  games entrypoint, source preview and description draft callbacks.
+- `/account_menu` button actions for billing, usage and unused promocodes, with account
+  buttons kept under result messages.
 - `/disabled` empty and non-empty states.
 - `/stations` endpoint grouping.
 - `/promocode <minutes>` validates integer minutes, issues one code and renders it monospace.

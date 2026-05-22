@@ -31,10 +31,12 @@
 | `/logout` | Удалить токен, user id, выбранную станцию и приватные настройки чата. |
 | `/station` | Открыть выбор станции через paginated inline UI. |
 | `/station_all` | Выбрать все станции. |
+| `/station_manage` | Открыть меню управления станциями: выбор станции, публикация, desktop, updates, игры и описание. |
 | `/limit <N>` | Установить лимит последних сессий, допустимо `1..100`. |
 | `/sessions` | Последние сессии по выбранной станции или всем станциям. |
 | `/sessions_short` | Последние сессии дольше 5 минут. |
 | `/current` | Dashboard состояния всех станций. |
+| `/account_menu` | Открыть меню аккаунта: баланс, статистика, промокоды. |
 | `/account` | Баланс минут, открытые выплаты и последние операции с минутами. |
 | `/usage` | Статистика использования за сегодня, неделю и месяц. |
 | `/disabled` | Проблемные продукты по станциям. |
@@ -54,6 +56,10 @@
 | `/export_product_time` | Выгрузить XLSX времени использования продуктов. |
 
 Backward-compatible aliases должны поддерживаться в V2: `/station all`, `/sessions short`, `/export sessions`, `/export products`, `/export product-time`, `/removeToken`, `/stationsInfo`, `/dumpall`, `/dumpOnefile`, `/dumpStationsProducts`, `/dumpStationsProductsWithTime`, `/dumpStationsProductsMonth`.
+
+Direct station/account commands remain supported for compatibility, but primary UX is
+button-first: `/station_manage` for station operations and `/account_menu` for account
+summaries.
 
 Technical game-management aliases may stay accepted for automation/debugging but are
 not primary UX: `/game <product_id>`, `/game_hide <product_id>`,

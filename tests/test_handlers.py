@@ -15,6 +15,7 @@ from drova_bot.telegram.renderers import RenderedMessage
 from drova_bot.telegram.routers import build_router
 from drova_bot.telegram.routers.core import (
     account_command,
+    account_menu_command,
     callback_query,
     current_command,
     deliver_export_job,
@@ -43,6 +44,7 @@ from drova_bot.telegram.routers.core import (
     start_command,
     station_all_command,
     station_command,
+    station_manage_command,
     stations_command,
     token_command,
     unknown_command,
@@ -138,6 +140,10 @@ class FakeService:
         self.calls.append(("station_picker", (chat_id,), {}))
         return RenderedMessage("picker")
 
+    async def station_manage_picker(self, chat_id: int) -> RenderedMessage:
+        self.calls.append(("station_manage_picker", (chat_id,), {}))
+        return RenderedMessage("station_manage")
+
     async def set_limit(self, chat_id: int, raw_limit: str) -> RenderedMessage:
         self.calls.append(("set_limit", (chat_id, raw_limit), {}))
         return RenderedMessage(f"limit:{raw_limit}")
@@ -149,6 +155,10 @@ class FakeService:
     async def current(self, chat_id: int) -> RenderedMessage:
         self.calls.append(("current", (chat_id,), {}))
         return RenderedMessage("current")
+
+    async def account_menu(self, chat_id: int) -> RenderedMessage:
+        self.calls.append(("account_menu", (chat_id,), {}))
+        return RenderedMessage("account_menu")
 
     async def account_billing(self, chat_id: int) -> RenderedMessage:
         self.calls.append(("account_billing", (chat_id,), {}))
@@ -233,6 +243,16 @@ class FakeService:
         self.calls.append(("handle_callback", (chat_id, callback), {}))
         return RenderedMessage("callback")
 
+    async def consume_station_description_text(
+        self,
+        chat_id: int,
+        text: str | None,
+    ) -> RenderedMessage | None:
+        self.calls.append(("consume_station_description_text", (chat_id, text), {}))
+        if text == "<b>new</b>":
+            return RenderedMessage("description draft")
+        return None
+
     async def export(self, chat_id: int, kind: ExportKind) -> ExportResult:
         self.calls.append(("export", (chat_id, kind), {}))
         return await self._export_result(kind)
@@ -283,6 +303,8 @@ async def test_basic_command_handlers_route_to_service_or_help() -> None:
     start_message = FakeMessage("/start")
     help_message = FakeMessage("/help")
     current_message = FakeMessage("/current")
+    station_manage_message = FakeMessage("/station_manage")
+    account_menu_message = FakeMessage("/account_menu")
     account_message = FakeMessage("/account")
     usage_message = FakeMessage("/usage")
     server_source_message = FakeMessage("/server_source")
@@ -292,6 +314,8 @@ async def test_basic_command_handlers_route_to_service_or_help() -> None:
     await start_command(cast(Message, start_message), service)  # type: ignore[arg-type]
     await help_command(cast(Message, help_message))
     await current_command(cast(Message, current_message), service)  # type: ignore[arg-type]
+    await station_manage_command(cast(Message, station_manage_message), service)  # type: ignore[arg-type]
+    await account_menu_command(cast(Message, account_menu_message), service)  # type: ignore[arg-type]
     await account_command(cast(Message, account_message), service)  # type: ignore[arg-type]
     await usage_command(cast(Message, usage_message), service)  # type: ignore[arg-type]
     await server_source_command(cast(Message, server_source_message), service)  # type: ignore[arg-type]
@@ -301,6 +325,8 @@ async def test_basic_command_handlers_route_to_service_or_help() -> None:
     assert service.calls == [
         ("start", (10001,), {}),
         ("current", (10001,), {}),
+        ("station_manage_picker", (10001,), {}),
+        ("account_menu", (10001,), {}),
         ("account_billing", (10001,), {}),
         ("usage_statistics", (10001,), {}),
         ("server_source", (10001,), {}),
@@ -310,6 +336,8 @@ async def test_basic_command_handlers_route_to_service_or_help() -> None:
     assert start_message.answers[0][0] == "start"
     assert "Команды:" in help_message.answers[0][0]
     assert current_message.answers[0][0] == "current"
+    assert station_manage_message.answers[0][0] == "station_manage"
+    assert account_menu_message.answers[0][0] == "account_menu"
     assert account_message.answers[0][0] == "account"
     assert usage_message.answers[0][0] == "usage"
     assert server_source_message.answers[0][0] == "server_source"
@@ -491,6 +519,26 @@ def test_callback_payloads_fit_telegram_limit_and_parse_legacy_format() -> None:
     parsed_confirm = parse_callback_data(hide_all_confirm_payload)
     assert parsed_confirm.action == "game_hide_all_confirm"
     assert parsed_confirm.product_id == product_uuid
+    control_payload = CallbackSpec(
+        action="station_control_toggle",
+        station_id=station_uuid,
+        control="desktop",
+        expected_state=False,
+    ).pack()
+    assert len(control_payload.encode("utf-8")) <= 64
+    parsed_control = parse_callback_data(control_payload)
+    assert parsed_control.action == "station_control_toggle"
+    assert parsed_control.station_id == station_uuid
+    assert parsed_control.control == "desktop"
+    assert parsed_control.expected_state is False
+    draft_payload = CallbackSpec(
+        action="station_description_apply",
+        draft_id="a1b2c3d4e5",
+    ).pack()
+    assert len(draft_payload.encode("utf-8")) <= 64
+    parsed_draft = parse_callback_data(draft_payload)
+    assert parsed_draft.action == "station_description_apply"
+    assert parsed_draft.draft_id == "a1b2c3d4e5"
 
     legacy = f"publish_select|station={station_uuid}|published=1"
     parsed_legacy = parse_callback_data(legacy)
@@ -534,14 +582,22 @@ async def test_callback_handler_uses_rendered_toast() -> None:
 
 @pytest.mark.asyncio
 async def test_unknown_command_and_text() -> None:
+    service = FakeService()
     command = FakeMessage("/wat")
     text = FakeMessage("hello")
+    description = FakeMessage("<b>new</b>")
 
     await unknown_command(cast(Message, command))
-    await unknown_text(cast(Message, text))
+    await unknown_text(cast(Message, text), service)  # type: ignore[arg-type]
+    await unknown_text(cast(Message, description), service)  # type: ignore[arg-type]
 
     assert command.answers[0][0] == "Команда не найдена. Используйте /help."
     assert text.answers[0][0] == "Я понимаю только команды. Используйте /help."
+    assert description.answers[0][0] == "description draft"
+    assert service.calls == [
+        ("consume_station_description_text", (10001, "hello"), {}),
+        ("consume_station_description_text", (10001, "<b>new</b>"), {}),
+    ]
 
 
 @pytest.mark.asyncio

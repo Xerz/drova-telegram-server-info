@@ -623,6 +623,228 @@ async def test_server_description_apply_rejects_stale_revision(
 
 
 @pytest.mark.asyncio
+async def test_station_manage_menu_selects_station_and_toggles_controls(
+    service_engine: AsyncEngine,
+    ui_stations: list[Station],
+    ui_server_source: ServerSource,
+) -> None:
+    manage_client = FakeDrovaClient(
+        stations=ui_stations,
+        server_sources={"station-online": ui_server_source},
+    )
+    service = make_service(
+        service_engine,
+        FakeDrovaClientFactory(
+            FakeDrovaClient(stations=ui_stations),
+            manage_client,
+            manage_client,
+            manage_client,
+            manage_client,
+        ),
+    )
+    await service.connect_token(10001, "token")
+
+    picker = await service.station_manage_picker(10001)
+    panel = await service.handle_callback(
+        10001,
+        parse_callback_data(
+            CallbackSpec(action="station_manage_select", station_id="station-online").pack()
+        ),
+    )
+    desktop = await service.handle_callback(
+        10001,
+        parse_callback_data(
+            CallbackSpec(
+                action="station_control_toggle",
+                station_id="station-online",
+                control="desktop",
+                expected_state=False,
+            ).pack()
+        ),
+    )
+    updates = await service.handle_callback(
+        10001,
+        parse_callback_data(
+            CallbackSpec(
+                action="station_control_toggle",
+                station_id="station-online",
+                control="updates",
+                expected_state=False,
+            ).pack()
+        ),
+    )
+
+    assert "Управление станциями" in picker.text
+    assert "Управление станцией" in panel.text
+    assert "<b>Alpha Station</b>" in panel.text
+    assert desktop.toast == "Полный доступ включен."
+    assert updates.toast == "Обновления включены."
+    assert manage_client.desktop_calls == [("station-online", True)]
+    assert manage_client.disable_updates_calls == [("station-online", False)]
+
+
+@pytest.mark.asyncio
+async def test_station_manage_publish_confirmation_success_and_stale(
+    service_engine: AsyncEngine,
+    ui_stations: list[Station],
+    ui_server_source: ServerSource,
+) -> None:
+    publish_client = FakeDrovaClient(
+        stations=ui_stations,
+        server_sources={"station-online": ui_server_source},
+    )
+    stale_client = FakeDrovaClient(
+        stations=[
+            replace(station, published=False) if station.uuid == "station-online" else station
+            for station in ui_stations
+        ],
+        server_sources={"station-online": replace(ui_server_source, published=False)},
+    )
+    service = make_service(
+        service_engine,
+        FakeDrovaClientFactory(
+            FakeDrovaClient(stations=ui_stations),
+            publish_client,
+            publish_client,
+            stale_client,
+        ),
+    )
+    await service.connect_token(10001, "token")
+
+    confirmation = await service.handle_callback(
+        10001,
+        parse_callback_data(
+            CallbackSpec(
+                action="station_publish_prompt",
+                station_id="station-online",
+                expected_published=True,
+            ).pack()
+        ),
+    )
+    success = await service.handle_callback(
+        10001,
+        parse_callback_data(
+            CallbackSpec(
+                action="station_publish_confirm",
+                station_id="station-online",
+                expected_published=True,
+            ).pack()
+        ),
+    )
+    stale = await service.handle_callback(
+        10001,
+        parse_callback_data(
+            CallbackSpec(
+                action="station_publish_prompt",
+                station_id="station-online",
+                expected_published=True,
+            ).pack()
+        ),
+    )
+
+    assert 'Изменить публикацию станции "Alpha Station" на "скрыта"?' in confirmation.text
+    assert publish_client.published_calls == [("station-online", False)]
+    assert "Публикация: скрыта" in success.text
+    assert success.toast == "Станция скрыта."
+    assert stale.text == "Состояние станции изменилось. Обновите панель публикации."
+
+
+@pytest.mark.asyncio
+async def test_station_manage_description_draft_flow(
+    service_engine: AsyncEngine,
+    ui_stations: list[Station],
+    ui_server_source: ServerSource,
+) -> None:
+    source_client = FakeDrovaClient(
+        stations=ui_stations,
+        server_sources={"station-online": ui_server_source},
+    )
+    service = make_service(
+        service_engine,
+        FakeDrovaClientFactory(
+            FakeDrovaClient(stations=ui_stations),
+            source_client,
+            source_client,
+        ),
+    )
+    await service.connect_token(10001, "token")
+
+    request = await service.begin_station_description_update(10001, "station-online")
+    draft = await service.consume_station_description_text(10001, "<b>New & source</b>")
+    assert draft is not None
+    assert draft.keyboard is not None
+    draft_id = parse_callback_data(draft.keyboard.rows[0][0].callback_data).draft_id
+    applied = await service.apply_station_description_draft(10001, draft_id)
+
+    assert "Пришлите новое HTML-описание" in request.text
+    assert '<pre><code class="language-html">' in draft.text
+    assert "&lt;b&gt;New &amp; source&lt;/b&gt;" in draft.text
+    assert applied.toast == "Описание обновлено."
+    assert "Управление станцией" in applied.text
+    assert source_client.source_update_calls == [
+        ("station-online", "Alpha Station", "<b>New & source</b>")
+    ]
+
+
+@pytest.mark.asyncio
+async def test_account_menu_wraps_account_results(
+    service_engine: AsyncEngine,
+    ui_stations: list[Station],
+    ui_usage_statistics: ServerUsageStatistics,
+) -> None:
+    account_client = FakeDrovaClient(
+        stations=ui_stations,
+        products=[CatalogProduct("product-a", "Cyber Rally")],
+        usage_statistics=ui_usage_statistics,
+        promocodes=[_promocode("27400125", 60_000)],
+        prepaid_stats=PrepaidStats(
+            merchant_id="user-1",
+            allowed_to_sell_minutes=10,
+            sold_minutes=5,
+            used_minutes=2,
+            balance=1.5,
+        ),
+    )
+    service = make_service(
+        service_engine,
+        FakeDrovaClientFactory(
+            FakeDrovaClient(
+                stations=ui_stations,
+                products=[CatalogProduct("product-a", "Cyber Rally")],
+            ),
+            account_client,
+            account_client,
+            account_client,
+            account_client,
+        ),
+    )
+    await service.connect_token(10001, "token")
+
+    menu = await service.account_menu(10001)
+    balance = await service.handle_callback(
+        10001,
+        parse_callback_data(CallbackSpec(action="account_balance").pack()),
+    )
+    usage = await service.handle_callback(
+        10001,
+        parse_callback_data(CallbackSpec(action="account_usage").pack()),
+    )
+    promocodes = await service.handle_callback(
+        10001,
+        parse_callback_data(CallbackSpec(action="account_promocodes").pack()),
+    )
+
+    assert menu.keyboard is not None
+    assert "Баланс минут: 1.50" in balance.text
+    assert "Статистика использования" in usage.text
+    assert "<code>27400125</code>" in promocodes.text
+    assert "Меню аккаунта" in balance.text
+    assert balance.keyboard is not None
+    assert usage.keyboard is not None
+    assert promocodes.keyboard is not None
+
+
+@pytest.mark.asyncio
 async def test_sessions_page_refetches_and_keeps_short_mode(
     service_engine: AsyncEngine,
     ui_stations: list[Station],
