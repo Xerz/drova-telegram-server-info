@@ -18,6 +18,9 @@ ACTION_ALIASES = {
     "sessions_all": "sl",
     "sessions_page": "sg",
     "sessions_short_page": "sq",
+    "sessions_station_picker": "sk",
+    "sessions_station_select": "sj",
+    "sessions_station_all": "sx",
     "current_refresh": "cr",
     "current_refresh_panel": "co",
     "publish_panel": "pp",
@@ -57,6 +60,7 @@ KEY_ALIASES = {
     "expected": "x",
     "draft": "d",
     "control": "c",
+    "short_mode": "m",
 }
 KEY_BY_ALIAS = {alias: key for key, alias in KEY_ALIASES.items()}
 
@@ -71,6 +75,7 @@ class CallbackSpec:
     expected_state: bool | None = None
     draft_id: str | None = None
     control: str | None = None
+    short_mode: bool | None = None
 
     def pack(self) -> str:
         parts = [_pack_action(self.action)]
@@ -88,6 +93,8 @@ class CallbackSpec:
             parts.append(f"{KEY_ALIASES['draft']}={self.draft_id}")
         if self.control is not None:
             parts.append(f"{KEY_ALIASES['control']}={self.control}")
+        if self.short_mode is not None:
+            parts.append(f"{KEY_ALIASES['short_mode']}={int(self.short_mode)}")
         return "|".join(parts)
 
 
@@ -101,6 +108,7 @@ class ParsedCallback:
     expected_state: bool | None = None
     draft_id: str | None = None
     control: str | None = None
+    short_mode: bool | None = None
 
 
 def parse_callback_data(data: str | None) -> ParsedCallback:
@@ -137,6 +145,12 @@ def parse_callback_data(data: str | None) -> ParsedCallback:
             raise InvalidCallbackData("invalid expected flag")
         expected_state = values["expected"] == "1"
 
+    short_mode: bool | None = None
+    if "short_mode" in values:
+        if values["short_mode"] not in {"0", "1"}:
+            raise InvalidCallbackData("invalid short mode flag")
+        short_mode = values["short_mode"] == "1"
+
     return ParsedCallback(
         action=action,
         station_id=values.get("station"),
@@ -146,6 +160,7 @@ def parse_callback_data(data: str | None) -> ParsedCallback:
         expected_state=expected_state,
         draft_id=values.get("draft"),
         control=values.get("control"),
+        short_mode=short_mode,
     )
 
 

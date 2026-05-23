@@ -206,6 +206,76 @@ def render_station_picker(
     return RenderedMessage("Выберите станцию:", KeyboardSpec(rows))
 
 
+def render_sessions_station_picker(
+    stations: Sequence[Station],
+    *,
+    short_mode: bool,
+    page: int = 0,
+    page_size: int = 8,
+) -> RenderedMessage:
+    ordered = sort_stations(stations)
+    page_count = max(1, (len(ordered) + page_size - 1) // page_size)
+    current_page = min(max(page, 0), page_count - 1)
+    start = current_page * page_size
+    visible = ordered[start : start + page_size]
+
+    rows: list[list[ButtonSpec]] = []
+    for station in visible:
+        rows.append(
+            [
+                ButtonSpec(
+                    station_display_name(station),
+                    CallbackSpec(
+                        action="sessions_station_select",
+                        station_id=station.uuid,
+                        short_mode=short_mode,
+                    ).pack(),
+                )
+            ]
+        )
+    if page_count > 1:
+        nav: list[ButtonSpec] = []
+        if current_page > 0:
+            nav.append(
+                ButtonSpec(
+                    "Назад",
+                    CallbackSpec(
+                        action="sessions_station_picker",
+                        page=current_page - 1,
+                        short_mode=short_mode,
+                    ).pack(),
+                )
+            )
+        if current_page + 1 < page_count:
+            nav.append(
+                ButtonSpec(
+                    "Вперед",
+                    CallbackSpec(
+                        action="sessions_station_picker",
+                        page=current_page + 1,
+                        short_mode=short_mode,
+                    ).pack(),
+                )
+            )
+        rows.append(nav)
+    rows.append(
+        [
+            ButtonSpec(
+                "Все станции",
+                CallbackSpec(
+                    action="sessions_station_all",
+                    short_mode=short_mode,
+                ).pack(),
+            )
+        ]
+    )
+
+    return RenderedMessage(
+        f"Выберите станцию для сессий · стр. {current_page + 1}/{page_count}",
+        KeyboardSpec(rows),
+    )
+
+
 def render_station_manage_picker(
     stations: Sequence[Station],
     *,
@@ -266,13 +336,19 @@ def render_station_manage_panel(
     station: Station,
     source: ServerSource,
     *,
+    latest_session: Session | None = None,
+    latest_session_failed: bool = False,
+    product_catalog: Mapping[str, str] | None = None,
+    now: datetime | None = None,
+    timezone: str = "Asia/Yekaterinburg",
+    geo_resolver: SessionGeoResolver | None = None,
     toast: str | None = None,
 ) -> RenderedMessage:
     desktop_on = source.allow_desktop
     updates_on = not source.disable_updates
     publication_button = "Скрыть станцию" if station.published else "Опубликовать станцию"
-    desktop_button = "Выключить полный доступ" if desktop_on else "Включить полный доступ"
-    updates_button = "Выключить обновления" if updates_on else "Включить обновления"
+    desktop_button = f"{'✅' if desktop_on else '🚫'} Полный доступ"
+    updates_button = f"{'✅' if updates_on else '🚫'} Обновления"
     rows = [
         [
             ButtonSpec(
@@ -332,6 +408,14 @@ def render_station_manage_panel(
         f"Публикация: {_station_publication_word(station.published)}",
         f"Полный доступ: {_enabled_word(desktop_on, singular=True)}",
         f"Обновления: {_enabled_word(updates_on, singular=False)}",
+        _station_latest_session_line(
+            latest_session,
+            failed=latest_session_failed,
+            product_catalog=product_catalog or {},
+            now=now,
+            timezone=timezone,
+            geo_resolver=geo_resolver,
+        ),
     ]
     return RenderedMessage("\n".join(lines), KeyboardSpec(rows), toast=toast)
 
@@ -704,6 +788,39 @@ def _enabled_word(enabled: bool, *, singular: bool) -> str:
     return "включены" if enabled else "выключены"
 
 
+def _station_latest_session_line(
+    session: Session | None,
+    *,
+    failed: bool,
+    product_catalog: Mapping[str, str],
+    now: datetime | None,
+    timezone: str,
+    geo_resolver: SessionGeoResolver | None,
+) -> str:
+    if failed:
+        return "Последняя сессия: ошибка загрузки"
+    if session is None:
+        return "Последняя сессия: нет сессий"
+    effective_now = now or datetime.now(tz=UTC)
+    title = product_title(session.product_id, catalog=product_catalog)
+    duration = format_session_duration(session_duration_seconds(session, effective_now))
+    meta = " ".join(
+        part
+        for part in [
+            _billing_label(session.billing_type),
+            _current_status_label(session),
+        ]
+        if part
+    )
+    meta_suffix = f" · {html_escape(meta)}" if meta else ""
+    city = _session_geo_city(session, geo_resolver)
+    city_suffix = f" · {html_escape(city)}" if city else ""
+    return (
+        f"Последняя сессия: <b>{html_escape(title)}</b>{meta_suffix}"
+        f" · {format_time_short(session.created_on_ms, timezone)} · {duration}{city_suffix}"
+    )
+
+
 def _usage_total_line(label: str, stat: UsageStat) -> str:
     return (
         f"{label}: {_format_integer(stat.session_count)} сессий · "
@@ -1007,8 +1124,9 @@ def render_sessions(
     filtered = filter_sessions(sessions, short_mode=short_mode, now=now)
     page_index = _bounded_page(page, len(filtered))
     header = f"Последние {profile.session_limit} сессий · {selected_label} · стр. {page_index + 1}"
+    keyboard = KeyboardSpec(rows=_session_keyboard_rows(short_mode, page_index, len(filtered)))
     if not filtered:
-        return RenderedMessage(f"{html_escape(header)}\n\nСессии не найдены.")
+        return RenderedMessage(f"{html_escape(header)}\n\nСессии не найдены.", keyboard)
 
     lines = [html_escape(header), ""]
     page_start = page_index * SESSION_PAGE_SIZE
@@ -1060,7 +1178,6 @@ def render_sessions(
         index += 1
         lines.append("")
 
-    keyboard = KeyboardSpec(rows=_session_keyboard_rows(short_mode, page_index, len(filtered)))
     return RenderedMessage("\n".join(lines).rstrip(), keyboard)
 
 
@@ -1094,6 +1211,24 @@ def _session_keyboard_rows(short_mode: bool, page: int, item_count: int) -> list
                     page=page,
                 ).pack(),
             )
+        ]
+    )
+    rows.append(
+        [
+            ButtonSpec(
+                "Все станции",
+                CallbackSpec(
+                    action="sessions_station_all",
+                    short_mode=short_mode,
+                ).pack(),
+            ),
+            ButtonSpec(
+                "Выбрать станцию",
+                CallbackSpec(
+                    action="sessions_station_picker",
+                    short_mode=short_mode,
+                ).pack(),
+            ),
         ]
     )
     return rows
@@ -1170,38 +1305,16 @@ def render_current(
         [
             ButtonSpec(
                 "Обновить",
-                CallbackSpec(
-                    action="current_refresh_panel" if publish_panel_open else "current_refresh",
-                ).pack(),
+                CallbackSpec(action="current_refresh").pack(),
+            )
+        ],
+        [
+            ButtonSpec(
+                "Управление станциями",
+                CallbackSpec(action="station_manage_page").pack(),
             )
         ],
     ]
-    if publish_panel_open:
-        rows.append(
-            [
-                ButtonSpec(
-                    str(index),
-                    CallbackSpec(
-                        action="publish_select",
-                        station_id=station.uuid,
-                        expected_published=station.published,
-                    ).pack(),
-                )
-                for index, station in enumerate(ordered, start=1)
-            ]
-        )
-        rows.append(
-            [ButtonSpec("Скрыть панель публикации", CallbackSpec(action="publish_hide").pack())]
-        )
-    else:
-        rows.append(
-            [
-                ButtonSpec(
-                    "Показать панель публикации",
-                    CallbackSpec(action="publish_panel").pack(),
-                )
-            ]
-        )
     return RenderedMessage("\n".join(lines), KeyboardSpec(rows))
 
 
