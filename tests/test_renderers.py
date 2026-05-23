@@ -38,6 +38,7 @@ from drova_bot.telegram.renderers import (
     render_server_description_result,
     render_server_source,
     render_sessions,
+    render_sessions_station_picker,
     render_start_connected,
     render_start_not_connected,
     render_station_game_detail,
@@ -202,6 +203,9 @@ def test_server_description_update_renderers_use_revision_commands(
 
 def test_station_management_renderers_are_button_first(
     ui_stations: list[Station],
+    ui_sessions: list[Session],
+    ui_catalog: dict[str, str],
+    ui_now: datetime,
     ui_server_source: ServerSource,
 ) -> None:
     many_stations = [
@@ -221,19 +225,28 @@ def test_station_management_renderers_are_button_first(
         "station_manage_page"
     )
 
-    panel = render_station_manage_panel(ui_stations[0], ui_server_source)
+    panel = render_station_manage_panel(
+        ui_stations[0],
+        ui_server_source,
+        latest_session=ui_sessions[1],
+        product_catalog=ui_catalog,
+        now=ui_now,
+        timezone="Asia/Yekaterinburg",
+    )
     assert "Управление станцией" in panel.text
     assert "<b>Alpha Station</b>" in panel.text
     assert "Публикация: опубликована" in panel.text
     assert "Полный доступ: выключен" in panel.text
     assert "Обновления: выключены" in panel.text
+    assert "Последняя сессия: <b>Cyber Rally</b>" in panel.text
+    assert "💳 prepaid ✅ finished · 16:00 · 10 мин" in panel.text
     assert panel.keyboard is not None
     assert panel.keyboard.rows[0][0].text == "Скрыть станцию"
     assert parse_callback_data(panel.keyboard.rows[0][0].callback_data).action == (
         "station_publish_prompt"
     )
-    assert panel.keyboard.rows[1][0].text == "Включить полный доступ"
-    assert panel.keyboard.rows[1][1].text == "Включить обновления"
+    assert panel.keyboard.rows[1][0].text == "🚫 Полный доступ"
+    assert panel.keyboard.rows[1][1].text == "🚫 Обновления"
     assert panel.keyboard.rows[2][0].text == "Игры"
     assert panel.keyboard.rows[3][0].text == "Описание"
     assert (
@@ -477,6 +490,16 @@ def test_sessions_renderer_matches_fixture_intent(
     assert "Отзыв: ok" in message.text
     assert "<b>3. Desktop Mode</b>" in message.text
     assert message.keyboard is not None
+    assert [button.text for button in message.keyboard.rows[-1]] == [
+        "Все станции",
+        "Выбрать станцию",
+    ]
+    all_callback = parse_callback_data(message.keyboard.rows[-1][0].callback_data)
+    picker_callback = parse_callback_data(message.keyboard.rows[-1][1].callback_data)
+    assert all_callback.action == "sessions_station_all"
+    assert all_callback.short_mode is False
+    assert picker_callback.action == "sessions_station_picker"
+    assert picker_callback.short_mode is False
 
 
 def test_sessions_renderer_paginates_five_sessions_per_page(
@@ -509,6 +532,8 @@ def test_sessions_renderer_paginates_five_sessions_per_page(
         "Обновить",
         "Вперед",
         "Скрыть короткие",
+        "Все станции",
+        "Выбрать станцию",
     ]
 
     assert "Последние 12 сессий · все станции · стр. 2" in second_page.text
@@ -520,8 +545,37 @@ def test_sessions_renderer_paginates_five_sessions_per_page(
         "Обновить",
         "Назад",
         "Скрыть короткие",
+        "Все станции",
+        "Выбрать станцию",
     ]
-    assert second_page.keyboard.rows[-1][0].callback_data.endswith("|p=1")
+
+
+def test_sessions_station_picker_paginates_and_preserves_short_mode(
+    ui_stations: list[Station],
+) -> None:
+    many_stations = [
+        replace(ui_stations[0], uuid=f"station-{index:02}", name=f"Station {index:02}")
+        for index in range(30)
+    ]
+    picker = render_sessions_station_picker(many_stations, short_mode=True, page=0, page_size=8)
+
+    assert "Выберите станцию для сессий · стр. 1/4" in picker.text
+    assert picker.keyboard is not None
+    assert picker.keyboard.rows[0][0].text == "Station 00"
+    station_callback = parse_callback_data(picker.keyboard.rows[0][0].callback_data)
+    assert station_callback.action == "sessions_station_select"
+    assert station_callback.station_id == "station-00"
+    assert station_callback.short_mode is True
+    nav_callback = parse_callback_data(picker.keyboard.rows[-2][0].callback_data)
+    assert nav_callback.action == "sessions_station_picker"
+    assert nav_callback.page == 1
+    assert nav_callback.short_mode is True
+    all_callback = parse_callback_data(picker.keyboard.rows[-1][0].callback_data)
+    assert all_callback.action == "sessions_station_all"
+    assert all_callback.short_mode is True
+    for row in picker.keyboard.rows:
+        for button in row:
+            assert len(button.callback_data.encode("utf-8")) <= 64
 
 
 def test_sessions_renderer_adds_ip_and_city_line(
@@ -633,10 +687,12 @@ def test_current_renderer_matches_fixture_intent(
         in message.text
     )
     assert message.keyboard is not None
-    assert message.keyboard.rows[0][0].callback_data.startswith("co")
-    assert message.keyboard.rows[1][0].text == "1"
-    assert message.keyboard.rows[2][0].text == "Скрыть панель публикации"
+    assert message.keyboard.rows[0][0].callback_data.startswith("cr")
+    assert message.keyboard.rows[1][0].text == "Управление станциями"
     assert "Показать панель публикации" not in [
+        button.text for row in message.keyboard.rows for button in row
+    ]
+    assert "Скрыть панель публикации" not in [
         button.text for row in message.keyboard.rows for button in row
     ]
 
@@ -669,7 +725,7 @@ def test_current_renderer_adds_city_without_raw_ip(
     assert "203.0.113.20" not in message.text
 
 
-def test_current_renderer_hidden_panel_shows_publish_panel_button(
+def test_current_renderer_shows_station_management_button(
     ui_profile: ChatProfile,
     ui_sessions: list[Session],
     ui_stations: list[Station],
@@ -686,7 +742,10 @@ def test_current_renderer_hidden_panel_shows_publish_panel_button(
 
     assert message.keyboard is not None
     assert message.keyboard.rows[0][0].callback_data.startswith("cr")
-    assert message.keyboard.rows[1][0].text == "Показать панель публикации"
+    assert message.keyboard.rows[1][0].text == "Управление станциями"
+    assert parse_callback_data(message.keyboard.rows[1][0].callback_data).action == (
+        "station_manage_page"
+    )
 
 
 def test_disabled_renderer_matches_fixture_intent(

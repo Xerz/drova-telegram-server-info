@@ -34,6 +34,7 @@ No command handler is considered done without handler tests and renderer tests.
 - `/station` paginated picker and all-stations selection.
 - `/limit` valid and invalid inputs.
 - `/sessions` full and short mode.
+- `/sessions` station switcher for all-stations and one-station modes, preserving short mode.
 - `/current` dashboard with mixed station states.
 - Publish confirmation success, cancel and stale-state failure.
 - `/station_manage` station picker, station panel, publication, desktop/update toggles,

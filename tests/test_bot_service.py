@@ -396,6 +396,66 @@ async def test_sessions_uses_all_or_selected_station(
 
 
 @pytest.mark.asyncio
+async def test_sessions_station_switcher_persists_selection_and_preserves_short_mode(
+    service_engine: AsyncEngine,
+    ui_stations: list[Station],
+    ui_sessions: list[Session],
+) -> None:
+    selected_client = FakeDrovaClient(stations=ui_stations, sessions=ui_sessions)
+    all_client = FakeDrovaClient(stations=ui_stations, sessions=ui_sessions)
+    service = make_service(
+        service_engine,
+        FakeDrovaClientFactory(
+            FakeDrovaClient(
+                stations=ui_stations,
+                products=[
+                    CatalogProduct("product-a", "Cyber Rally"),
+                    CatalogProduct("product-b", "Space Farm"),
+                    CatalogProduct("product-c", "Desktop Mode"),
+                ],
+            ),
+            FakeDrovaClient(stations=ui_stations),
+            selected_client,
+            all_client,
+        ),
+    )
+    await service.connect_token(10001, "token")
+
+    picker = await service.handle_callback(
+        10001,
+        parse_callback_data(
+            CallbackSpec(action="sessions_station_picker", short_mode=True).pack()
+        ),
+    )
+    selected = await service.handle_callback(
+        10001,
+        parse_callback_data(
+            CallbackSpec(
+                action="sessions_station_select",
+                station_id="station-online",
+                short_mode=True,
+            ).pack()
+        ),
+    )
+    all_stations = await service.handle_callback(
+        10001,
+        parse_callback_data(CallbackSpec(action="sessions_station_all", short_mode=True).pack()),
+    )
+
+    assert "Выберите станцию для сессий" in picker.text
+    assert "Последние 5 сессий · Alpha Station" in selected.text
+    assert "Cyber Rally" in selected.text
+    assert "Desktop Mode" not in selected.text
+    assert selected_client.session_calls == [(None, "station-online", 5)]
+    assert "Последние 5 сессий · все станции" in all_stations.text
+    assert all_client.session_calls == [("user-1", None, 5)]
+    async with make_session_factory(service_engine)() as session:
+        profile = await ChatProfileRepository(session).get(10001)
+    assert profile is not None
+    assert profile.selected_station_id is None
+
+
+@pytest.mark.asyncio
 async def test_account_billing_uses_saved_profile_and_drova_data(
     service_engine: AsyncEngine,
     ui_stations: list[Station],
@@ -626,16 +686,21 @@ async def test_server_description_apply_rejects_stale_revision(
 async def test_station_manage_menu_selects_station_and_toggles_controls(
     service_engine: AsyncEngine,
     ui_stations: list[Station],
+    ui_sessions: list[Session],
     ui_server_source: ServerSource,
 ) -> None:
     manage_client = FakeDrovaClient(
         stations=ui_stations,
+        sessions=ui_sessions,
         server_sources={"station-online": ui_server_source},
     )
     service = make_service(
         service_engine,
         FakeDrovaClientFactory(
-            FakeDrovaClient(stations=ui_stations),
+            FakeDrovaClient(
+                stations=ui_stations,
+                products=[CatalogProduct("product-a", "Cyber Rally")],
+            ),
             manage_client,
             manage_client,
             manage_client,
@@ -677,8 +742,14 @@ async def test_station_manage_menu_selects_station_and_toggles_controls(
     assert "Управление станциями" in picker.text
     assert "Управление станцией" in panel.text
     assert "<b>Alpha Station</b>" in panel.text
+    assert "Последняя сессия: <b>Cyber Rally</b>" in panel.text
     assert desktop.toast == "Полный доступ включен."
     assert updates.toast == "Обновления включены."
+    assert manage_client.session_calls == [
+        (None, "station-online", 1),
+        (None, "station-online", 1),
+        (None, "station-online", 1),
+    ]
     assert manage_client.desktop_calls == [("station-online", True)]
     assert manage_client.disable_updates_calls == [("station-online", False)]
 
@@ -1001,7 +1072,7 @@ async def test_sessions_and_current_use_injected_geo_without_raw_ip_in_current(
 
 
 @pytest.mark.asyncio
-async def test_current_refresh_panel_callback_keeps_publish_panel_open(
+async def test_current_refresh_panel_callback_uses_station_management_button(
     service_engine: AsyncEngine,
     ui_stations: list[Station],
     ui_sessions: list[Session],
@@ -1014,6 +1085,7 @@ async def test_current_refresh_panel_callback_keeps_publish_panel_open(
                 products=[CatalogProduct("product-a", "Cyber Rally")],
             ),
             FakeDrovaClient(stations=ui_stations, sessions=ui_sessions),
+            FakeDrovaClient(stations=ui_stations),
         ),
     )
     await service.connect_token(10001, "token")
@@ -1022,10 +1094,14 @@ async def test_current_refresh_panel_callback_keeps_publish_panel_open(
         10001,
         parse_callback_data(CallbackSpec(action="current_refresh_panel").pack()),
     )
+    legacy_publish_panel = await service.handle_callback(
+        10001,
+        parse_callback_data(CallbackSpec(action="publish_panel").pack()),
+    )
 
     assert message.keyboard is not None
-    assert message.keyboard.rows[1][0].text == "1"
-    assert message.keyboard.rows[2][0].text == "Скрыть панель публикации"
+    assert message.keyboard.rows[1][0].text == "Управление станциями"
+    assert "Управление станциями" in legacy_publish_panel.text
 
 
 @pytest.mark.asyncio

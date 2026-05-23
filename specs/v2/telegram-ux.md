@@ -56,7 +56,10 @@
   - start-finish as `HH:MM-HH:MM` and compact duration;
   - billing/status with emoji labels;
   - feedback if present.
-- Buttons: `Обновить`, optional `Назад`/`Вперед`, `Скрыть короткие` or `Показать все`.
+- Buttons: `Обновить`, optional `Назад`/`Вперед`, `Скрыть короткие` or `Показать все`,
+  plus `Все станции` and `Выбрать станцию`. Station selection opens a paginated picker,
+  persists the choice and returns directly to refreshed sessions while preserving full/short
+  mode.
 
 ## Current Dashboard
 
@@ -67,8 +70,7 @@
 - API failure for one station renders `ошибка загрузки`, not a full command failure.
 - Buttons:
   - `Обновить`
-  - `Публикация`
-  - when publish panel is open: numbered station buttons and `Скрыть панель`
+  - `Управление станциями`
 
 ## Account
 
@@ -134,6 +136,7 @@
 - Publication requires inline confirmation and stale-state protection.
 - Desktop/update buttons are inline writes with stale-state protection; success returns
   the refreshed station panel and a short callback toast.
+- The station panel shows latest session status using `get_sessions(server_id, limit=1)`.
 - The `Games` button opens the selected station's game picker. Game list and game detail
   messages include a button back to the station management panel.
 - The `Description` button shows the current escaped HTML description source and puts
