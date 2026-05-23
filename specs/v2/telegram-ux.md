@@ -130,15 +130,23 @@
 - It opens a paginated station picker, without an all-stations option, because station
   operations target one station.
 - Selecting a station persists it as the chat's selected station and opens a station
-  panel with publication, desktop, updates, games and description actions.
+  panel headed by the station name. The panel does not duplicate publication,
+  desktop or updates status as text lines; those states are represented directly by
+  emoji buttons.
+- If the station-management picker was opened from `/current`, picker and station
+  panel include a `Back to current status` button.
 - Station picker and game picker both paginate; callbacks may carry a station id or
   product id, but never both in one payload.
-- Publication requires inline confirmation and stale-state protection.
+- Publication is shown as a state button (`published`/`hidden` with the same emoji
+  convention as desktop and updates), but still requires inline confirmation and
+  stale-state protection.
 - Desktop/update buttons are inline writes with stale-state protection; success returns
   the refreshed station panel and a short callback toast.
-- The station panel shows latest session status using `get_sessions(server_id, limit=1)`.
-- The `Games` button opens the selected station's game picker. Game list and game detail
-  messages include a button back to the station management panel.
+- The station panel shows latest session status using `get_sessions(server_id, limit=1)`,
+  without a separate `Latest session:` label.
+- `Games` and `Description` are shown as emoji buttons in one row. The `Games` button
+  opens the selected station's game picker. Game list and game detail messages include
+  a button back to the station management panel.
 - The `Description` button shows the current escaped HTML description source and puts
   the chat into a 30-minute in-memory waiting state. The next non-command message is
   treated as HTML description draft, previewed with `Apply` and `Cancel` buttons, and

@@ -549,6 +549,24 @@ def test_callback_payloads_fit_telegram_limit_and_parse_legacy_format() -> None:
     assert parsed_session_station.action == "sessions_station_select"
     assert parsed_session_station.station_id == station_uuid
     assert parsed_session_station.short_mode is True
+    current_manage_payload = CallbackSpec(
+        action="station_manage_select",
+        station_id=station_uuid,
+        return_to_current=True,
+    ).pack()
+    assert len(current_manage_payload.encode("utf-8")) <= 64
+    parsed_current_manage = parse_callback_data(current_manage_payload)
+    assert parsed_current_manage.action == "station_manage_select"
+    assert parsed_current_manage.station_id == station_uuid
+    assert parsed_current_manage.return_to_current is True
+    current_game_payload = CallbackSpec(
+        action="game_select",
+        product_id=station_uuid,
+        page=10,
+        return_to_current=True,
+    ).pack()
+    assert len(current_game_payload.encode("utf-8")) <= 64
+    assert parse_callback_data(current_game_payload).return_to_current is True
 
     legacy = f"publish_select|station={station_uuid}|published=1"
     parsed_legacy = parse_callback_data(legacy)

@@ -281,6 +281,7 @@ def render_station_manage_picker(
     *,
     page: int = 0,
     page_size: int = STATION_MANAGE_PAGE_SIZE,
+    return_to_current: bool = False,
 ) -> RenderedMessage:
     ordered = sort_stations(stations)
     page_count = max(1, (len(ordered) + page_size - 1) // page_size)
@@ -297,6 +298,7 @@ def render_station_manage_picker(
                     CallbackSpec(
                         action="station_manage_select",
                         station_id=station.uuid,
+                        return_to_current=return_to_current,
                     ).pack(),
                 )
             ]
@@ -310,6 +312,7 @@ def render_station_manage_picker(
                     CallbackSpec(
                         action="station_manage_page",
                         page=current_page - 1,
+                        return_to_current=return_to_current,
                     ).pack(),
                 )
             )
@@ -320,10 +323,13 @@ def render_station_manage_picker(
                     CallbackSpec(
                         action="station_manage_page",
                         page=current_page + 1,
+                        return_to_current=return_to_current,
                     ).pack(),
                 )
             )
         rows.append(nav)
+    if return_to_current:
+        rows.append(_current_back_row())
 
     return RenderedMessage(
         f"Управление станциями · стр. {current_page + 1}/{page_count}\n"
@@ -342,11 +348,12 @@ def render_station_manage_panel(
     now: datetime | None = None,
     timezone: str = "Asia/Yekaterinburg",
     geo_resolver: SessionGeoResolver | None = None,
+    return_to_current: bool = False,
     toast: str | None = None,
 ) -> RenderedMessage:
     desktop_on = source.allow_desktop
     updates_on = not source.disable_updates
-    publication_button = "Скрыть станцию" if station.published else "Опубликовать станцию"
+    publication_button = "✅ Опубликована" if station.published else "🚫 Скрыта"
     desktop_button = f"{'✅' if desktop_on else '🚫'} Полный доступ"
     updates_button = f"{'✅' if updates_on else '🚫'} Обновления"
     rows = [
@@ -357,6 +364,7 @@ def render_station_manage_panel(
                     action="station_publish_prompt",
                     station_id=station.uuid,
                     expected_published=station.published,
+                    return_to_current=return_to_current,
                 ).pack(),
             )
         ],
@@ -368,6 +376,7 @@ def render_station_manage_panel(
                     station_id=station.uuid,
                     control="desktop",
                     expected_state=desktop_on,
+                    return_to_current=return_to_current,
                 ).pack(),
             ),
             ButtonSpec(
@@ -377,37 +386,43 @@ def render_station_manage_panel(
                     station_id=station.uuid,
                     control="updates",
                     expected_state=updates_on,
+                    return_to_current=return_to_current,
                 ).pack(),
             ),
         ],
         [
             ButtonSpec(
-                "Игры",
-                CallbackSpec(action="station_games", station_id=station.uuid).pack(),
-            )
-        ],
-        [
+                "🎮 Игры",
+                CallbackSpec(
+                    action="station_games",
+                    station_id=station.uuid,
+                    return_to_current=return_to_current,
+                ).pack(),
+            ),
             ButtonSpec(
-                "Описание",
+                "📝 Описание",
                 CallbackSpec(
                     action="station_description_begin",
                     station_id=station.uuid,
+                    return_to_current=return_to_current,
                 ).pack(),
             ),
         ],
         [
             ButtonSpec(
                 "К выбору станции",
-                CallbackSpec(action="station_manage_page", page=0).pack(),
+                CallbackSpec(
+                    action="station_manage_page",
+                    page=0,
+                    return_to_current=return_to_current,
+                ).pack(),
             )
         ],
     ]
+    if return_to_current:
+        rows.append(_current_back_row())
     lines = [
-        "Управление станцией",
         f"<b>{html_escape(station.name)}</b>",
-        f"Публикация: {_station_publication_word(station.published)}",
-        f"Полный доступ: {_enabled_word(desktop_on, singular=True)}",
-        f"Обновления: {_enabled_word(updates_on, singular=False)}",
         _station_latest_session_line(
             latest_session,
             failed=latest_session_failed,
@@ -420,7 +435,11 @@ def render_station_manage_panel(
     return RenderedMessage("\n".join(lines), KeyboardSpec(rows), toast=toast)
 
 
-def render_station_publish_manage_confirmation(station: Station) -> RenderedMessage:
+def render_station_publish_manage_confirmation(
+    station: Station,
+    *,
+    return_to_current: bool = False,
+) -> RenderedMessage:
     target = "скрыта" if station.published else "опубликована"
     action_text = "скрыть" if station.published else "опубликовать"
     return RenderedMessage(
@@ -434,13 +453,18 @@ def render_station_publish_manage_confirmation(station: Station) -> RenderedMess
                             action="station_publish_confirm",
                             station_id=station.uuid,
                             expected_published=station.published,
+                            return_to_current=return_to_current,
                         ).pack(),
                     )
                 ],
                 [
                     ButtonSpec(
                         "Отмена",
-                        CallbackSpec(action="station_panel", station_id=station.uuid).pack(),
+                        CallbackSpec(
+                            action="station_panel",
+                            station_id=station.uuid,
+                            return_to_current=return_to_current,
+                        ).pack(),
                     )
                 ],
             ]
@@ -778,16 +802,6 @@ def _server_control_state_word(action: str, enabled: bool) -> str:
     return "включен" if enabled else "выключен"
 
 
-def _station_publication_word(published: bool) -> str:
-    return "опубликована" if published else "скрыта"
-
-
-def _enabled_word(enabled: bool, *, singular: bool) -> str:
-    if singular:
-        return "включен" if enabled else "выключен"
-    return "включены" if enabled else "выключены"
-
-
 def _station_latest_session_line(
     session: Session | None,
     *,
@@ -798,9 +812,9 @@ def _station_latest_session_line(
     geo_resolver: SessionGeoResolver | None,
 ) -> str:
     if failed:
-        return "Последняя сессия: ошибка загрузки"
+        return "ошибка загрузки последней сессии"
     if session is None:
-        return "Последняя сессия: нет сессий"
+        return "нет сессий"
     effective_now = now or datetime.now(tz=UTC)
     title = product_title(session.product_id, catalog=product_catalog)
     duration = format_session_duration(session_duration_seconds(session, effective_now))
@@ -816,8 +830,8 @@ def _station_latest_session_line(
     city = _session_geo_city(session, geo_resolver)
     city_suffix = f" · {html_escape(city)}" if city else ""
     return (
-        f"Последняя сессия: <b>{html_escape(title)}</b>{meta_suffix}"
-        f" · {format_time_short(session.created_on_ms, timezone)} · {duration}{city_suffix}"
+        f"<b>{html_escape(title)}</b>{meta_suffix} · "
+        f"{format_time_short(session.created_on_ms, timezone)} · {duration}{city_suffix}"
     )
 
 
@@ -865,6 +879,7 @@ def render_station_games(
     *,
     page: int = 0,
     page_size: int = GAME_PAGE_SIZE,
+    return_to_current: bool = False,
 ) -> RenderedMessage:
     ordered = sorted(products, key=lambda item: item.title.casefold())
     safe_page_size = max(1, page_size)
@@ -880,7 +895,7 @@ def render_station_games(
         lines.append("Игры не найдены.")
         return RenderedMessage(
             "\n".join(lines),
-            KeyboardSpec([_station_panel_back_row(station)]),
+            KeyboardSpec([_station_panel_back_row(station, return_to_current=return_to_current)]),
         )
 
     rows: list[list[ButtonSpec]] = []
@@ -896,6 +911,7 @@ def render_station_games(
                         action="game_select",
                         product_id=product.product_id,
                         page=current_page,
+                        return_to_current=return_to_current,
                     ).pack(),
                 )
             ]
@@ -906,18 +922,26 @@ def render_station_games(
             nav.append(
                 ButtonSpec(
                     "Назад",
-                    CallbackSpec(action="game_page", page=current_page - 1).pack(),
+                    CallbackSpec(
+                        action="game_page",
+                        page=current_page - 1,
+                        return_to_current=return_to_current,
+                    ).pack(),
                 )
             )
         if current_page + 1 < page_count:
             nav.append(
                 ButtonSpec(
                     "Вперед",
-                    CallbackSpec(action="game_page", page=current_page + 1).pack(),
+                    CallbackSpec(
+                        action="game_page",
+                        page=current_page + 1,
+                        return_to_current=return_to_current,
+                    ).pack(),
                 )
             )
         rows.append(nav)
-    rows.append(_station_panel_back_row(station))
+    rows.append(_station_panel_back_row(station, return_to_current=return_to_current))
     return RenderedMessage("\n".join(lines), KeyboardSpec(rows))
 
 
@@ -926,6 +950,7 @@ def render_station_game_detail(
     product: ServerProductEdit,
     *,
     page: int = 0,
+    return_to_current: bool = False,
 ) -> RenderedMessage:
     flags = []
     flags.append("включена" if product.enabled else "отключена")
@@ -958,6 +983,7 @@ def render_station_game_detail(
                         action=primary_action,
                         product_id=product.product_id,
                         page=page,
+                        return_to_current=return_to_current,
                     ).pack(),
                 )
             ],
@@ -968,28 +994,45 @@ def render_station_game_detail(
                         action="game_hide_all_prompt",
                         product_id=product.product_id,
                         page=page,
+                        return_to_current=return_to_current,
                     ).pack(),
                 )
             ],
             [
                 ButtonSpec(
                     "К списку игр",
-                    CallbackSpec(action="game_page", page=page).pack(),
+                    CallbackSpec(
+                        action="game_page",
+                        page=page,
+                        return_to_current=return_to_current,
+                    ).pack(),
                 )
             ],
-            _station_panel_back_row(station),
+            _station_panel_back_row(station, return_to_current=return_to_current),
         ]
     )
     return RenderedMessage("\n".join(lines), keyboard)
 
 
-def _station_panel_back_row(station: Station) -> list[ButtonSpec]:
+def _station_panel_back_row(
+    station: Station,
+    *,
+    return_to_current: bool = False,
+) -> list[ButtonSpec]:
     return [
         ButtonSpec(
             "К меню станции",
-            CallbackSpec(action="station_panel", station_id=station.uuid).pack(),
+            CallbackSpec(
+                action="station_panel",
+                station_id=station.uuid,
+                return_to_current=return_to_current,
+            ).pack(),
         )
     ]
+
+
+def _current_back_row() -> list[ButtonSpec]:
+    return [ButtonSpec("К текущему состоянию", CallbackSpec(action="current_refresh").pack())]
 
 
 def render_game_hide_all_confirmation(
@@ -997,6 +1040,7 @@ def render_game_hide_all_confirmation(
     product: ServerProductEdit,
     *,
     page: int = 0,
+    return_to_current: bool = False,
 ) -> RenderedMessage:
     keyboard = KeyboardSpec(
         [
@@ -1007,6 +1051,7 @@ def render_game_hide_all_confirmation(
                         action="game_hide_all_confirm",
                         product_id=product.product_id,
                         page=page,
+                        return_to_current=return_to_current,
                     ).pack(),
                 )
             ],
@@ -1017,6 +1062,7 @@ def render_game_hide_all_confirmation(
                         action="game_select",
                         product_id=product.product_id,
                         page=page,
+                        return_to_current=return_to_current,
                     ).pack(),
                 )
             ],
@@ -1311,7 +1357,7 @@ def render_current(
         [
             ButtonSpec(
                 "Управление станциями",
-                CallbackSpec(action="station_manage_page").pack(),
+                CallbackSpec(action="station_manage_page", return_to_current=True).pack(),
             )
         ],
     ]

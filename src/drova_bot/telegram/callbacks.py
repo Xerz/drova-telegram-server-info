@@ -61,6 +61,7 @@ KEY_ALIASES = {
     "draft": "d",
     "control": "c",
     "short_mode": "m",
+    "return_to_current": "r",
 }
 KEY_BY_ALIAS = {alias: key for key, alias in KEY_ALIASES.items()}
 
@@ -76,6 +77,7 @@ class CallbackSpec:
     draft_id: str | None = None
     control: str | None = None
     short_mode: bool | None = None
+    return_to_current: bool | None = None
 
     def pack(self) -> str:
         parts = [_pack_action(self.action)]
@@ -95,6 +97,8 @@ class CallbackSpec:
             parts.append(f"{KEY_ALIASES['control']}={self.control}")
         if self.short_mode is not None:
             parts.append(f"{KEY_ALIASES['short_mode']}={int(self.short_mode)}")
+        if self.return_to_current is not None:
+            parts.append(f"{KEY_ALIASES['return_to_current']}={int(self.return_to_current)}")
         return "|".join(parts)
 
 
@@ -109,6 +113,7 @@ class ParsedCallback:
     draft_id: str | None = None
     control: str | None = None
     short_mode: bool | None = None
+    return_to_current: bool | None = None
 
 
 def parse_callback_data(data: str | None) -> ParsedCallback:
@@ -151,6 +156,12 @@ def parse_callback_data(data: str | None) -> ParsedCallback:
             raise InvalidCallbackData("invalid short mode flag")
         short_mode = values["short_mode"] == "1"
 
+    return_to_current: bool | None = None
+    if "return_to_current" in values:
+        if values["return_to_current"] not in {"0", "1"}:
+            raise InvalidCallbackData("invalid return flag")
+        return_to_current = values["return_to_current"] == "1"
+
     return ParsedCallback(
         action=action,
         station_id=values.get("station"),
@@ -161,6 +172,7 @@ def parse_callback_data(data: str | None) -> ParsedCallback:
         draft_id=values.get("draft"),
         control=values.get("control"),
         short_mode=short_mode,
+        return_to_current=return_to_current,
     )
 
 

@@ -740,9 +740,10 @@ async def test_station_manage_menu_selects_station_and_toggles_controls(
     )
 
     assert "Управление станциями" in picker.text
-    assert "Управление станцией" in panel.text
+    assert "Управление станцией" not in panel.text
     assert "<b>Alpha Station</b>" in panel.text
-    assert "Последняя сессия: <b>Cyber Rally</b>" in panel.text
+    assert "<b>Cyber Rally</b>" in panel.text
+    assert "Последняя сессия:" not in panel.text
     assert desktop.toast == "Полный доступ включен."
     assert updates.toast == "Обновления включены."
     assert manage_client.session_calls == [
@@ -815,7 +816,9 @@ async def test_station_manage_publish_confirmation_success_and_stale(
 
     assert 'Изменить публикацию станции "Alpha Station" на "скрыта"?' in confirmation.text
     assert publish_client.published_calls == [("station-online", False)]
-    assert "Публикация: скрыта" in success.text
+    assert "Публикация:" not in success.text
+    assert success.keyboard is not None
+    assert "🚫 Скрыта" in [button.text for row in success.keyboard.rows for button in row]
     assert success.toast == "Станция скрыта."
     assert stale.text == "Состояние станции изменилось. Обновите панель публикации."
 
@@ -853,7 +856,8 @@ async def test_station_manage_description_draft_flow(
     assert '<pre><code class="language-html">' in draft.text
     assert "&lt;b&gt;New &amp; source&lt;/b&gt;" in draft.text
     assert applied.toast == "Описание обновлено."
-    assert "Управление станцией" in applied.text
+    assert "Управление станцией" not in applied.text
+    assert "<b>Alpha Station</b>" in applied.text
     assert source_client.source_update_calls == [
         ("station-online", "Alpha Station", "<b>New & source</b>")
     ]
@@ -1102,6 +1106,8 @@ async def test_current_refresh_panel_callback_uses_station_management_button(
     assert message.keyboard is not None
     assert message.keyboard.rows[1][0].text == "Управление станциями"
     assert "Управление станциями" in legacy_publish_panel.text
+    assert legacy_publish_panel.keyboard is not None
+    assert legacy_publish_panel.keyboard.rows[-1][0].text == "К текущему состоянию"
 
 
 @pytest.mark.asyncio

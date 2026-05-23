@@ -67,6 +67,7 @@ class PendingDescriptionRequest:
     station: Station
     revision: str
     created_at: datetime
+    return_to_current: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -75,6 +76,7 @@ class DescriptionDraft:
     description: str
     revision: str
     created_at: datetime
+    return_to_current: bool = False
 
 
 class DefaultDrovaClientFactory:
@@ -195,6 +197,7 @@ class BotService:
         telegram_chat_id: int,
         *,
         page: int = 0,
+        return_to_current: bool = False,
     ) -> RenderedMessage:
         loaded = await self._load_client(telegram_chat_id)
         if loaded is None:
@@ -204,7 +207,11 @@ class BotService:
             stations = await client.get_servers(profile.drova_user_id or "")
             async with self._uow_factory() as uow:
                 await uow.station_cache.replace_for_chat(telegram_chat_id, stations)
-            return render_station_manage_picker(stations, page=page)
+            return render_station_manage_picker(
+                stations,
+                page=page,
+                return_to_current=return_to_current,
+            )
         except (DrovaUnauthorized, DrovaPermissionDenied):
             return render_error("drova_unauthorized")
         except DrovaUnavailable:
@@ -216,16 +223,23 @@ class BotService:
         self,
         telegram_chat_id: int,
         station_id: str | None,
+        *,
+        return_to_current: bool = False,
     ) -> RenderedMessage:
         if station_id is None:
             return render_error("station_not_found")
-        return await self.station_manage_panel(telegram_chat_id, station_id=station_id)
+        return await self.station_manage_panel(
+            telegram_chat_id,
+            station_id=station_id,
+            return_to_current=return_to_current,
+        )
 
     async def station_manage_panel(
         self,
         telegram_chat_id: int,
         *,
         station_id: str | None = None,
+        return_to_current: bool = False,
         toast: str | None = None,
     ) -> RenderedMessage:
         loaded = await self._load_client(telegram_chat_id)
@@ -252,6 +266,7 @@ class BotService:
                 client,
                 station,
                 source,
+                return_to_current=return_to_current,
                 toast=toast,
             )
         except (DrovaUnauthorized, DrovaPermissionDenied):
@@ -565,7 +580,13 @@ class BotService:
         finally:
             await client.aclose()
 
-    async def station_games(self, telegram_chat_id: int, *, page: int = 0) -> RenderedMessage:
+    async def station_games(
+        self,
+        telegram_chat_id: int,
+        *,
+        page: int = 0,
+        return_to_current: bool = False,
+    ) -> RenderedMessage:
         loaded = await self._load_client(telegram_chat_id)
         if loaded is None:
             return render_error("not_connected")
@@ -576,7 +597,12 @@ class BotService:
                 return context
             station = context
             products = await client.get_server_products(profile.drova_user_id or "", station.uuid)
-            return render_station_games(station, products, page=page)
+            return render_station_games(
+                station,
+                products,
+                page=page,
+                return_to_current=return_to_current,
+            )
         except (DrovaUnauthorized, DrovaPermissionDenied):
             return render_error("drova_unauthorized")
         except DrovaUnavailable:
@@ -590,6 +616,7 @@ class BotService:
         raw_product_id: str | None,
         *,
         page: int = 0,
+        return_to_current: bool = False,
     ) -> RenderedMessage:
         product_id = _parse_product_id(raw_product_id)
         if product_id is None:
@@ -604,7 +631,12 @@ class BotService:
                 return context
             station = context
             product = await client.get_server_product_edit(station.uuid, product_id)
-            return render_station_game_detail(station, product, page=page)
+            return render_station_game_detail(
+                station,
+                product,
+                page=page,
+                return_to_current=return_to_current,
+            )
         except (DrovaUnauthorized, DrovaPermissionDenied):
             return render_error("drova_unauthorized")
         except DrovaUnavailable:
@@ -620,6 +652,7 @@ class BotService:
         enabled: bool,
         page: int = 0,
         render_panel: bool = False,
+        return_to_current: bool = False,
     ) -> RenderedMessage:
         product_id = _parse_product_id(raw_product_id)
         if product_id is None:
@@ -637,7 +670,12 @@ class BotService:
             product = await client.get_server_product_edit(station.uuid, product_id)
             if render_panel:
                 toast = "Игра открыта." if enabled else "Игра скрыта."
-                rendered = render_station_game_detail(station, product, page=page)
+                rendered = render_station_game_detail(
+                    station,
+                    product,
+                    page=page,
+                    return_to_current=return_to_current,
+                )
                 return RenderedMessage(
                     rendered.text,
                     rendered.keyboard,
@@ -663,6 +701,7 @@ class BotService:
         raw_product_id: str | None,
         *,
         page: int = 0,
+        return_to_current: bool = False,
     ) -> RenderedMessage:
         product_id = _parse_product_id(raw_product_id)
         if product_id is None:
@@ -677,7 +716,12 @@ class BotService:
                 return context
             station = context
             product = await client.get_server_product_edit(station.uuid, product_id)
-            return render_game_hide_all_confirmation(station, product, page=page)
+            return render_game_hide_all_confirmation(
+                station,
+                product,
+                page=page,
+                return_to_current=return_to_current,
+            )
         except (DrovaUnauthorized, DrovaPermissionDenied):
             return render_error("drova_unauthorized")
         except DrovaUnavailable:
@@ -873,6 +917,8 @@ class BotService:
         telegram_chat_id: int,
         station_id: str | None,
         expected_published: bool | None,
+        *,
+        return_to_current: bool = False,
     ) -> RenderedMessage:
         if station_id is None or expected_published is None:
             return render_error("station_not_found")
@@ -890,7 +936,10 @@ class BotService:
             async with self._uow_factory() as uow:
                 await uow.station_cache.replace_for_chat(telegram_chat_id, stations)
                 await uow.chat_profiles.set_selected_station(telegram_chat_id, station_id)
-            return render_station_publish_manage_confirmation(station)
+            return render_station_publish_manage_confirmation(
+                station,
+                return_to_current=return_to_current,
+            )
         except (DrovaUnauthorized, DrovaPermissionDenied):
             return render_error("drova_unauthorized")
         except DrovaUnavailable:
@@ -903,6 +952,8 @@ class BotService:
         telegram_chat_id: int,
         station_id: str | None,
         expected_published: bool | None,
+        *,
+        return_to_current: bool = False,
     ) -> RenderedMessage:
         if station_id is None or expected_published is None:
             return render_error("station_not_found")
@@ -933,6 +984,7 @@ class BotService:
                 client,
                 station,
                 source,
+                return_to_current=return_to_current,
                 toast=toast,
             )
         except (DrovaUnauthorized, DrovaPermissionDenied):
@@ -948,6 +1000,8 @@ class BotService:
         station_id: str | None,
         control: str | None,
         expected_state: bool | None,
+        *,
+        return_to_current: bool = False,
     ) -> RenderedMessage:
         if station_id is None or control not in {"desktop", "updates"} or expected_state is None:
             return render_error("invalid_server_control_confirmation")
@@ -986,6 +1040,7 @@ class BotService:
                 client,
                 station,
                 source,
+                return_to_current=return_to_current,
                 toast=f"{label} {state}.",
             )
         except (DrovaUnauthorized, DrovaPermissionDenied):
@@ -999,12 +1054,14 @@ class BotService:
         self,
         telegram_chat_id: int,
         station_id: str | None,
+        *,
+        return_to_current: bool = False,
     ) -> RenderedMessage:
         if station_id is None:
             return render_error("station_not_found")
         async with self._uow_factory() as uow:
             await uow.chat_profiles.set_selected_station(telegram_chat_id, station_id)
-        return await self.station_games(telegram_chat_id)
+        return await self.station_games(telegram_chat_id, return_to_current=return_to_current)
 
     async def station_manage_source(
         self,
@@ -1021,6 +1078,8 @@ class BotService:
         self,
         telegram_chat_id: int,
         station_id: str | None,
+        *,
+        return_to_current: bool = False,
     ) -> RenderedMessage:
         if station_id is None:
             return render_error("station_not_found")
@@ -1043,6 +1102,7 @@ class BotService:
                 station=station,
                 revision=_server_source_revision(source),
                 created_at=self._clock(),
+                return_to_current=return_to_current,
             )
             return render_server_description_request(
                 station,
@@ -1076,6 +1136,7 @@ class BotService:
             description=description,
             revision=request.revision,
             created_at=self._clock(),
+            return_to_current=request.return_to_current,
         )
         self._description_requests.pop(telegram_chat_id, None)
         return render_server_description_preview(
@@ -1126,6 +1187,7 @@ class BotService:
                 client,
                 station,
                 source,
+                return_to_current=draft.return_to_current,
                 toast="Описание обновлено.",
             )
         except (DrovaUnauthorized, DrovaPermissionDenied):
@@ -1142,15 +1204,19 @@ class BotService:
         station_id: str | None = None,
         draft_id: str | None = None,
     ) -> RenderedMessage:
-        self._description_requests.pop(telegram_chat_id, None)
+        request = self._description_requests.pop(telegram_chat_id, None)
+        return_to_current = request.return_to_current if request is not None else False
         if draft_id is not None:
             draft = self._description_drafts.pop(draft_id, None)
             if station_id is None and draft is not None:
                 station_id = draft.station_id
+            if draft is not None:
+                return_to_current = draft.return_to_current
         if station_id is not None:
             return await self.station_manage_panel(
                 telegram_chat_id,
                 station_id=station_id,
+                return_to_current=return_to_current,
                 toast="Отменено.",
             )
         return RenderedMessage("Отменено.")
@@ -1233,6 +1299,7 @@ class BotService:
         station: Station,
         source: ServerSource,
         *,
+        return_to_current: bool = False,
         toast: str | None = None,
     ) -> RenderedMessage:
         latest_session: Session | None = None
@@ -1254,6 +1321,7 @@ class BotService:
             now=self._clock(),
             timezone=profile.timezone,
             geo_resolver=self._session_geo_resolver,
+            return_to_current=return_to_current,
             toast=toast,
         )
 
@@ -1337,25 +1405,36 @@ class BotService:
         if callback.action == "station_page":
             return await self.station_picker(telegram_chat_id, page=callback.page or 0)
         if callback.action == "station_manage_page":
-            return await self.station_manage_picker(telegram_chat_id, page=callback.page or 0)
+            return await self.station_manage_picker(
+                telegram_chat_id,
+                page=callback.page or 0,
+                return_to_current=callback.return_to_current or False,
+            )
         if callback.action == "station_manage_select":
-            return await self.station_manage_select(telegram_chat_id, callback.station_id)
+            return await self.station_manage_select(
+                telegram_chat_id,
+                callback.station_id,
+                return_to_current=callback.return_to_current or False,
+            )
         if callback.action == "station_panel":
             return await self.station_manage_panel(
                 telegram_chat_id,
                 station_id=callback.station_id,
+                return_to_current=callback.return_to_current or False,
             )
         if callback.action == "station_publish_prompt":
             return await self.station_publish_manage_confirmation(
                 telegram_chat_id,
                 callback.station_id,
                 callback.expected_published,
+                return_to_current=callback.return_to_current or False,
             )
         if callback.action == "station_publish_confirm":
             return await self.station_publish_manage_confirm(
                 telegram_chat_id,
                 callback.station_id,
                 callback.expected_published,
+                return_to_current=callback.return_to_current or False,
             )
         if callback.action == "station_control_toggle":
             return await self.station_control_toggle(
@@ -1363,15 +1442,21 @@ class BotService:
                 callback.station_id,
                 callback.control,
                 callback.expected_state,
+                return_to_current=callback.return_to_current or False,
             )
         if callback.action == "station_games":
-            return await self.station_manage_games(telegram_chat_id, callback.station_id)
+            return await self.station_manage_games(
+                telegram_chat_id,
+                callback.station_id,
+                return_to_current=callback.return_to_current or False,
+            )
         if callback.action == "station_source":
             return await self.station_manage_source(telegram_chat_id, callback.station_id)
         if callback.action == "station_description_begin":
             return await self.begin_station_description_update(
                 telegram_chat_id,
                 callback.station_id,
+                return_to_current=callback.return_to_current or False,
             )
         if callback.action == "station_description_apply":
             return await self.apply_station_description_draft(
@@ -1432,7 +1517,7 @@ class BotService:
         if callback.action == "current_refresh_panel":
             return await self.current(telegram_chat_id, publish_panel_open=True)
         if callback.action == "publish_panel":
-            return await self.station_manage_picker(telegram_chat_id)
+            return await self.station_manage_picker(telegram_chat_id, return_to_current=True)
         if callback.action == "publish_hide":
             return await self.current(telegram_chat_id)
         if callback.action == "publish_select":
@@ -1446,12 +1531,17 @@ class BotService:
         if callback.action == "publish_cancel":
             return await self.cancel_publish(telegram_chat_id)
         if callback.action == "game_page":
-            return await self.station_games(telegram_chat_id, page=callback.page or 0)
+            return await self.station_games(
+                telegram_chat_id,
+                page=callback.page or 0,
+                return_to_current=callback.return_to_current or False,
+            )
         if callback.action == "game_select":
             return await self.station_game(
                 telegram_chat_id,
                 callback.product_id,
                 page=callback.page or 0,
+                return_to_current=callback.return_to_current or False,
             )
         if callback.action == "game_hide":
             return await self.set_station_game_enabled(
@@ -1460,6 +1550,7 @@ class BotService:
                 enabled=False,
                 page=callback.page or 0,
                 render_panel=True,
+                return_to_current=callback.return_to_current or False,
             )
         if callback.action == "game_show":
             return await self.set_station_game_enabled(
@@ -1468,12 +1559,14 @@ class BotService:
                 enabled=True,
                 page=callback.page or 0,
                 render_panel=True,
+                return_to_current=callback.return_to_current or False,
             )
         if callback.action in {"game_hide_all", "game_hide_all_prompt"}:
             return await self.hide_game_all_confirmation(
                 telegram_chat_id,
                 callback.product_id,
                 page=callback.page or 0,
+                return_to_current=callback.return_to_current or False,
             )
         if callback.action == "game_hide_all_confirm":
             return await self.hide_game_all(telegram_chat_id, callback.product_id)

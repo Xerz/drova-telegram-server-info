@@ -224,6 +224,21 @@ def test_station_management_renderers_are_button_first(
     assert parse_callback_data(picker.keyboard.rows[-1][0].callback_data).action == (
         "station_manage_page"
     )
+    current_picker = render_station_manage_picker(
+        many_stations,
+        page=0,
+        page_size=8,
+        return_to_current=True,
+    )
+    assert current_picker.keyboard is not None
+    assert current_picker.keyboard.rows[-1][0].text == "К текущему состоянию"
+    assert parse_callback_data(current_picker.keyboard.rows[-1][0].callback_data).action == (
+        "current_refresh"
+    )
+    assert (
+        parse_callback_data(current_picker.keyboard.rows[0][0].callback_data).return_to_current
+        is True
+    )
 
     panel = render_station_manage_panel(
         ui_stations[0],
@@ -232,26 +247,32 @@ def test_station_management_renderers_are_button_first(
         product_catalog=ui_catalog,
         now=ui_now,
         timezone="Asia/Yekaterinburg",
+        return_to_current=True,
     )
-    assert "Управление станцией" in panel.text
-    assert "<b>Alpha Station</b>" in panel.text
-    assert "Публикация: опубликована" in panel.text
-    assert "Полный доступ: выключен" in panel.text
-    assert "Обновления: выключены" in panel.text
-    assert "Последняя сессия: <b>Cyber Rally</b>" in panel.text
+    assert panel.text.startswith("<b>Alpha Station</b>")
+    assert "Управление станцией" not in panel.text
+    assert "Публикация:" not in panel.text
+    assert "Полный доступ:" not in panel.text
+    assert "Обновления:" not in panel.text
+    assert "<b>Cyber Rally</b>" in panel.text
+    assert "Последняя сессия:" not in panel.text
     assert "💳 prepaid ✅ finished · 16:00 · 10 мин" in panel.text
     assert panel.keyboard is not None
-    assert panel.keyboard.rows[0][0].text == "Скрыть станцию"
+    assert panel.keyboard.rows[0][0].text == "✅ Опубликована"
     assert parse_callback_data(panel.keyboard.rows[0][0].callback_data).action == (
         "station_publish_prompt"
     )
     assert panel.keyboard.rows[1][0].text == "🚫 Полный доступ"
     assert panel.keyboard.rows[1][1].text == "🚫 Обновления"
-    assert panel.keyboard.rows[2][0].text == "Игры"
-    assert panel.keyboard.rows[3][0].text == "Описание"
+    assert panel.keyboard.rows[2][0].text == "🎮 Игры"
+    assert panel.keyboard.rows[2][1].text == "📝 Описание"
     assert (
-        parse_callback_data(panel.keyboard.rows[3][0].callback_data).action
+        parse_callback_data(panel.keyboard.rows[2][1].callback_data).action
         == "station_description_begin"
+    )
+    assert panel.keyboard.rows[-1][0].text == "К текущему состоянию"
+    assert parse_callback_data(panel.keyboard.rows[-1][0].callback_data).action == (
+        "current_refresh"
     )
 
     request = render_server_description_request(
@@ -305,6 +326,14 @@ def test_game_management_renderers_are_command_friendly(
     game_back = parse_callback_data(games.keyboard.rows[-1][0].callback_data)
     assert game_back.action == "station_panel"
     assert game_back.station_id == "station-online"
+    current_games = render_station_games(
+        station,
+        ui_products_by_station["station-online"],
+        return_to_current=True,
+    )
+    assert current_games.keyboard is not None
+    assert parse_callback_data(current_games.keyboard.rows[0][0].callback_data).return_to_current
+    assert parse_callback_data(current_games.keyboard.rows[-1][0].callback_data).return_to_current
 
     detail = render_station_game_detail(
         station,
@@ -342,6 +371,23 @@ def test_game_management_renderers_are_command_friendly(
     detail_back = parse_callback_data(detail.keyboard.rows[-1][0].callback_data)
     assert detail_back.action == "station_panel"
     assert detail_back.station_id == "station-online"
+    current_detail = render_station_game_detail(
+        station,
+        ServerProductEdit(
+            product_id="product-a",
+            title="Cyber Rally",
+            enabled=True,
+            published=True,
+            available=True,
+            verified=2,
+            default_launch=LaunchParameters(),
+            current_launch=LaunchParameters(),
+        ),
+        return_to_current=True,
+    )
+    assert current_detail.keyboard is not None
+    assert parse_callback_data(current_detail.keyboard.rows[0][0].callback_data).return_to_current
+    assert parse_callback_data(current_detail.keyboard.rows[-1][0].callback_data).return_to_current
 
     result = render_game_enabled_result(
         product_title="Space Farm",
@@ -371,6 +417,7 @@ def test_game_hide_all_confirmation_requires_explicit_confirm(
             current_launch=LaunchParameters(),
         ),
         page=2,
+        return_to_current=True,
     )
 
     assert "Скрыть игру на всех станциях?" in confirmation.text
@@ -381,10 +428,12 @@ def test_game_hide_all_confirmation_requires_explicit_confirm(
     assert confirm.action == "game_hide_all_confirm"
     assert confirm.product_id == "product-a"
     assert confirm.page == 2
+    assert confirm.return_to_current is True
     cancel = parse_callback_data(confirmation.keyboard.rows[1][0].callback_data)
     assert cancel.action == "game_select"
     assert cancel.product_id == "product-a"
     assert cancel.page == 2
+    assert cancel.return_to_current is True
 
 
 def test_station_games_renderer_paginates_large_lists(ui_stations: list[Station]) -> None:
@@ -689,6 +738,9 @@ def test_current_renderer_matches_fixture_intent(
     assert message.keyboard is not None
     assert message.keyboard.rows[0][0].callback_data.startswith("cr")
     assert message.keyboard.rows[1][0].text == "Управление станциями"
+    manage_callback = parse_callback_data(message.keyboard.rows[1][0].callback_data)
+    assert manage_callback.action == "station_manage_page"
+    assert manage_callback.return_to_current is True
     assert "Показать панель публикации" not in [
         button.text for row in message.keyboard.rows for button in row
     ]
