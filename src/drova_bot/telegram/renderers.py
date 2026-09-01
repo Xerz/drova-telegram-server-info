@@ -1339,12 +1339,14 @@ def render_current(
             if part
         )
         meta_suffix = f" · {html_escape(meta)}" if meta else ""
-        city = _session_geo_city(session, geo_resolver)
-        city_suffix = f" · {html_escape(city)}" if city else ""
+        geo_suffix = "".join(
+            f" · {html_escape(value)}"
+            for value in _session_geo_parts(session, geo_resolver)
+        )
         lines.append(
             f"{line_prefix} {html_escape(station_label)} · <b>{html_escape(title)}</b>"
             f"{meta_suffix} · {format_time_short(session.created_on_ms, profile.timezone)}"
-            f" · {duration}{city_suffix}"
+            f" · {duration}{geo_suffix}"
         )
 
     rows: list[list[ButtonSpec]] = [
@@ -1381,10 +1383,21 @@ def _session_geo_line(
     if not session.creator_ip:
         return None
     parts = [f"IP: <code>{html_escape(session.creator_ip)}</code>"]
-    city = _session_geo_city(session, geo_resolver)
-    if city:
-        parts.append(html_escape(city))
+    parts.extend(
+        html_escape(value)
+        for value in _session_geo_parts(session, geo_resolver)
+    )
     return " · ".join(parts)
+
+
+def _session_geo_parts(
+    session: Session,
+    geo_resolver: SessionGeoResolver | None,
+) -> tuple[str, ...]:
+    geo = _safe_session_geo(session, geo_resolver)
+    if geo is None:
+        return ()
+    return tuple(value for value in (geo.city, geo.provider) if value)
 
 
 def _session_geo_city(

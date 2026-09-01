@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from enum import Enum, auto
 from html import unescape
 from typing import Any, cast
 
@@ -21,6 +22,14 @@ from drova_bot.telegram.keyboards import KeyboardSpec
 from drova_bot.telegram.renderers import RenderedMessage
 
 logger = structlog.get_logger(__name__)
+
+
+class CallbackEditOutcome(Enum):
+    """Result of delivering rendered content for a callback query."""
+
+    EDITED = auto()
+    UNCHANGED = auto()
+    ANSWERED_AS_ALERT = auto()
 
 
 def to_aiogram_keyboard(keyboard: KeyboardSpec | None) -> InlineKeyboardMarkup | None:
@@ -77,26 +86,38 @@ async def edit_rendered_message(message: Message, rendered: RenderedMessage) -> 
             raise TelegramDeliveryFailed("telegram edit failed after fallback") from exc
 
 
-async def edit_or_answer_rendered(callback: CallbackQuery, rendered: RenderedMessage) -> Any:
+async def edit_or_answer_rendered(
+    callback: CallbackQuery,
+    rendered: RenderedMessage,
+) -> CallbackEditOutcome:
     markup = to_aiogram_keyboard(rendered.keyboard)
     if callback.message is None:
-        return await callback.answer(_plain_text(rendered.text), show_alert=True)
+        await callback.answer(_plain_text(rendered.text), show_alert=True)
+        return CallbackEditOutcome.ANSWERED_AS_ALERT
     message = cast(Message, callback.message)
     try:
-        return await message.edit_text(
+        await message.edit_text(
             rendered.text,
             parse_mode=rendered.parse_mode,
             reply_markup=markup,
         )
-    except TelegramBadRequest:
+        return CallbackEditOutcome.EDITED
+    except TelegramBadRequest as exc:
+        if _is_message_not_modified(exc):
+            logger.info("telegram_message_not_modified")
+            return CallbackEditOutcome.UNCHANGED
         logger.warning("telegram_html_fallback")
         try:
-            return await message.edit_text(
+            await message.edit_text(
                 _plain_text(rendered.text),
                 parse_mode=None,
                 reply_markup=markup,
             )
+            return CallbackEditOutcome.EDITED
         except TelegramBadRequest as exc:
+            if _is_message_not_modified(exc):
+                logger.info("telegram_message_not_modified")
+                return CallbackEditOutcome.UNCHANGED
             raise TelegramDeliveryFailed("telegram callback edit failed after fallback") from exc
 
 
@@ -111,3 +132,7 @@ async def send_export_file(message: Message, export_file: ExportFile) -> Any:
 
 def _plain_text(text: str) -> str:
     return unescape(text)
+
+
+def _is_message_not_modified(exc: TelegramBadRequest) -> bool:
+    return "message is not modified" in exc.message.casefold()

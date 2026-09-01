@@ -13,8 +13,8 @@ TZ=Asia/Yekaterinburg
 HTTP_PROXY=
 HTTPS_PROXY=
 DROVA_BASE_URL=https://services.drova.io
-GEOLITE_CITY_DB=GeoLite2-City.mmdb
-GEOLITE_ASN_DB=GeoLite2-ASN.mmdb
+GEOLITE_CITY_DB=/data/GeoLite2-City.mmdb
+GEOLITE_ASN_DB=/data/GeoLite2-ASN.mmdb
 ```
 
 Specing/live tests:
@@ -65,3 +65,6 @@ Never log token, raw IP, email, wallet or station description.
 - GeoLite lookup is optional and local-only. Download URLs:
   - `GeoLite2-City.mmdb`: `https://github.com/P3TERX/GeoLite.mmdb/raw/download/GeoLite2-City.mmdb`;
   - `GeoLite2-ASN.mmdb`: `https://github.com/P3TERX/GeoLite.mmdb/raw/download/GeoLite2-ASN.mmdb`.
+- The standard Docker layout downloads databases into host `./data` and mounts that directory
+  as container `/data`. A direct non-Docker launch may override the paths with relative
+  `data/GeoLite2-*.mmdb` values.

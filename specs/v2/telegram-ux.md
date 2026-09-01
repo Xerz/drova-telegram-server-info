@@ -6,7 +6,15 @@
 - Use concise status headers, then data lines.
 - Use Telegram HTML only; every dynamic value is escaped.
 - If Telegram rejects HTML, send plain text fallback and log `telegram_html_fallback`.
+- If an inline refresh is rejected with Telegram `message is not modified`, do not use the
+  HTML fallback. Keep the message unchanged and answer the callback once with the toast
+  `Ничего не изменилось.`.
 - Do not expose raw token, full IP, email, wallet, stack trace or request URL with credentials.
+
+## Command Menu
+
+- BotFather commands start with `/sessions`, `/current`, `/account_menu`, `/usage`, `/help`
+  in that exact order. Remaining registered commands keep their existing relative order.
 
 ## Onboarding
 
@@ -52,7 +60,8 @@
   - bold numbered game title;
   - station name when all stations selected;
   - masked/short client id in monospace;
-  - separate IP/location line as `IP: {creator_ip} · {city}` when IP is present, omitting city when unknown;
+  - separate IP/location line as `IP: {creator_ip} · {city} · {provider}` when IP is
+    present, independently omitting unknown city or ASN provider organization;
   - start-finish as `HH:MM-HH:MM` and compact duration;
   - billing/status with emoji labels;
   - feedback if present.
@@ -64,7 +73,9 @@
 ## Current Dashboard
 
 - Shows all stations sorted by display name.
-- Each station line includes index, publication marker (`🌐` published, `🔒` hidden), station state, latest game, latest session city when known, start time and duration.
+- Each station line includes index, publication marker (`🌐` published, `🔒` hidden), station
+  state, latest game, latest session city and ASN provider organization when known, start time
+  and duration.
 - Current dashboard must not display raw client IP addresses.
 - Empty station sessions render `нет сессий`.
 - API failure for one station renders `ошибка загрузки`, not a full command failure.

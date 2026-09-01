@@ -627,7 +627,7 @@ def test_sessions_station_picker_paginates_and_preserves_short_mode(
             assert len(button.callback_data.encode("utf-8")) <= 64
 
 
-def test_sessions_renderer_adds_ip_and_city_line(
+def test_sessions_renderer_adds_ip_city_and_provider_independently(
     ui_profile: ChatProfile,
     ui_sessions: list[Session],
     ui_stations: list[Station],
@@ -636,7 +636,11 @@ def test_sessions_renderer_adds_ip_and_city_line(
 ) -> None:
     def resolver(session: Session) -> EndpointGeo | None:
         if session.uuid == "session-3":
-            return EndpointGeo(city="Testburg")
+            return EndpointGeo(city="Testburg", provider="Test & Network")
+        if session.uuid == "session-2":
+            return EndpointGeo(provider="Example Network")
+        if session.uuid == "session-1":
+            return EndpointGeo(city="City Only")
         return None
 
     message = render_sessions(
@@ -648,8 +652,23 @@ def test_sessions_renderer_adds_ip_and_city_line(
         geo_resolver=resolver,
     )
 
-    assert "IP: <code>198.51.100.30</code> · Testburg" in message.text
-    assert "IP: <code>203.0.113.20</code>" in message.text
+    assert (
+        "IP: <code>198.51.100.30</code> · Testburg · Test &amp; Network" in message.text
+    )
+    assert "IP: <code>203.0.113.20</code> · Example Network" in message.text
+    assert "IP: <code>203.0.113.10</code> · City Only" in message.text
+
+    without_geo = render_sessions(
+        ui_profile,
+        ui_sessions,
+        ui_stations,
+        ui_catalog,
+        now=ui_now,
+        geo_resolver=lambda session: None,
+    )
+    assert "IP: <code>198.51.100.30</code>" in without_geo.text
+    assert "Testburg" not in without_geo.text
+    assert "Test &amp; Network" not in without_geo.text
 
 
 def test_sessions_renderer_formats_unknown_meta_and_duration_edges(
@@ -749,7 +768,7 @@ def test_current_renderer_matches_fixture_intent(
     ]
 
 
-def test_current_renderer_adds_city_without_raw_ip(
+def test_current_renderer_adds_city_and_provider_without_raw_ip(
     ui_profile: ChatProfile,
     ui_sessions: list[Session],
     ui_stations: list[Station],
@@ -758,7 +777,9 @@ def test_current_renderer_adds_city_without_raw_ip(
 ) -> None:
     def resolver(session: Session) -> EndpointGeo | None:
         if session.uuid == "session-2":
-            return EndpointGeo(city="Example City")
+            return EndpointGeo(city="Example City", provider="Example & Network")
+        if session.uuid == "session-3":
+            return EndpointGeo(provider="Test Network")
         return None
 
     message = render_current(
@@ -771,10 +792,13 @@ def test_current_renderer_adds_city_without_raw_ip(
     )
 
     assert (
-        "Cyber Rally</b> · 💳 prepaid ✅ finished · 16:00 · 10 мин · Example City"
+        "Cyber Rally</b> · 💳 prepaid ✅ finished · 16:00 · 10 мин · "
+        "Example City · Example &amp; Network"
         in message.text
     )
+    assert "Space Farm</b> · 🧪 trial 🟢 active · 16:40 · 20 мин · Test Network" in message.text
     assert "203.0.113.20" not in message.text
+    assert "198.51.100.30" not in message.text
 
 
 def test_current_renderer_shows_station_management_button(

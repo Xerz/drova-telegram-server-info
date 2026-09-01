@@ -34,8 +34,10 @@ No command handler is considered done without handler tests and renderer tests.
 - `/station` paginated picker and all-stations selection.
 - `/limit` valid and invalid inputs.
 - `/sessions` full and short mode.
+- `/sessions` renders city and ASN provider organization independently when available.
 - `/sessions` station switcher for all-stations and one-station modes, preserving short mode.
 - `/current` dashboard with mixed station states.
+- `/current` renders city and ASN provider organization without exposing raw client IP.
 - Publish confirmation success, cancel and stale-state failure.
 - `/station_manage` station picker, station panel, publication, desktop/update toggles,
   games entrypoint, source preview and description draft callbacks.
@@ -48,6 +50,10 @@ No command handler is considered done without handler tests and renderer tests.
 - All export variants.
 - Token renewal on 401 with exactly one retry.
 - Telegram HTML fallback.
+- BotFather command list starts with `/sessions`, `/current`, `/account_menu`, `/usage`,
+  `/help`, contains every command once, and preserves all remaining commands.
+- Telegram `message is not modified` skips HTML fallback and produces one
+  `Ничего не изменилось.` callback toast.
 
 ## Live Contract Safety
 

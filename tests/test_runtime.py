@@ -59,21 +59,24 @@ async def test_register_bot_commands_uses_runtime_command_list() -> None:
 
     await app.register_bot_commands(cast(Any, fake_bot))
 
-    assert [command.command for command in fake_bot.commands] == [
-        "start",
+    commands = [command.command for command in fake_bot.commands]
+    assert commands[:5] == [
+        "sessions",
+        "current",
+        "account_menu",
+        "usage",
         "help",
+    ]
+    assert commands[5:] == [
+        "start",
         "token",
         "logout",
         "station",
         "station_all",
         "station_manage",
         "limit",
-        "sessions",
         "sessions_short",
-        "current",
-        "account_menu",
         "account",
-        "usage",
         "disabled",
         "stations",
         "games",
@@ -90,6 +93,14 @@ async def test_register_bot_commands_uses_runtime_command_list() -> None:
         "export_products",
         "export_product_time",
     ]
+    assert len(commands) == len(set(commands))
+
+
+def test_settings_default_geolite_paths_use_data_volume() -> None:
+    settings = _settings()
+
+    assert settings.geolite_city_db == "/data/GeoLite2-City.mmdb"
+    assert settings.geolite_asn_db == "/data/GeoLite2-ASN.mmdb"
 
 
 @pytest.mark.asyncio
@@ -164,8 +175,15 @@ def test_deployment_files_keep_secrets_out_of_image() -> None:
     assert "- ./data:/data" in compose
     assert "sqlite+aiosqlite:////data/drova_bot.sqlite3" in compose
     assert "DATABASE_URL=sqlite+aiosqlite:////data/drova_bot.sqlite3" in env_example
+    assert "GEOLITE_CITY_DB=/data/GeoLite2-City.mmdb" in env_example
+    assert "GEOLITE_ASN_DB=/data/GeoLite2-ASN.mmdb" in env_example
     assert "--name drova-bot" in readme
     assert "-v \"$PWD/data:/data\"" in readme
+    assert "mkdir -p data" in readme
+    assert "curl -L -o data/GeoLite2-City.mmdb" in readme
+    assert "curl -L -o data/GeoLite2-ASN.mmdb" in readme
+    assert "GEOLITE_CITY_DB=/data/GeoLite2-City.mmdb" in readme
+    assert "GEOLITE_ASN_DB=/data/GeoLite2-ASN.mmdb" in readme
     assert "docker stop drova-bot" in readme
     assert "TELEGRAM_BOT_TOKEN" not in dockerfile
     assert "BOT_SECRET_KEY" not in dockerfile

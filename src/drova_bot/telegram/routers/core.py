@@ -16,6 +16,7 @@ from drova_bot.drova.errors import TelegramDeliveryFailed
 from drova_bot.exports import ExportKind
 from drova_bot.telegram.callbacks import InvalidCallbackData, parse_callback_data
 from drova_bot.telegram.delivery import (
+    CallbackEditOutcome,
     answer_rendered,
     edit_or_answer_rendered,
     edit_rendered_message,
@@ -376,8 +377,12 @@ async def callback_query(callback: CallbackQuery, bot_service: BotService) -> No
         rendered = await bot_service.handle_callback(chat_id, parsed)
     except InvalidCallbackData:
         rendered = render_error("unknown_command")
-    await edit_or_answer_rendered(callback, rendered)
-    if rendered.toast:
+    outcome = await edit_or_answer_rendered(callback, rendered)
+    if outcome is CallbackEditOutcome.ANSWERED_AS_ALERT:
+        return
+    if outcome is CallbackEditOutcome.UNCHANGED:
+        await callback.answer("Ничего не изменилось.")
+    elif rendered.toast:
         await callback.answer(rendered.toast)
     else:
         await callback.answer()

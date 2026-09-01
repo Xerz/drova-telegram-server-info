@@ -77,6 +77,8 @@ BOT_SECRET_KEY=
 DATABASE_URL=sqlite+aiosqlite:////data/drova_bot.sqlite3
 TZ=Asia/Yekaterinburg
 DROVA_BASE_URL=https://services.drova.io
+GEOLITE_CITY_DB=/data/GeoLite2-City.mmdb
+GEOLITE_ASN_DB=/data/GeoLite2-ASN.mmdb
 ```
 
 Fernet-ключ для `BOT_SECRET_KEY`:
@@ -151,11 +153,15 @@ docker compose up -d
 GeoIP-интеграция опциональна. Если базы не заданы, бот продолжит работать без географии.
 
 ```bash
-curl -L -o GeoLite2-City.mmdb https://github.com/P3TERX/GeoLite.mmdb/raw/download/GeoLite2-City.mmdb
-curl -L -o GeoLite2-ASN.mmdb https://github.com/P3TERX/GeoLite.mmdb/raw/download/GeoLite2-ASN.mmdb
+mkdir -p data
+curl -L -o data/GeoLite2-City.mmdb https://github.com/P3TERX/GeoLite.mmdb/raw/download/GeoLite2-City.mmdb
+curl -L -o data/GeoLite2-ASN.mmdb https://github.com/P3TERX/GeoLite.mmdb/raw/download/GeoLite2-ASN.mmdb
 ```
 
-Пути можно задать через `GEOLITE_CITY_DB` и `GEOLITE_ASN_DB`.
+В стандартном Docker-запуске host-каталог `./data` смонтирован как `/data`, поэтому значения
+по умолчанию - `/data/GeoLite2-City.mmdb` и `/data/GeoLite2-ASN.mmdb`. При запуске polling
+напрямую без Docker задайте относительные пути `data/GeoLite2-City.mmdb` и
+`data/GeoLite2-ASN.mmdb` через `GEOLITE_CITY_DB` и `GEOLITE_ASN_DB`.
 
 ## Live Contract Tests
 

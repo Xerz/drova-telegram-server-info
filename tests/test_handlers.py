@@ -74,16 +74,21 @@ class FakeMessage:
         *,
         fail_html_once: bool = False,
         fail_html_always: bool = False,
+        fail_edit_html_once: bool = False,
+        fail_edit_not_modified_once: bool = False,
         fail_document: bool = False,
     ) -> None:
         self.text = text
         self.chat = FakeChat()
         self.fail_html_once = fail_html_once
         self.fail_html_always = fail_html_always
+        self.fail_edit_html_once = fail_edit_html_once
+        self.fail_edit_not_modified_once = fail_edit_not_modified_once
         self.fail_document = fail_document
         self.answers: list[tuple[str, dict[str, Any]]] = []
         self.documents: list[tuple[Any, dict[str, Any]]] = []
         self.edits: list[tuple[str, dict[str, Any]]] = []
+        self.edit_attempts: list[tuple[str, dict[str, Any]]] = []
 
     async def answer(self, text: str, **kwargs: Any) -> FakeMessage:
         if self.fail_html_always:
@@ -95,6 +100,17 @@ class FakeMessage:
         return self
 
     async def edit_text(self, text: str, **kwargs: Any) -> FakeMessage:
+        self.edit_attempts.append((text, kwargs))
+        if self.fail_edit_not_modified_once:
+            self.fail_edit_not_modified_once = False
+            raise _telegram_bad_request(
+                "Bad Request: message is not modified: specified new message content and "
+                "reply markup are exactly the same as a current content and reply markup "
+                "of the message"
+            )
+        if self.fail_edit_html_once and kwargs.get("parse_mode") == "HTML":
+            self.fail_edit_html_once = False
+            raise _telegram_bad_request()
         self.edits.append((text, kwargs))
         return self
 
@@ -609,6 +625,54 @@ async def test_callback_handler_uses_rendered_toast() -> None:
 
 
 @pytest.mark.asyncio
+async def test_callback_not_modified_uses_one_toast_without_html_fallback() -> None:
+    class ToastService(FakeService):
+        async def handle_callback(self, chat_id: int, callback: object) -> RenderedMessage:
+            self.calls.append(("handle_callback", (chat_id, callback), {}))
+            return RenderedMessage("callback <b>unchanged</b>", toast="Старый toast.")
+
+    service = ToastService()
+    message = FakeMessage(fail_edit_not_modified_once=True)
+    callback = FakeCallback(CallbackSpec(action="current_refresh").pack())
+    callback.message = message
+
+    await callback_query(cast(CallbackQuery, callback), service)  # type: ignore[arg-type]
+
+    assert len(message.edit_attempts) == 1
+    assert message.edit_attempts[0][1]["parse_mode"] == "HTML"
+    assert message.edits == []
+    assert callback.answers == [{"args": ("Ничего не изменилось.",), "kwargs": {}}]
+
+
+@pytest.mark.asyncio
+async def test_callback_other_html_error_keeps_plain_text_fallback() -> None:
+    service = FakeService()
+    message = FakeMessage(fail_edit_html_once=True)
+    callback = FakeCallback(CallbackSpec(action="current_refresh").pack())
+    callback.message = message
+
+    await callback_query(cast(CallbackQuery, callback), service)  # type: ignore[arg-type]
+
+    assert len(message.edit_attempts) == 2
+    assert message.edit_attempts[0][1]["parse_mode"] == "HTML"
+    assert message.edits == [("callback", {"parse_mode": None, "reply_markup": None})]
+    assert callback.answers == [{"args": (), "kwargs": {}}]
+
+
+@pytest.mark.asyncio
+async def test_callback_without_message_is_answered_once_as_alert() -> None:
+    service = FakeService()
+    callback = FakeCallback(CallbackSpec(action="current_refresh").pack())
+    callback.message = cast(Any, None)
+
+    await callback_query(cast(CallbackQuery, callback), service)  # type: ignore[arg-type]
+
+    assert callback.answers == [
+        {"args": ("callback",), "kwargs": {"show_alert": True}},
+    ]
+
+
+@pytest.mark.asyncio
 async def test_unknown_command_and_text() -> None:
     service = FakeService()
     command = FakeMessage("/wat")
@@ -670,8 +734,8 @@ async def test_export_delivery_failure_marks_job_failed() -> None:
     assert message.edits == []
 
 
-def _telegram_bad_request() -> TelegramBadRequest:
+def _telegram_bad_request(message: str = "bad request") -> TelegramBadRequest:
     return TelegramBadRequest(
         method=SendMessage(chat_id=10001, text="x"),
-        message="bad request",
+        message=message,
     )

@@ -1044,7 +1044,7 @@ async def test_sessions_and_current_use_injected_geo_without_raw_ip_in_current(
 ) -> None:
     def resolver(session: Session) -> EndpointGeo | None:
         if session.creator_ip == "203.0.113.20":
-            return EndpointGeo(city="Example City")
+            return EndpointGeo(city="Example City", provider="Example Network")
         return None
 
     service = make_service(
@@ -1067,9 +1067,10 @@ async def test_sessions_and_current_use_injected_geo_without_raw_ip_in_current(
     sessions = await service.sessions(10001)
     current = await service.current(10001)
 
-    assert "IP: <code>203.0.113.20</code> · Example City" in sessions.text
+    assert "IP: <code>203.0.113.20</code> · Example City · Example Network" in sessions.text
     assert (
-        "Cyber Rally</b> · 💳 prepaid ✅ finished · 16:00 · 10 мин · Example City"
+        "Cyber Rally</b> · 💳 prepaid ✅ finished · 16:00 · 10 мин · "
+        "Example City · Example Network"
         in current.text
     )
     assert "203.0.113.20" not in current.text
