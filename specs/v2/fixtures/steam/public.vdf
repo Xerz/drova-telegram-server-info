@@ -1,0 +1,8 @@
+Steam Console Client
+Steam>app_info_print 730
+"730"
+{
+ "common" { "name" "Counter-Strike 2" }
+ "depots" { "branches" { "public" { "buildid" "12345" "timeupdated" "1788768000" } "beta" { "buildid" "99999" } } }
+}
+Steam>

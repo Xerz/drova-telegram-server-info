@@ -107,3 +107,8 @@ Promocode
 - Export duration: `HH:MM:SS` with total hours.
 - Date display: `YYYY-MM-DD`.
 - Time display: `HH:MM:SS`.
+
+## Steam Metadata
+
+CatalogProduct adds optional `in_shop_url` and `required_account`, defaulting to null.
+Steam Game/Event/Feed DTOs, AppID extraction and branch rules follow `steam-updates.md`.

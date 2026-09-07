@@ -77,6 +77,9 @@ class ChatProfileRepository:
         return self._to_domain(row)
 
     async def logout(self, telegram_chat_id: int) -> ChatProfile:
+        from drova_bot.game_updates.storage import reset_notifications
+
+        await reset_notifications(self._session, telegram_chat_id)
         row = await self._get_or_create_row(telegram_chat_id)
         row.drova_user_id = None
         row.encrypted_proxy_token = None

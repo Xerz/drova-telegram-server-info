@@ -24,6 +24,7 @@
 - `tests.md` - tests-first matrix и acceptance gates.
 - `runtime.md` - env, Docker, logging, observability, operations.
 - `next-iteration.md` - backlog/spec for the next V2 feature cycle.
+- `steam-updates.md` - Steam watcher, subscriptions, hourly digests and delivery contract.
 - `fixtures/` - API и UI fixtures для разработки и тестов.
 
 ## Non-goals

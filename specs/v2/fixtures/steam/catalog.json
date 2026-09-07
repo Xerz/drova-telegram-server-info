@@ -1,0 +1,38 @@
+[
+  {
+    "productId": "a",
+    "title": "Counter-Strike 2",
+    "requiredAccount": "Steam",
+    "inShopUrl": "https://store.steampowered.com/app/730/"
+  },
+  {
+    "productId": "b",
+    "title": "Counter-Strike 2 (duplicate)",
+    "requiredAccount": "Steam",
+    "inShopUrl": "https://store.steampowered.com/app/730/?l=russian"
+  },
+  {
+    "productId": "c",
+    "title": "Dota 2",
+    "requiredAccount": "Steam",
+    "inShopUrl": "https://store.steampowered.com/app/570"
+  },
+  {
+    "productId": "d",
+    "title": "Other store",
+    "requiredAccount": "Origin",
+    "inShopUrl": "https://store.steampowered.com/app/100"
+  },
+  {
+    "productId": "e",
+    "title": "Missing link",
+    "requiredAccount": "Steam",
+    "inShopUrl": null
+  },
+  {
+    "productId": "f",
+    "title": "Wrong host",
+    "requiredAccount": "Steam",
+    "inShopUrl": "https://store.steampowered.com.example/app/10"
+  }
+]

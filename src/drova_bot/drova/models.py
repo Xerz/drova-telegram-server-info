@@ -140,9 +140,14 @@ class StationProductResponse(DrovaApiModel):
 class CatalogProductResponse(DrovaApiModel):
     product_id: str = Field(alias="productId")
     title: str
+    in_shop_url: str | None = Field(default=None, alias="inShopUrl")
+    required_account: str | None = Field(default=None, alias="requiredAccount")
 
     def to_domain(self) -> CatalogProduct:
-        return CatalogProduct(product_id=self.product_id, title=self.title)
+        return CatalogProduct(
+            product_id=self.product_id, title=self.title,
+            in_shop_url=self.in_shop_url, required_account=self.required_account,
+        )
 
 
 class EndpointResponse(DrovaApiModel):

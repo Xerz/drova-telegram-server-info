@@ -64,3 +64,9 @@ No command handler is considered done without handler tests and renderer tests.
   `TEST_STATION_UUID` when no product UUID is configured.
 - Write live test must use `try/finally` rollback and fail if rollback verification fails.
 - CI must not run live tests by default.
+
+## Steam Updates Acceptance
+
+Every `/game_updates` command and mode/select/page callback requires auth, renderer and handler
+tests. Test source/delivery atomicity, cursor reset, hourly catch-up, retries and cancellation.
+Steam metadata live checks are opt-in; the full matrix is in `steam-updates.md`.

@@ -113,3 +113,8 @@ Canonical live sanitized fixtures live under `fixtures/api/`.
   6. Read servers and verify original state.
 
 Any write check implementation must fail closed if the target station is not present.
+
+## Steam Catalog Mapping
+
+Preserve optional `inShopUrl` and `requiredAccount` in CatalogProductResponse and its domain DTO.
+The watcher uses the existing unauthenticated public catalog endpoint. See `steam-updates.md`.

@@ -41,6 +41,7 @@
 | `/usage` | Статистика использования за сегодня, неделю и месяц. |
 | `/disabled` | Проблемные продукты по станциям. |
 | `/stations` | Список станций и endpoints. |
+| `/game_updates [search]` | Подписки на часовые сводки обновлений Steam. |
 | `/games` | Постраничный выбор игры на выбранной станции, по названиям и состоянию. |
 | `/desktop_on` | Включить полный доступ на выбранной станции после подтверждения. |
 | `/desktop_off` | Выключить полный доступ на выбранной станции после подтверждения. |
@@ -79,3 +80,8 @@ not primary UX: `/game <product_id>`, `/game_hide <product_id>`,
 - Publish-toggle всегда требует inline confirmation.
 - Live write checks и specing write operations разрешены только для `TEST_STATION_UUID`.
 - В production UX publish-toggle разрешен для любой станции пользователя, но действие подтверждается отдельной кнопкой и показывает новое состояние.
+
+## Steam Updates
+
+`/game_updates [search]` opens opt-in hourly Steam update subscriptions for connected chats.
+The account menu includes `Обновления игр`. Full contract: `steam-updates.md`.

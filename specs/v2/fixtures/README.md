@@ -35,3 +35,8 @@ Future account, station-product, server-control and statistics fixtures are spec
 payloads, and every write fixture must have an explicit rollback/verification path before
 it is allowed into the sampler. The sampler is read-only by default; write fixtures require
 an explicit `--include-writes` run against `TEST_STATION_UUID`.
+
+## Steam Fixtures
+
+`steam/` contains synthetic public metadata/VDF including missing, truncated and noisy output.
+`ui/steam-digest.html` is an exact deterministic digest fixture. No raw Steam dumps are tracked.

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Callable, Sequence
+from contextlib import AsyncExitStack
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from hashlib import sha256
@@ -22,6 +23,8 @@ from drova_bot.drova.errors import (
     ExportTooLarge,
 )
 from drova_bot.exports import ExportKind, ExportResult, ProductExportService, SessionExportService
+from drova_bot.game_updates.service import GameUpdatesService
+from drova_bot.game_updates.storage import chat_lock
 from drova_bot.storage.uow import StorageUnitOfWork
 from drova_bot.telegram.callbacks import ParsedCallback
 from drova_bot.telegram.renderers import (
@@ -111,8 +114,10 @@ class BotService:
         export_row_limit: int = 50_000,
         export_timeout_seconds: float = 120,
         session_geo_resolver: SessionGeoResolver | None = None,
+        game_updates_service: GameUpdatesService | None = None,
     ) -> None:
         self._uow_factory = uow_factory
+        self._game_updates_service = game_updates_service
         self._client_factory = client_factory
         self._clock = clock or (lambda: datetime.now(tz=UTC))
         self._session_export_service = session_export_service or SessionExportService()
@@ -171,8 +176,12 @@ class BotService:
         )
 
     async def logout(self, telegram_chat_id: int) -> RenderedMessage:
-        async with self._uow_factory() as uow:
-            await uow.chat_profiles.logout(telegram_chat_id)
+        async with AsyncExitStack() as stack:
+            await stack.enter_async_context(chat_lock(telegram_chat_id))
+            if self._game_updates_service is not None:
+                await stack.enter_async_context(self._game_updates_service.store.transaction_lock)
+            async with self._uow_factory() as uow:
+                await uow.chat_profiles.logout(telegram_chat_id)
         return RenderedMessage("Токен и настройки чата удалены.")
 
     async def station_picker(self, telegram_chat_id: int, *, page: int = 0) -> RenderedMessage:
@@ -288,6 +297,15 @@ class BotService:
         async with self._uow_factory() as uow:
             await uow.chat_profiles.set_selected_station(telegram_chat_id, None)
         return RenderedMessage("Выбраны все станции.")
+
+    async def game_updates(self, telegram_chat_id: int, *, search: str = "") -> RenderedMessage:
+        if self._game_updates_service is not None:
+            return await self._game_updates_service.panel(telegram_chat_id, search=search)
+        async with self._uow_factory() as uow:
+            profile = await uow.chat_profiles.get(telegram_chat_id)
+            if profile is None or profile.encrypted_proxy_token is None:
+                return render_error("not_connected")
+        return RenderedMessage("Сервис уведомлений об обновлениях игр выключен оператором.")
 
     async def account_menu(self, telegram_chat_id: int) -> RenderedMessage:
         loaded = await self._load_client(telegram_chat_id)
@@ -1469,6 +1487,10 @@ class BotService:
                 station_id=callback.station_id,
                 draft_id=callback.draft_id,
             )
+        if callback.action.startswith("game_updates"):
+            if self._game_updates_service is not None:
+                return await self._game_updates_service.callback(telegram_chat_id, callback)
+            return await self.game_updates(telegram_chat_id)
         if callback.action == "account_menu":
             return await self.account_menu(telegram_chat_id)
         if callback.action == "account_balance":

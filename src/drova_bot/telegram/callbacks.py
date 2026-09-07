@@ -10,6 +10,11 @@ class InvalidCallbackData(ValueError):
 
 
 ACTION_ALIASES = {
+    "game_updates": "un",
+    "game_updates_page": "up",
+    "game_updates_mode": "um",
+    "game_updates_add": "ua",
+    "game_updates_remove": "ur",
     "station_all": "sa",
     "station_select": "ss",
     "station_page": "sp",

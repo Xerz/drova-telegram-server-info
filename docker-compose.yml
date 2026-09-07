@@ -9,6 +9,33 @@ services:
       DATABASE_URL: ${DATABASE_URL:-sqlite+aiosqlite:////data/drova_bot.sqlite3}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       TZ: ${TZ:-Asia/Yekaterinburg}
+      GAME_UPDATES_ENABLED: ${GAME_UPDATES_ENABLED:-false}
+      STEAM_WATCHER_URL: http://steam-watcher:8080
+      STEAM_WATCHER_TOKEN: ${STEAM_WATCHER_TOKEN:-}
       DROVA_BASE_URL: ${DROVA_BASE_URL:-https://services.drova.io}
     volumes:
       - ./data:/data
+
+  steam-watcher:
+    profiles: ["steam"]
+    platform: linux/amd64
+    build:
+      context: .
+      dockerfile: Dockerfile.steam-watcher
+    restart: unless-stopped
+    init: true
+    stop_grace_period: 30s
+    environment:
+      STEAM_WATCHER_TOKEN: ${STEAM_WATCHER_TOKEN:-}
+      STEAM_DATABASE_URL: sqlite+aiosqlite:////data/steam_watcher.sqlite3
+      STEAM_POLL_SECONDS: ${STEAM_POLL_SECONDS:-300}
+      STEAM_CATALOG_SECONDS: ${STEAM_CATALOG_SECONDS:-3600}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      DROVA_BASE_URL: ${DROVA_BASE_URL:-https://services.drova.io}
+      HTTP_PROXY: ${HTTP_PROXY:-}
+      HTTPS_PROXY: ${HTTPS_PROXY:-}
+    volumes:
+      - steam-watcher-data:/data
+
+volumes:
+  steam-watcher-data:

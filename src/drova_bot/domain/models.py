@@ -75,6 +75,8 @@ class StationProduct:
 class CatalogProduct:
     product_id: str
     title: str
+    in_shop_url: str | None = None
+    required_account: str | None = None
 
 
 @dataclass(frozen=True, slots=True)

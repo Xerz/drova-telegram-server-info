@@ -236,3 +236,9 @@ Callback must include expected old state. If actual state changed before confirm
 
 - Unknown command: `Команда не найдена. Используйте /help.`
 - Non-command text: `Я понимаю только команды. Используйте /help.`
+
+## Steam Update Subscriptions
+
+Add `/game_updates [search]`, account-menu entry and mode/game/page callbacks.
+Russian panel and digest behavior follows `steam-updates.md`; station updates commands retain
+their current meaning. Append the BotFather command without changing existing command order.

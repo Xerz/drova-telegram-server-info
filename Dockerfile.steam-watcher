@@ -1,0 +1,27 @@
+FROM python:3.12-slim-bookworm
+
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    UV_LINK_MODE=copy \
+    PATH="/app/.venv/bin:${PATH}"
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates curl libc6-i386 lib32gcc-s1 lib32stdc++6 \
+    && rm -rf /var/lib/apt/lists/* \
+    && useradd --uid 10001 --create-home steam \
+    && mkdir -p /opt/steamcmd /data \
+    && curl -fsSL --retry 3 https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz \
+       | tar -xz -C /opt/steamcmd \
+    && chown -R steam:steam /opt/steamcmd /data
+
+WORKDIR /app
+RUN pip install --no-cache-dir uv
+COPY pyproject.toml uv.lock README.md ./
+COPY src ./src
+RUN uv sync --frozen --no-dev
+
+USER steam
+VOLUME ["/data"]
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
+    CMD python -m drova_bot.steam_watcher.healthcheck
+CMD ["steam-watcher"]

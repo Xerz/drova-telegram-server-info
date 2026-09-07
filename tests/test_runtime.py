@@ -92,6 +92,7 @@ async def test_register_bot_commands_uses_runtime_command_list() -> None:
         "export_sessions_csv",
         "export_products",
         "export_product_time",
+        "game_updates",
     ]
     assert len(commands) == len(set(commands))
 
@@ -129,6 +130,7 @@ async def test_run_polling_registers_commands_and_closes_runtime(
         "allowed_updates": ["message", "callback_query"],
     }
     assert fake_runtime.closed
+    assert fake_runtime.background_started
 
 
 @pytest.mark.asyncio
@@ -177,14 +179,14 @@ def test_deployment_files_keep_secrets_out_of_image() -> None:
     assert "DATABASE_URL=sqlite+aiosqlite:////data/drova_bot.sqlite3" in env_example
     assert "GEOLITE_CITY_DB=/data/GeoLite2-City.mmdb" in env_example
     assert "GEOLITE_ASN_DB=/data/GeoLite2-ASN.mmdb" in env_example
-    assert "--name drova-bot" in readme
-    assert "-v \"$PWD/data:/data\"" in readme
+    assert "docker compose up -d drova-bot" in readme
+    assert "docker compose --profile steam up -d" in readme
     assert "mkdir -p data" in readme
     assert "curl -L -o data/GeoLite2-City.mmdb" in readme
     assert "curl -L -o data/GeoLite2-ASN.mmdb" in readme
     assert "GEOLITE_CITY_DB=/data/GeoLite2-City.mmdb" in readme
     assert "GEOLITE_ASN_DB=/data/GeoLite2-ASN.mmdb" in readme
-    assert "docker stop drova-bot" in readme
+    assert "docker compose --profile steam stop" in readme
     assert "TELEGRAM_BOT_TOKEN" not in dockerfile
     assert "BOT_SECRET_KEY" not in dockerfile
 
@@ -217,6 +219,9 @@ class FakeDispatcher:
 
 
 class FakeRuntime:
+    def start_background(self) -> None:
+        self.background_started = True
+
     def __init__(self) -> None:
         self.bot = object()
         self.dispatcher = FakeDispatcher()
@@ -243,3 +248,61 @@ class FakeLogger:
 
 def _settings(**values: object) -> Settings:
     return Settings.model_validate(values)
+
+
+@pytest.mark.asyncio
+async def test_optional_notification_runtime_and_shutdown(tmp_path: Path) -> None:
+    import asyncio
+
+    settings = _settings(
+        telegram_bot_token="123456:test",
+        bot_secret_key=TokenEncryptor.generate_key(),
+        database_url=f"sqlite+aiosqlite:///{tmp_path / 'notify.sqlite'}",
+        game_updates_enabled=True,
+        steam_watcher_token="internal-test",
+    )
+    runtime = app.build_runtime(settings)
+    assert runtime.notification_worker is not None
+    assert runtime.watcher_client is not None
+    started = asyncio.Event()
+    stopped = asyncio.Event()
+
+    async def fake_run() -> None:
+        started.set()
+        try:
+            await asyncio.Event().wait()
+        finally:
+            stopped.set()
+
+    runtime.notification_worker.run = fake_run  # type: ignore[method-assign]
+    runtime.start_background()
+    await started.wait()
+    await runtime.close()
+    assert stopped.is_set()
+    assert runtime.watcher_client.http.is_closed
+
+
+def test_notification_feature_defaults_off_and_requires_internal_token() -> None:
+    settings = _settings(telegram_bot_token="123456:test", bot_secret_key="unused")
+    assert not settings.game_updates_enabled
+    settings.require_runtime_secrets()
+    settings.game_updates_enabled = True
+    with pytest.raises(RuntimeError, match="STEAM_WATCHER_TOKEN"):
+        settings.require_runtime_secrets()
+
+
+def test_watcher_config_ignores_bot_secrets_and_rejects_blank_internal_token(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from pydantic import SecretStr, ValidationError
+
+    from drova_bot.steam_watcher.config import WatcherSettings
+
+    monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "not-for-watcher")
+    monkeypatch.setenv("BOT_SECRET_KEY", "not-for-watcher")
+    monkeypatch.delenv("STEAM_WATCHER_TOKEN", raising=False)
+    with pytest.raises(ValidationError):
+        WatcherSettings()
+    settings = WatcherSettings(STEAM_WATCHER_TOKEN=SecretStr("internal-test"))
+    assert "not-for-watcher" not in repr(settings)
+    assert settings.database_url.endswith("/steam_watcher.sqlite3")

@@ -28,6 +28,14 @@
     "sessions.json": "Deterministic active, finished and short sessions.",
     "station_products.json": "Product flag combinations for disabled-products and exports.",
     "endpoints.json": "External, internal and empty endpoint groups.",
-    "expected-messages.md": "Snapshot intent for key renderers."
+    "expected-messages.md": "Snapshot intent for key renderers.",
+    "steam-digest.html": "Exact hourly digest with duplicate app observations and escaped titles."
+  },
+  "steam": {
+    "public.vdf": "Synthetic Steam metadata contract and failure tests.",
+    "missing.vdf": "Synthetic Steam metadata contract and failure tests.",
+    "truncated.vdf": "Synthetic Steam metadata contract and failure tests.",
+    "cold.txt": "Synthetic Steam metadata contract and failure tests.",
+    "catalog.json": "Synthetic Steam metadata contract and failure tests."
   }
 }

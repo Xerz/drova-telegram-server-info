@@ -56,3 +56,20 @@ def test_dockerignore_excludes_secrets_and_runtime_data() -> None:
     assert "data" in entries
     assert "GeoLite2-City.mmdb" in entries
     assert "specs/v2/fixtures/api/raw" in entries
+
+
+def test_watcher_is_private_optional_and_has_separate_image() -> None:
+    root = Path(__file__).resolve().parents[1]
+    compose = (root / 'docker-compose.yml').read_text()
+    watcher = (root / 'Dockerfile.steam-watcher').read_text()
+    workflow = (root / '.github/workflows/ci.yml').read_text()
+    assert 'profiles: ["steam"]' in compose
+    assert 'steam-watcher-data:/data' in compose
+    assert 'GAME_UPDATES_ENABLED' in compose
+    assert 'ports:' not in compose
+    assert 'STEAM_WATCHER_TOKEN' in compose
+    assert 'steamcmd_linux.tar.gz' in watcher
+    assert 'USER steam' in watcher
+    assert 'drova_bot.steam_watcher.healthcheck' in watcher
+    assert 'Dockerfile.steam-watcher' in workflow
+    assert 'steam-watcher' in workflow

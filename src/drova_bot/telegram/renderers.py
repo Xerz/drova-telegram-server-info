@@ -110,6 +110,7 @@ def render_help() -> RenderedMessage:
         "/sessions_short - последние сессии дольше 5 минут",
         "/current - состояние станций",
         "/account_menu - меню аккаунта",
+        "/game_updates [название] - часовые сводки обновлений Steam",
         "/account - баланс минут и выплаты",
         "/usage - статистика использования",
         "/disabled - проблемные продукты",
@@ -607,6 +608,7 @@ def render_account_menu(result_text: str | None = None) -> RenderedMessage:
                     CallbackSpec(action="account_promocodes").pack(),
                 )
             ],
+            [ButtonSpec("Обновления игр", CallbackSpec(action="game_updates").pack())],
         ]
     )
     if result_text:

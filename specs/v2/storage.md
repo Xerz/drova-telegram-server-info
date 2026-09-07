@@ -86,3 +86,9 @@ Rules:
 - Product cache refreshes after successful token connect and when unknown product ids appear.
 - Station cache refreshes after `/token`, `/station`, `/current`, publish changes.
 - Cache failures are logged and surfaced only when they block the requested command.
+
+## Game Notifications
+
+Bot migrations add feed snapshot/cursor, subscriptions, imported events, pending deliveries
+and digest parts. The watcher has a separate Alembic history for app state and event journal.
+Do not share the bot database with the watcher. Atomicity and cleanup: `steam-updates.md`.

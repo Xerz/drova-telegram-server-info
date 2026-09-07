@@ -81,3 +81,9 @@ Each error maps to a stable Russian user message and structured log event.
 - Export generation is offloaded so Telegram polling is not blocked.
 - Per-chat mutating operations use a lightweight lock to avoid racing token/station settings.
 - Publish-toggle confirmation includes station id and expected current `published` value.
+
+## Steam Watcher and Notifications
+
+Separate `steam-watcher` process with private aiohttp API and its own SQLite database.
+Bot notification services own cursor ingestion, subscriptions and durable digest delivery.
+SteamCMD is an async PTY subprocess, isolated from Telegram polling. See `steam-updates.md`.

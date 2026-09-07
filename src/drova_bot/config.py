@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from pydantic import Field
+from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -34,6 +34,10 @@ class Settings(BaseSettings):
         alias="GEOLITE_ASN_DB",
     )
 
+    game_updates_enabled: bool = Field(default=False, alias="GAME_UPDATES_ENABLED")
+    steam_watcher_url: str = Field(default="http://steam-watcher:8080", alias="STEAM_WATCHER_URL")
+    steam_watcher_token: SecretStr | None = Field(default=None, alias="STEAM_WATCHER_TOKEN")
+
     model_config = SettingsConfigDict(env_file=".env", extra="ignore", populate_by_name=True)
 
     def require_runtime_secrets(self) -> None:
@@ -43,6 +47,11 @@ class Settings(BaseSettings):
             missing.append("TELEGRAM_BOT_TOKEN")
         if not self.bot_secret_key:
             missing.append("BOT_SECRET_KEY")
+        if self.game_updates_enabled and (
+            self.steam_watcher_token is None
+            or not self.steam_watcher_token.get_secret_value().strip()
+        ):
+            missing.append("STEAM_WATCHER_TOKEN")
         if missing:
             joined = ", ".join(missing)
             raise RuntimeError(f"Missing required runtime environment: {joined}")

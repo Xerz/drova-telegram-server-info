@@ -68,3 +68,9 @@ Never log token, raw IP, email, wallet or station description.
 - The standard Docker layout downloads databases into host `./data` and mounts that directory
   as container `/data`. A direct non-Docker launch may override the paths with relative
   `data/GeoLite2-*.mmdb` values.
+
+## Optional Steam Watcher
+
+GAME_UPDATES_ENABLED defaults false; STEAM_WATCHER_URL defaults to http://steam-watcher:8080.
+When enabled, STEAM_WATCHER_TOKEN is required. The watcher has separate settings and volume;
+Compose uses an optional steam profile. The bot survives watcher outages. See `steam-updates.md`.

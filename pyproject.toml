@@ -5,6 +5,7 @@ description = "Drova Telegram Bot V2"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "aiohttp>=3.13,<3.14",
     "aiogram>=3.22,<4",
     "aiosqlite>=0.21,<0.22",
     "alembic>=1.17,<2",
@@ -20,6 +21,7 @@ dependencies = [
 
 [project.scripts]
 drova-bot = "drova_bot.app:main"
+steam-watcher = "drova_bot.steam_watcher.app:main"
 
 [dependency-groups]
 dev = [
@@ -44,6 +46,7 @@ testpaths = ["tests"]
 markers = [
     "live: opt-in live Drova API contract tests",
     "live_write: opt-in live Drova write contract tests",
+    "steam_live: opt-in public Steam metadata contract tests",
 ]
 
 [tool.ruff]

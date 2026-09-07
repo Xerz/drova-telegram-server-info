@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 from dataclasses import dataclass
 
 import structlog
@@ -13,6 +14,10 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 
 from drova_bot.application.services import BotService, DefaultDrovaClientFactory
 from drova_bot.config import Settings
+from drova_bot.game_updates.client import WatcherClient
+from drova_bot.game_updates.service import GameUpdatesService
+from drova_bot.game_updates.storage import NotificationStore
+from drova_bot.game_updates.worker import NotificationWorker, TelegramDigestSender
 from drova_bot.geoip import GeoLiteResolver
 from drova_bot.observability.logging import configure_logging
 from drova_bot.storage import (
@@ -57,6 +62,7 @@ BOT_COMMANDS = [
     BotCommand(command="export_sessions_csv", description="Сессии CSV по станциям"),
     BotCommand(command="export_products", description="Матрица продуктов XLSX"),
     BotCommand(command="export_product_time", description="Время по продуктам XLSX"),
+    BotCommand(command="game_updates", description="Обновления игр в Steam"),
 ]
 
 
@@ -67,7 +73,23 @@ class Runtime:
     engine: AsyncEngine
     geo_resolver: GeoLiteResolver | None = None
 
+    watcher_client: WatcherClient | None = None
+    notification_worker: NotificationWorker | None = None
+    notification_task: asyncio.Task[None] | None = None
+
+    def start_background(self) -> None:
+        if self.notification_worker is not None:
+            self.notification_task = asyncio.create_task(
+                self.notification_worker.run(), name="steam-notifications"
+            )
+
     async def close(self) -> None:
+        if self.notification_task is not None:
+            self.notification_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await self.notification_task
+        if self.watcher_client is not None:
+            await self.watcher_client.close()
         await self.bot.session.close()
         if self.geo_resolver is not None:
             self.geo_resolver.close()
@@ -85,7 +107,10 @@ def build_runtime(settings: Settings) -> Runtime:
         city_db_path=settings.geolite_city_db,
         asn_db_path=settings.geolite_asn_db,
     )
+    notification_store = NotificationStore(session_factory)
+    updates_service = GameUpdatesService(notification_store, enabled=settings.game_updates_enabled)
     service = BotService(
+        game_updates_service=updates_service,
         uow_factory=uow_factory,
         client_factory=DefaultDrovaClientFactory(settings),
         export_row_limit=settings.export_row_limit,
@@ -100,7 +125,16 @@ def build_runtime(settings: Settings) -> Runtime:
     dispatcher.callback_query.middleware(request_context)
     dispatcher.include_router(build_router())
     dispatcher["bot_service"] = service
-    return Runtime(bot=bot, dispatcher=dispatcher, engine=engine, geo_resolver=geo_resolver)
+    runtime = Runtime(bot=bot, dispatcher=dispatcher, engine=engine, geo_resolver=geo_resolver)
+    if settings.game_updates_enabled:
+        assert settings.steam_watcher_token is not None
+        runtime.watcher_client = WatcherClient(
+            settings.steam_watcher_url, settings.steam_watcher_token.get_secret_value()
+        )
+        runtime.notification_worker = NotificationWorker(
+            notification_store, runtime.watcher_client, TelegramDigestSender(bot)
+        )
+    return runtime
 
 
 async def register_bot_commands(bot: Bot) -> None:
@@ -113,6 +147,7 @@ async def run_polling(settings: Settings) -> None:
     runtime = build_runtime(settings)
     try:
         await register_bot_commands(runtime.bot)
+        runtime.start_background()
         await runtime.dispatcher.start_polling(
             runtime.bot,
             allowed_updates=runtime.dispatcher.resolve_used_update_types(),

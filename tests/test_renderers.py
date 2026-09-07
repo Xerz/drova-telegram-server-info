@@ -300,6 +300,7 @@ def test_account_menu_keeps_buttons_under_results() -> None:
         "Баланс и выплаты",
         "Статистика использования",
         "Неактивированные промокоды",
+        "Обновления игр",
     ]
     assert "Баланс минут: скрыто" in with_result.text
     assert with_result.keyboard is not None
