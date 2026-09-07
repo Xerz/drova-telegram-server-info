@@ -10,6 +10,7 @@ def test_ci_runs_network_free_gates_and_docker_build() -> None:
     assert "uv run pytest" in workflow
     assert "uv run ruff check" in workflow
     assert "uv run mypy src tests" in workflow
+    assert "uv run python scripts/check_compose.py" in workflow
     assert "docker/build-push-action" in workflow
     assert "docker/login-action@v3" in workflow
     assert "docker/metadata-action@v5" in workflow
@@ -19,12 +20,17 @@ def test_ci_runs_network_free_gates_and_docker_build() -> None:
     assert "cache-from: type=gha" in workflow
     assert "cache-to: type=gha,mode=max" in workflow
     assert "github.ref == 'refs/heads/main'" in workflow
-    assert "startsWith(github.ref, 'refs/tags/v')" in workflow
-    assert '- "v*.*.*"' in workflow
+    assert "github.event_name == 'release'" in workflow
+    assert "startsWith(github.event.release.tag_name, 'v')" in workflow
+    assert "release:\n    types: [published]" in workflow
+    assert "needs: test" in workflow
+    assert 'tags:\n      - "v*.*.*"' not in workflow
+    assert workflow.count("flavor: latest=false") == 2
     assert "type=raw,value=latest,enable={{is_default_branch}}" in workflow
     assert "type=sha,prefix=sha-,format=short" in workflow
     assert "type=semver,pattern={{version}}" in workflow
     assert "type=semver,pattern={{major}}.{{minor}}" in workflow
+    assert workflow.count("value=${{ github.event.release.tag_name }}") == 4
     assert "type=ref,event=branch" not in workflow
     assert "push: false" not in workflow
     assert "--run-live" not in workflow
@@ -73,3 +79,8 @@ def test_watcher_is_private_optional_and_has_separate_image() -> None:
     assert 'drova_bot.steam_watcher.healthcheck' in watcher
     assert 'Dockerfile.steam-watcher' in workflow
     assert 'steam-watcher' in workflow
+    assert 'build:' not in compose
+    assert compose.count('platform: linux/amd64') == 2
+    assert 'image: ${IMAGE_REPOSITORY:-ghcr.io/xerz/drova-telegram-server-info}' in compose
+    assert '}:${IMAGE_TAG:-latest}' in compose
+    assert '}-steam-watcher:${IMAGE_TAG:-latest}' in compose

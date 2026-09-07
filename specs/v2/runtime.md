@@ -52,6 +52,17 @@ Never log token, raw IP, email, wallet or station description.
 ## Docker
 
 - Runtime image uses Python 3.12+ slim.
+- Production Compose pulls prebuilt `linux/amd64` images from GHCR; it has no `build` entries.
+- `IMAGE_REPOSITORY` defaults to `ghcr.io/xerz/drova-telegram-server-info`; the watcher
+  uses the same repository prefix with `-steam-watcher`. Both use `IMAGE_TAG` (default `latest`).
+- GitHub Actions builds both images only after the test job succeeds. Pushes to `main`
+  publish `latest` and `sha-<shortsha>`. Published GitHub Releases with `v<semver>` tags
+  publish version tags without `v` and SHA tags. Stable releases also publish major.minor.
+  Releases never move `latest`; pushing a tag alone does not publish a version.
+- Branch/PR builds validate Dockerfiles without publishing. GHCR login uses GITHUB_TOKEN.
+- Install and update with `docker compose pull` then `docker compose up -d`; add
+  `--profile steam` to manage the watcher. No host Python, SteamCMD or local image build.
+- Private GHCR packages require Docker login with package read access before pulling.
 - Data directory is mounted separately from source code.
 - Compose may include optional xray/proxy service.
 - Healthcheck verifies process responsiveness, not Drova credentials.

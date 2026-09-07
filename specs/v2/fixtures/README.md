@@ -40,3 +40,8 @@ an explicit `--include-writes` run against `TEST_STATION_UUID`.
 
 `steam/` contains synthetic public metadata/VDF including missing, truncated and noisy output.
 `ui/steam-digest.html` is an exact deterministic digest fixture. No raw Steam dumps are tracked.
+
+## Runtime Fixtures
+
+`runtime/deployment.json` contains expected Compose image references for default deployment,
+a pinned release and a custom GHCR repository. These cases contain no credentials.

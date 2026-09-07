@@ -3,7 +3,8 @@
 Telegram-бот для владельцев станций Drova: состояние станций и сессий, управление
 публикацией и играми, баланс, промокоды, XLSX/CSV-выгрузки и уведомления об обновлениях Steam.
 
-Запуск — через Docker Compose. Python и SteamCMD на хосте устанавливать не требуется.
+Запуск — через Docker Compose из готовых образов GHCR. Образы собираются в GitHub Actions;
+Python и SteamCMD на хосте устанавливать не требуется.
 
 | Сервис | Назначение | Данные |
 | --- | --- | --- |
@@ -22,15 +23,22 @@ Telegram-бот для владельцев станций Drova: состоян
 с архитектурой x86_64: образ рассчитан на `linux/amd64`. При локальной проверке на ARM
 под эмуляцией SteamCMD завершался с SIGSEGV; получение buildid нужно проверить на целевом сервере.
 
-### 1. Подготовьте настройки и образ
+### 1. Подготовьте настройки и скачайте образ
 
 При первой установке:
 
 ```bash
 cp .env.example .env
 mkdir -p data
-docker compose build drova-bot
+docker compose pull drova-bot
 ```
+
+По умолчанию используется `ghcr.io/xerz/drova-telegram-server-info:latest`.
+Если GHCR возвращает `denied` или `403`, проверьте доступ к пакету и выполните
+`docker login ghcr.io --username <GitHub-логин>`. Для приватных пакетов в качестве пароля
+используйте GitHub PAT (classic) с правом `read:packages`; публичные пакеты доступны без входа.
+После входа повторите `docker compose pull drova-bot`.
+Подробнее об авторизации — в [документации GHCR](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry#authenticating-to-the-container-registry).
 
 Сгенерируйте ключ шифрования Drova-токенов:
 
@@ -70,6 +78,8 @@ Drova-токен подключается в чате, в `.env` его доба
 
 | Переменная | Назначение / значение по умолчанию |
 | --- | --- |
+| `IMAGE_REPOSITORY` | `ghcr.io/xerz/drova-telegram-server-info` — базовое имя образа; вотчер использует суффикс `-steam-watcher` |
+| `IMAGE_TAG` | `latest` — общий тег обоих образов; можно закрепить опубликованную версию или `sha-<shortsha>` |
 | `TELEGRAM_BOT_TOKEN` | Обязательный токен Telegram-бота |
 | `BOT_SECRET_KEY` | Обязательный Fernet-ключ для шифрования токенов |
 | `DATABASE_URL` | `sqlite+aiosqlite:////data/drova_bot.sqlite3` — БД в постоянном каталоге |
@@ -109,10 +119,11 @@ STEAM_WATCHER_TOKEN=<сгенерированный служебный секр�
 GAME_UPDATES_ENABLED=false
 ```
 
-Соберите и запустите вотчер:
+Скачайте и запустите образ вотчера из GHCR:
 
 ```bash
-docker compose --profile steam up -d --build steam-watcher
+docker compose --profile steam pull steam-watcher
+docker compose --profile steam up -d steam-watcher
 docker compose --profile steam ps
 docker compose --profile steam logs --tail=100 -f steam-watcher
 ```
@@ -196,21 +207,25 @@ docker compose --profile steam up -d
 `docker compose --profile steam stop steam-watcher`.
 Один запуск без `--profile steam` уже работающий вотчер не останавливает.
 
-### Обновление из репозитория
+### Обновление контейнеров
 
-Стандартный Compose-файл собирает образы из исходников. Получите изменения и пересоберите:
+Дождитесь успешного workflow CI нужного коммита или релиза в GitHub Actions.
+Для обновлений из `main` оставьте `IMAGE_TAG=latest`. Для фиксированной версии укажите
+в `.env` тег опубликованного образа без `v`, например `IMAGE_TAG=0.3.0` после выпуска
+релиза `v0.3.0`. Оба сервиса будут использовать одну версию.
+
+Загрузите образы и пересоздайте контейнеры:
 
 ```bash
-git pull --ff-only
-docker compose --profile steam build --pull
+docker compose --profile steam pull
 docker compose --profile steam up -d
 docker compose --profile steam ps
 docker compose --profile steam logs --tail=100
 ```
 
-Без Steam уберите `--profile steam`. Перед обновлением сохраните резервную копию данных
-и проверьте новые параметры в `.env.example`, сохранив свои секреты в `.env`.
-Миграции применяются автоматически при старте сервисов.
+Без Steam уберите `--profile steam`. Перед обновлением сохраните резервную копию данных.
+Если в релизе изменились Compose-файл или параметры окружения, обновите их из соответствующей
+версии репозитория, сохранив секреты в `.env`. Миграции применяются автоматически при старте.
 
 ### Постоянные данные
 
@@ -297,6 +312,8 @@ uv run mypy src tests
 ```
 
 Обычные тесты не обращаются к реальным Telegram, Drova или Steam и не требуют токенов.
+Если установлен Docker Compose, `uv run python scripts/check_compose.py` проверяет
+подстановку образов и профили без запуска контейнеров; эта проверка также входит в CI.
 Live-проверки выключены по умолчанию и не входят в CI. Drova-проверки используют `.env.specing`:
 
 ```bash
@@ -314,9 +331,27 @@ Write-проверки работают только с `TEST_STATION_UUID` и �
 STEAM_LIVE=1 STEAMCMD_PATH=/path/to/steamcmd.sh uv run pytest tests/steam/test_live.py
 ```
 
-CI запускает pytest, Ruff, mypy и сборку обоих Docker-образов для `linux/amd64`.
-При пуше в `main` или тега `v*.*.*` публикуются образы
-`ghcr.io/<owner>/<repository>` и `ghcr.io/<owner>/<repository>-steam-watcher`:
-`latest` для `main`, `sha-<shortsha>` для коммитов и версии `<major>.<minor>.<patch>` /
-`<major>.<minor>` для тегов. Стандартный `docker-compose.yml` использует локальную сборку;
-для развёртывания из GHCR потребуется указать `image` вместо `build` у сервисов.
+## Сборка в GitHub Actions и релизы
+
+Workflow [CI](.github/workflows/ci.yml) запускает pytest, Ruff и mypy, затем собирает
+оба образа для `linux/amd64`. Публикация выполняется только после успешных проверок:
+
+| Образ | Назначение |
+| --- | --- |
+| `ghcr.io/xerz/drova-telegram-server-info` | Бот |
+| `ghcr.io/xerz/drova-telegram-server-info-steam-watcher` | Steam-вотчер |
+
+- Push в `main` публикует `latest` и `sha-<shortsha>`.
+- Публикация GitHub Release с тегом `v<версия>` публикует эту версию без `v` и SHA-тег.
+  Для стабильной версии добавляется тег `<major>.<minor>`; prerelease сохраняет полный суффикс.
+- Релизы не меняют `latest`. Push одного тега без публикации Release сборку не запускает.
+- Pull requests и ветки `codex/**` проходят тесты и сборку без публикации.
+
+Для выпуска версии обновите `version` в `pyproject.toml` и `uv.lock`, отправьте изменения
+в GitHub, затем создайте **Releases → Draft a new release** с новым тегом `v<версия>`
+на нужном коммите и нажмите **Publish release**. После успешного CI этот тег без `v`
+можно указать в `IMAGE_TAG` на сервере. Создание draft без публикации сборку не запускает.
+
+Actions входит в GHCR через встроенный `GITHUB_TOKEN` с правом `packages: write`.
+В форке задайте `IMAGE_REPOSITORY=ghcr.io/<owner>/<repository>` в нижнем регистре.
+Видимость пакетов и права на скачивание настраиваются отдельно в GitHub Packages.

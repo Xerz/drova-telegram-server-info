@@ -1,7 +1,8 @@
 services:
   drova-bot:
     container_name: drova-bot
-    build: .
+    image: ${IMAGE_REPOSITORY:-ghcr.io/xerz/drova-telegram-server-info}:${IMAGE_TAG:-latest}
+    platform: linux/amd64
     restart: unless-stopped
     env_file:
       - .env
@@ -19,9 +20,7 @@ services:
   steam-watcher:
     profiles: ["steam"]
     platform: linux/amd64
-    build:
-      context: .
-      dockerfile: Dockerfile.steam-watcher
+    image: ${IMAGE_REPOSITORY:-ghcr.io/xerz/drova-telegram-server-info}-steam-watcher:${IMAGE_TAG:-latest}
     restart: unless-stopped
     init: true
     stop_grace_period: 30s

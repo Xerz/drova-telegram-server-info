@@ -31,6 +31,9 @@
     "expected-messages.md": "Snapshot intent for key renderers.",
     "steam-digest.html": "Exact hourly digest with duplicate app observations and escaped titles."
   },
+  "runtime": {
+    "deployment.json": "Expected Compose images for default, release and fork deployments."
+  },
   "steam": {
     "public.vdf": "Synthetic Steam metadata contract and failure tests.",
     "missing.vdf": "Synthetic Steam metadata contract and failure tests.",

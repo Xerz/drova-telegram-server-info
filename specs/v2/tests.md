@@ -65,6 +65,14 @@ No command handler is considered done without handler tests and renderer tests.
 - Write live test must use `try/finally` rollback and fail if rollback verification fails.
 - CI must not run live tests by default.
 
+## Deployment Acceptance
+
+- Compose uses published GHCR images for both services, with one shared tag and no builds.
+- Check default images and custom repository/version interpolation against
+  `fixtures/runtime/deployment.json` using `docker compose config` without starting services.
+- CI publication depends on passing tests; main and published releases have explicit tag
+  policies. Releases do not move latest, and branch/PR runs do not publish images.
+
 ## Steam Updates Acceptance
 
 Every `/game_updates` command and mode/select/page callback requires auth, renderer and handler
