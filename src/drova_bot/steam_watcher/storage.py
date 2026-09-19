@@ -1,4 +1,4 @@
-"""Watcher-only database. State changes and journal events share one transaction."""
+"""Atomic, append-only observations shared by independent provider loops."""
 
 from __future__ import annotations
 
@@ -6,11 +6,18 @@ import asyncio
 from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
-from sqlalchemy import Boolean, Float, Integer, String, Text, func, select, update
+from sqlalchemy import Boolean, Float, Integer, String, Text, func, select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
-from drova_bot.game_updates.models import EventPage, GameFeed, SteamEvent, SteamGame
+from drova_bot.game_updates.models import (
+    EventPage,
+    GameFeed,
+    ProviderStatus,
+    UpdateEvent,
+    UpdateObject,
+    object_id,
+)
 
 
 class WatcherBase(DeclarativeBase):
@@ -25,27 +32,25 @@ class WatcherMeta(WatcherBase):
     checked_at: Mapped[float | None] = mapped_column(Float)
 
 
-class WatchedApp(WatcherBase):
-    __tablename__ = "watched_apps"
-    appid: Mapped[int] = mapped_column(Integer, primary_key=True)
-    branch: Mapped[str] = mapped_column(String(32), primary_key=True, default="public")
-    title: Mapped[str] = mapped_column(Text)
-    active: Mapped[bool] = mapped_column(Boolean, default=True)
-    buildid: Mapped[str | None] = mapped_column(String(64))
-    last_success_at: Mapped[float | None] = mapped_column(Float)
-    error_code: Mapped[str | None] = mapped_column(String(64))
+class ObjectRow(WatcherBase):
+    __tablename__ = "update_objects"
+    id: Mapped[str] = mapped_column(String(40), primary_key=True)
+    provider: Mapped[str] = mapped_column(String(20))
+    active: Mapped[bool] = mapped_column(Boolean)
+    payload: Mapped[str] = mapped_column(Text)
 
 
-class WatcherEvent(WatcherBase):
-    __tablename__ = "watcher_events"
+class JournalRow(WatcherBase):
+    __tablename__ = "update_journal"
     __table_args__ = {"sqlite_autoincrement": True}  # noqa: RUF012
     seq: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    appid: Mapped[int] = mapped_column(Integer)
-    branch: Mapped[str] = mapped_column(String(32))
-    title: Mapped[str] = mapped_column(Text)
-    previous_buildid: Mapped[str] = mapped_column(String(64))
-    buildid: Mapped[str] = mapped_column(String(64))
-    observed_at: Mapped[float] = mapped_column(Float)
+    payload: Mapped[str] = mapped_column(Text)
+
+
+class StatusRow(WatcherBase):
+    __tablename__ = "provider_status"
+    id: Mapped[str] = mapped_column(String(20), primary_key=True)
+    payload: Mapped[str] = mapped_column(Text)
 
 
 class CursorConflict(Exception):
@@ -76,85 +81,158 @@ class WatcherStore:
     async def close(self) -> None:
         await self.engine.dispose()
 
-    async def replace_games(self, games: list[SteamGame], now: datetime) -> None:
+    async def replace_games(self, games: list[UpdateObject], now: datetime) -> None:
         if not games:
             raise ValueError("empty_steam_catalog")
-        async with self._lock, self.sessions.begin() as session:
-            rows = {r.appid: r for r in (await session.scalars(select(WatchedApp))).all()}
-            active = {g.appid for g in games}
-            for existing in rows.values():
-                if existing.appid not in active:
-                    existing.active = False
-            for game in games:
-                row = rows.get(game.appid)
-                if row is None:
-                    session.add(WatchedApp(appid=game.appid, branch="public", title=game.title))
-                else:
-                    if not row.active:
-                        row.buildid = None
-                        row.last_success_at = None
-                        row.error_code = None
-                    row.active = True
-                    row.title = game.title
-            await session.execute(
-                update(WatcherMeta)
-                .where(WatcherMeta.id == 1)
-                .values(catalog_updated_at=now.timestamp())
-            )
+        await self.replace_objects(games, now, provider="steam")
 
-    async def observe(self, appid: int, buildid: str, now: datetime) -> None:
-        if not buildid.isascii() or not buildid.isdecimal() or int(buildid) <= 0:
+    async def replace_objects(
+        self,
+        objects: list[UpdateObject],
+        now: datetime,
+        *,
+        provider: str | None = None,
+        unmapped: dict[str, int] | None = None,
+    ) -> None:
+        async with self._lock, self.sessions.begin() as session:
+            query = select(ObjectRow)
+            if provider:
+                query = query.where(ObjectRow.provider == provider)
+            rows = {r.id: r for r in (await session.scalars(query)).all()}
+            active = {o.id for o in objects}
+            for existing in rows.values():
+                if existing.id not in active:
+                    existing.active = False
+            for obj in objects:
+                row = rows.get(obj.id)
+                if row is None:
+                    session.add(
+                        ObjectRow(
+                            id=obj.id,
+                            provider=obj.provider,
+                            active=True,
+                            payload=obj.model_dump_json(),
+                        )
+                    )
+                else:
+                    if row.active:
+                        old = UpdateObject.model_validate_json(row.payload)
+                        obj = obj.model_copy(
+                            update={
+                                k: getattr(old, k)
+                                for k in ("buildid", "version", "last_success_at", "error_code")
+                            }
+                        )
+                    row.active = True
+                    row.payload = obj.model_dump_json()
+            meta = await session.get(WatcherMeta, 1)
+            assert meta
+            meta.catalog_updated_at = now.timestamp()
+            for name, count in (unmapped or {}).items():
+                row_status = await session.get(StatusRow, name)
+                status = (
+                    ProviderStatus.model_validate_json(row_status.payload)
+                    if row_status
+                    else ProviderStatus()
+                )
+                status.unmapped = count
+                if row_status:
+                    row_status.payload = status.model_dump_json()
+                else:
+                    session.add(StatusRow(id=name, payload=status.model_dump_json()))
+
+    async def observe(
+        self, ident: str | int, buildid: str, now: datetime, *, version: str | None = None
+    ) -> None:
+        ident = object_id(ident)
+        if (
+            not buildid
+            or len(buildid) > 256
+            or (
+                ident.startswith("steam:")
+                and (not buildid.isascii() or not buildid.isdecimal() or int(buildid) <= 0)
+            )
+        ):
             raise ValueError("invalid_buildid")
         async with self._lock, self.sessions.begin() as session:
-            row = await session.get(WatchedApp, (appid, "public"))
+            row = await session.get(ObjectRow, ident)
             if row is None or not row.active:
                 return
-            if row.buildid is not None and row.buildid != buildid:
-                session.add(
-                    WatcherEvent(
-                        appid=appid,
-                        branch="public",
-                        title=row.title,
-                        previous_buildid=row.buildid,
-                        buildid=buildid,
-                        observed_at=now.timestamp(),
-                    )
+            obj = UpdateObject.model_validate_json(row.payload)
+            if obj.buildid is not None and obj.buildid != buildid:
+                meta = await session.get(WatcherMeta, 1)
+                assert meta
+                event_data = obj.model_dump()
+                event_data.update(
+                    stream_id=meta.stream_id,
+                    seq=1,
+                    previous_buildid=obj.buildid,
+                    buildid=buildid,
+                    version=version,
+                    observed_at=now,
+                    branch=obj.channel,
                 )
-            row.buildid = buildid
-            row.last_success_at = now.timestamp()
-            row.error_code = None
-
-    async def record_error(self, appid: int, code: str) -> None:
-        async with self._lock, self.sessions.begin() as session:
-            await session.execute(
-                update(WatchedApp).where(WatchedApp.appid == appid).values(error_code=code)
+                event = UpdateEvent.model_validate(event_data)
+                journal = JournalRow(payload="{}")
+                session.add(journal)
+                await session.flush()
+                event.seq = journal.seq
+                journal.payload = event.model_dump_json()
+            obj.buildid, obj.version, obj.last_success_at, obj.error_code = (
+                buildid,
+                version,
+                now,
+                None,
             )
+            row.payload = obj.model_dump_json()
 
-    async def mark_checked(self, now: datetime) -> None:
+    async def record_error(self, ident: str | int, code: str) -> None:
         async with self._lock, self.sessions.begin() as session:
-            await session.execute(
-                update(WatcherMeta).where(WatcherMeta.id == 1).values(checked_at=now.timestamp())
-            )
+            row = await session.get(ObjectRow, object_id(ident))
+            if row and row.active:
+                obj = UpdateObject.model_validate_json(row.payload)
+                obj.error_code = code
+                row.payload = obj.model_dump_json()
+
+    async def mark_checked(
+        self, now: datetime, provider: str = "steam", error_code: str | None = None
+    ) -> None:
+        async with self._lock, self.sessions.begin() as session:
+            meta = await session.get(WatcherMeta, 1)
+            assert meta
+            meta.checked_at = now.timestamp()
+            row = await session.get(StatusRow, provider)
+            status = ProviderStatus.model_validate_json(row.payload) if row else ProviderStatus()
+            status.checked_at, status.error_code = now, error_code
+            if row:
+                row.payload = status.model_dump_json()
+            else:
+                session.add(StatusRow(id=provider, payload=status.model_dump_json()))
 
     async def games(self) -> GameFeed:
         async with self.sessions() as session:
             meta = await session.get(WatcherMeta, 1)
-            assert meta is not None
-            rows = (await session.scalars(select(WatchedApp).where(WatchedApp.active))).all()
+            assert meta
+            objects = [
+                UpdateObject.model_validate_json(r.payload)
+                for r in (await session.scalars(select(ObjectRow).where(ObjectRow.active))).all()
+            ]
+            statuses = {
+                r.id: ProviderStatus.model_validate_json(r.payload)
+                for r in (await session.scalars(select(StatusRow))).all()
+            }
+            for obj in objects:
+                status = statuses.setdefault(obj.provider, ProviderStatus())
+                if obj.coverage != "launcher_only":
+                    status.total += 1
+                    status.covered += int(obj.buildid is not None and obj.error_code is None)
             return GameFeed(
                 games=sorted(
-                    [
-                        SteamGame(
-                            appid=r.appid,
-                            title=r.title,
-                            buildid=r.buildid,
-                            last_success_at=timestamp(r.last_success_at),
-                            error_code=r.error_code,
-                        )
-                        for r in rows
-                    ],
-                    key=lambda g: (g.title.casefold(), g.appid),
+                    [o for o in objects if o.kind == "game"],
+                    key=lambda o: (o.title.casefold(), o.id),
                 ),
+                objects=objects,
+                providers=statuses,
                 catalog_updated_at=timestamp(meta.catalog_updated_at),
                 checked_at=timestamp(meta.checked_at),
             )
@@ -164,7 +242,7 @@ class WatcherStore:
             raise ValueError("invalid_limit")
         async with self.sessions() as session:
             meta = await session.get(WatcherMeta, 1)
-            assert meta is not None
+            assert meta
             position = 0
             if cursor is not None:
                 try:
@@ -175,29 +253,18 @@ class WatcherStore:
                     position = int(number)
                 except (ValueError, AttributeError) as exc:
                     raise ValueError("invalid_cursor") from exc
-                maximum = await session.scalar(select(func.max(WatcherEvent.seq))) or 0
+                maximum = await session.scalar(select(func.max(JournalRow.seq))) or 0
                 if stream != meta.stream_id or position > maximum:
                     raise CursorConflict(f"{meta.stream_id}:0")
             rows = (
                 await session.scalars(
-                    select(WatcherEvent)
-                    .where(WatcherEvent.seq > position)
-                    .order_by(WatcherEvent.seq)
+                    select(JournalRow)
+                    .where(JournalRow.seq > position)
+                    .order_by(JournalRow.seq)
                     .limit(limit + 1)
                 )
             ).all()
-            events = [
-                SteamEvent(
-                    stream_id=meta.stream_id,
-                    seq=r.seq,
-                    appid=r.appid,
-                    title=r.title,
-                    previous_buildid=r.previous_buildid,
-                    buildid=r.buildid,
-                    observed_at=datetime.fromtimestamp(r.observed_at, UTC),
-                )
-                for r in rows[:limit]
-            ]
+            events = [UpdateEvent.model_validate_json(r.payload) for r in rows[:limit]]
             last = events[-1].seq if events else position
             return EventPage(
                 events=events, next_cursor=f"{meta.stream_id}:{last}", has_more=len(rows) > limit

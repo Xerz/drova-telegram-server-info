@@ -87,3 +87,8 @@ Each error maps to a stable Russian user message and structured log event.
 Separate `steam-watcher` process with private aiohttp API and its own SQLite database.
 Bot notification services own cursor ingestion, subscriptions and durable digest delivery.
 SteamCMD is an async PTY subprocess, isolated from Telegram polling. See `steam-updates.md`.
+
+## Multi-platform game updates
+
+See `platform-updates.md` for the API v2 extension, linked launcher subscriptions,
+provider registry and backwards-compatible migration/delivery requirements.

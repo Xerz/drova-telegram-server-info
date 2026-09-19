@@ -45,3 +45,6 @@ an explicit `--include-writes` run against `TEST_STATION_UUID`.
 
 `runtime/deployment.json` contains expected Compose image references for default deployment,
 a pinned release and a custom GHCR repository. These cases contain no credentials.
+
+`platforms/metadata.json` contains minimal synthetic protocol fixtures for public
+update adapters; no complete upstream dumps, account credentials or download payloads.

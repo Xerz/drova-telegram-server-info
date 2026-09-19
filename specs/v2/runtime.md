@@ -85,3 +85,8 @@ Never log token, raw IP, email, wallet or station description.
 GAME_UPDATES_ENABLED defaults false; STEAM_WATCHER_URL defaults to http://steam-watcher:8080.
 When enabled, STEAM_WATCHER_TOKEN is required. The watcher has separate settings and volume;
 Compose uses an optional steam profile. The bot survives watcher outages. See `steam-updates.md`.
+
+## Multi-platform game updates
+
+See `platform-updates.md` for the API v2 extension, linked launcher subscriptions,
+provider registry and backwards-compatible migration/delivery requirements.

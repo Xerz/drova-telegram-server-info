@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from datetime import UTC, datetime
 
+from drova_bot.game_updates.models import object_id
 from drova_bot.game_updates.renderers import MODES, render_panel
 from drova_bot.game_updates.storage import NotificationStore, chat_lock
 from drova_bot.telegram.callbacks import ParsedCallback
@@ -56,13 +57,10 @@ class GameUpdatesService:
                     return render_error("unknown_command")
                 await self.store.set_mode(chat_id, callback.control or "off", self.clock())
             elif callback.action in {"game_updates_add", "game_updates_remove"}:
-                try:
-                    appid = int(callback.product_id or "")
-                except ValueError:
-                    return render_error("unknown_command")
+                appid = object_id(callback.product_id or "")
                 feed, _ = await self.store.feed()
                 sub = await self.store.settings(chat_id)
-                if appid not in {g.appid for g in feed.games} and appid not in sub.selected:
+                if appid not in {g.id for g in feed.games} and appid not in sub.selected:
                     return RenderedMessage("Игра больше не доступна в каталоге. Обновите список.")
                 await self.store.select(
                     chat_id, appid, callback.action == "game_updates_add", self.clock()

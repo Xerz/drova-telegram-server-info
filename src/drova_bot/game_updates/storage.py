@@ -10,7 +10,7 @@ from weakref import WeakValueDictionary
 from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from drova_bot.game_updates.models import EventPage, GameFeed, SteamEvent, Subscription
+from drova_bot.game_updates.models import EventPage, GameFeed, SteamEvent, Subscription, object_id
 from drova_bot.game_updates.renderers import MODES, digest_groups
 from drova_bot.game_updates.tables import (
     AcceptedUpdateRow,
@@ -101,7 +101,8 @@ class NotificationStore:
             )
             await self._save(session, chat_id, sub)
 
-    async def select(self, chat_id: int, appid: int, selected: bool, now: datetime) -> None:
+    async def select(self, chat_id: int, appid: str | int, selected: bool, now: datetime) -> None:
+        appid = object_id(appid)
         async with self._lock, self.session_factory.begin() as session:
             sub = await self._settings(session, chat_id)
             if selected == (appid in sub.selected):
@@ -118,7 +119,7 @@ class NotificationStore:
                         )
                     ).all()
                     for row in rows:
-                        if SteamEvent.model_validate_json(row.payload).appid == appid:
+                        if not sub.accepts(SteamEvent.model_validate_json(row.payload)):
                             await session.delete(row)
                     # Rebuild remaining unsent parts even if this hour was already prepared.
                     sub.last_digest_hour = min(
@@ -174,6 +175,21 @@ class NotificationStore:
             else:
                 row.cursor = cursor
 
+    @staticmethod
+    async def _current_event(session: AsyncSession, event: SteamEvent) -> SteamEvent | None:
+        if event.kind == "game" and event.provider == "steam":
+            return event
+        row = await session.get(UpdateFeedRow, 1)
+        feed = GameFeed.model_validate_json(row.payload) if row else GameFeed(games=[])
+        if event.kind == "game":
+            return event if any(g.id == event.id for g in feed.games) else None
+        current = next((o for o in feed.objects if o.id == event.id), None)
+        games = {g.id for g in feed.games}
+        relations = set(current.related_games) & games if current else set()
+        return event.model_copy(
+            update={"related_games": [g for g in event.related_games if g in relations]}
+        )
+
     async def ingest(self, page: EventPage) -> None:
         stream, end = page.next_cursor.split(":")
         end_sequence = int(end)
@@ -207,8 +223,9 @@ class NotificationStore:
                 session.add(
                     AcceptedUpdateRow(stream_id=event.stream_id, seq=event.seq, payload=payload)
                 )
+                eligible_event = await self._current_event(session, event)
                 for chat_id, sub in settings:
-                    if sub.accepts(event):
+                    if eligible_event is not None and sub.accepts(eligible_event):
                         session.add(
                             PendingUpdateRow(
                                 chat_id=chat_id,
@@ -252,6 +269,23 @@ class NotificationStore:
             if sub.mode == "off" or sub.suspended:
                 return []
             hour = int(now.timestamp() // 3600)
+            pending_rows = (
+                await session.scalars(
+                    select(PendingUpdateRow).where(PendingUpdateRow.chat_id == chat_id)
+                )
+            ).all()
+            invalidated = False
+            for pending_row in pending_rows:
+                event = await self._current_event(
+                    session, SteamEvent.model_validate_json(pending_row.payload)
+                )
+                if event is None or not sub.accepts(event):
+                    await session.delete(pending_row)
+                    invalidated = True
+            if invalidated:
+                await self._clear_jobs(session, chat_id)
+                await session.flush()
+                sub.last_digest_hour = min(sub.last_digest_hour, hour - 1)
             if hour > sub.last_digest_hour:
                 rows = (
                     await session.scalars(
@@ -262,8 +296,10 @@ class NotificationStore:
                 ).all()
                 eligible: list[tuple[PendingUpdateRow, SteamEvent]] = []
                 for row in rows:
-                    event = SteamEvent.model_validate_json(row.payload)
-                    if not sub.accepts(event):
+                    event = await self._current_event(
+                        session, SteamEvent.model_validate_json(row.payload)
+                    )
+                    if event is None or not sub.accepts(event):
                         await session.delete(row)
                     elif event.observed_at.timestamp() < hour * 3600:
                         eligible.append((row, event))
@@ -278,7 +314,7 @@ class NotificationStore:
                     )
                     session.add(job)
                     for row, event in eligible:
-                        if event.appid in appids:
+                        if event.id in appids:
                             row.job_id = job.id
                 sub.last_digest_hour = hour
                 await self._save(session, chat_id, sub)

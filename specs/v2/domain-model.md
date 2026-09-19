@@ -112,3 +112,8 @@ Promocode
 
 CatalogProduct adds optional `in_shop_url` and `required_account`, defaulting to null.
 Steam Game/Event/Feed DTOs, AppID extraction and branch rules follow `steam-updates.md`.
+
+## Multi-platform game updates
+
+See `platform-updates.md` for the API v2 extension, linked launcher subscriptions,
+provider registry and backwards-compatible migration/delivery requirements.

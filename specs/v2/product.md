@@ -85,3 +85,8 @@ not primary UX: `/game <product_id>`, `/game_hide <product_id>`,
 
 `/game_updates [search]` opens opt-in hourly Steam update subscriptions for connected chats.
 The account menu includes `Обновления игр`. Full contract: `steam-updates.md`.
+
+## Multi-platform game updates
+
+See `platform-updates.md` for the API v2 extension, linked launcher subscriptions,
+provider registry and backwards-compatible migration/delivery requirements.

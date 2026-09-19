@@ -47,6 +47,7 @@ class Watcher:
             except Exception:
                 logger.warning("steam_catalog_unavailable", error_code="catalog_failed")
         feed = await self.store.games()
+        feed.games = [g for g in feed.games if g.provider == "steam"]
         if not feed.games:
             return False
         errors = 0
@@ -54,12 +55,13 @@ class Watcher:
             await self.steam.refresh()
         except SteamMetadataError:
             for game in feed.games:
-                await self.store.record_error(game.appid, "steamcmd_refresh")
+                await self.store.record_error(game.id, "steamcmd_refresh")
             logger.warning("steam_refresh_failed", games=len(feed.games))
             return False
         transport_ok = True
         for index, game in enumerate(feed.games):
             try:
+                assert game.appid is not None
                 buildid = await self.steam.buildid(game.appid)
                 await self.store.observe(game.appid, buildid, self.clock())
             except SteamMetadataError as exc:
@@ -67,10 +69,10 @@ class Watcher:
                     transport_ok = False
                     for remaining in feed.games[index:]:
                         errors += 1
-                        await self.store.record_error(remaining.appid, "steamcmd_transport")
+                        await self.store.record_error(remaining.id, "steamcmd_transport")
                     break
                 errors += 1
-                await self.store.record_error(game.appid, "metadata_unavailable")
+                await self.store.record_error(game.id, "metadata_unavailable")
         await self.store.mark_checked(self.clock())
         logger.info(
             "steam_cycle_complete",

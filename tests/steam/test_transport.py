@@ -19,13 +19,13 @@ STREAM = "00000000-0000-0000-0000-000000000001"
 async def test_internal_client_paths_auth_and_errors(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("HTTP_PROXY", "http://invalid-proxy:9999")
     monkeypatch.setenv("HTTPS_PROXY", "http://invalid-proxy:9999")
-    games = respx.get("http://watcher:8080/v1/games").mock(
+    games = respx.get("http://watcher:8080/v2/games").mock(
         return_value=httpx.Response(
             200, json={"games": [], "catalog_updated_at": None, "checked_at": None}
         )
     )
     events = respx.get(
-        "http://watcher:8080/v1/events", params={"cursor": f"{STREAM}:0", "limit": "500"}
+        "http://watcher:8080/v2/events", params={"cursor": f"{STREAM}:0", "limit": "500"}
     ).mock(
         return_value=httpx.Response(
             200, json={"events": [], "next_cursor": f"{STREAM}:0", "has_more": False}

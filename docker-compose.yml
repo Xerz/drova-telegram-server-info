@@ -26,6 +26,7 @@ services:
     stop_grace_period: 30s
     environment:
       STEAM_WATCHER_TOKEN: ${STEAM_WATCHER_TOKEN:-}
+      UPDATE_PROVIDERS: ${UPDATE_PROVIDERS:-steam}
       STEAM_DATABASE_URL: sqlite+aiosqlite:////data/steam_watcher.sqlite3
       STEAM_POLL_SECONDS: ${STEAM_POLL_SECONDS:-300}
       STEAM_CATALOG_SECONDS: ${STEAM_CATALOG_SECONDS:-3600}

@@ -93,3 +93,5 @@ Do not commit raw Steam output. Log only safe error codes, counts, durations and
 chat IDs. Docker and CI build a separate linux/amd64 watcher image without publishing its API.
 
 SteamCMD contract reference: https://partner.steamgames.com/doc/sdk/uploading
+
+API v2 and additional providers extend this contract: `platform-updates.md`.

@@ -9,7 +9,9 @@
   },
   {
     "name": "pinned-release",
-    "environment": {"IMAGE_TAG": "0.3.0"},
+    "environment": {
+      "IMAGE_TAG": "0.3.0"
+    },
     "images": {
       "drova-bot": "ghcr.io/xerz/drova-telegram-server-info:0.3.0",
       "steam-watcher": "ghcr.io/xerz/drova-telegram-server-info-steam-watcher:0.3.0"
@@ -17,10 +19,23 @@
   },
   {
     "name": "fork-and-sha",
-    "environment": {"IMAGE_REPOSITORY": "ghcr.io/example/drova", "IMAGE_TAG": "sha-1234567"},
+    "environment": {
+      "IMAGE_REPOSITORY": "ghcr.io/example/drova",
+      "IMAGE_TAG": "sha-1234567"
+    },
     "images": {
       "drova-bot": "ghcr.io/example/drova:sha-1234567",
       "steam-watcher": "ghcr.io/example/drova-steam-watcher:sha-1234567"
+    }
+  },
+  {
+    "name": "all-providers",
+    "environment": {
+      "UPDATE_PROVIDERS": "steam,hoyo,wuwa,endfield,battlenet,bsg"
+    },
+    "images": {
+      "drova-bot": "ghcr.io/xerz/drova-telegram-server-info:latest",
+      "steam-watcher": "ghcr.io/xerz/drova-telegram-server-info-steam-watcher:latest"
     }
   }
 ]

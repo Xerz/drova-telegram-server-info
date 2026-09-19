@@ -1,0 +1,88 @@
+{
+  "hoyo_branches": {
+    "retcode": 0,
+    "data": {
+      "game_branches": [
+        {
+          "game": {
+            "id": "gopR6Cufr3",
+            "biz": "hk4e_global"
+          },
+          "main": {
+            "package_id": "public-package",
+            "branch": "main",
+            "password": "public-delivery-parameter",
+            "tag": "7.0.0"
+          },
+          "pre_download": {
+            "tag": "8.0.0"
+          }
+        }
+      ]
+    }
+  },
+  "hoyo_build": {
+    "retcode": 0,
+    "data": {
+      "build_id": "build-A",
+      "tag": "7.0.0"
+    }
+  },
+  "wuwa_game": {
+    "default": {
+      "config": {
+        "version": "3.6.1",
+        "indexFileMd5": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "patchType": "hotFix"
+      }
+    },
+    "preDownload": {
+      "version": "4.0"
+    }
+  },
+  "wuwa_launcher": {
+    "default": {
+      "resource": {
+        "version": "2.6.5.0",
+        "md5": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+      }
+    },
+    "resourcesGray": {
+      "graySwitch": 1,
+      "grayUrl": "https://example.invalid/gray"
+    }
+  },
+  "endfield_game": {
+    "version": "1.5.3",
+    "client_version": "1.5.3",
+    "pkg": {
+      "game_files_md5": "cccccccccccccccccccccccccccccccc",
+      "file_path": "https://example.invalid/app/1.5/update/6/6/Windows/1.5.3_random-token/files"
+    },
+    "pre_patch": {
+      "version": "2.0.0"
+    }
+  },
+  "endfield_launcher": {
+    "version": "1.6.0",
+    "md5": "dddddddddddddddddddddddddddddddd"
+  },
+  "endfield_resources": {
+    "res_version": "resources-A",
+    "resources": [
+      {
+        "name": "main",
+        "version": "A"
+      }
+    ]
+  },
+  "battlenet": "Region!STRING:0|BuildConfig!HEX:16|BuildId!DEC:4|VersionsName!String:0\n## seqn = 1\nus|aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa|99|2.0\neu|bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb|42|1.0\nbeta|cccccccccccccccccccccccccccccccc|100|3.0\n",
+  "bsg": {
+    "err": 0,
+    "data": {
+      "Version": "15.0.0.4607",
+      "hash": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+      "DownloadUri": "https://example.invalid/launcher.exe"
+    }
+  }
+}

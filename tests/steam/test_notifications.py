@@ -96,7 +96,7 @@ async def test_selected_modes_new_games_cancel_and_logout(store: NotificationSto
     assert len(await store.pending(10001)) == 1
     await store.set_mode(10001, "off", NOW + timedelta(minutes=15))
     assert await store.pending(10001) == []
-    assert 730 in (await store.settings(10001)).selected
+    assert "steam:730" in (await store.settings(10001)).selected
     await store.set_mode(10001, "all", NOW + timedelta(minutes=20))
     await store.ingest(page(event(3, appid=123, minute=30)))
     assert len(await store.pending(10001)) == 1  # all includes future catalog games

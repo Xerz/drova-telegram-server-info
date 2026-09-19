@@ -5,6 +5,18 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class WatcherSettings(BaseSettings):
+    update_providers: str = Field(default="steam", alias="UPDATE_PROVIDERS")
+
+    @field_validator("update_providers")
+    @classmethod
+    def providers_valid(cls, value: str) -> str:
+        from drova_bot.game_updates.models import PROVIDERS
+
+        values = {p.strip() for p in value.split(",")}
+        if not values or not values <= PROVIDERS:
+            raise ValueError("invalid UPDATE_PROVIDERS")
+        return ",".join(sorted(values))
+
     api_token: SecretStr = Field(default=SecretStr(""), alias="STEAM_WATCHER_TOKEN")
     database_url: str = Field(
         default="sqlite+aiosqlite:////data/steam_watcher.sqlite3", alias="STEAM_DATABASE_URL"

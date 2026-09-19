@@ -78,3 +78,8 @@ No command handler is considered done without handler tests and renderer tests.
 Every `/game_updates` command and mode/select/page callback requires auth, renderer and handler
 tests. Test source/delivery atomicity, cursor reset, hourly catch-up, retries and cancellation.
 Steam metadata live checks are opt-in; the full matrix is in `steam-updates.md`.
+
+## Multi-platform game updates
+
+See `platform-updates.md` for the API v2 extension, linked launcher subscriptions,
+provider registry and backwards-compatible migration/delivery requirements.

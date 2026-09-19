@@ -1,0 +1,59 @@
+from datetime import timedelta
+from pathlib import Path
+
+from drova_bot.game_updates.models import GameFeed, UpdateObject
+from drova_bot.game_updates.service import GameUpdatesService
+from drova_bot.game_updates.storage import NotificationStore
+from drova_bot.telegram.callbacks import CallbackSpec, parse_callback_data
+from tests.platforms.test_contract import NOW, launcher
+from tests.steam.test_notifications import page, store  # noqa: F401
+
+
+async def test_linked_launcher_dedup_cancel_and_modes(store: NotificationStore) -> None:  # noqa: F811
+    games = [
+        UpdateObject(
+            id=f"bsg:{key}",
+            provider="bsg",
+            external_id=key,
+            title=key,
+            linked_objects=["bsg:launcher"],
+            coverage="launcher_only",
+        )
+        for key in ["eft", "arena"]
+    ]
+    source = launcher().model_dump(
+        exclude={"stream_id", "seq", "previous_buildid", "observed_at", "branch"}
+    )
+    obj = UpdateObject.model_validate(source)
+    await store.replace_feed(GameFeed(games=games, objects=[*games, obj]), NOW)
+    service = GameUpdatesService(store, enabled=True, clock=lambda: NOW)
+    for game in games:
+        data = CallbackSpec(action="game_updates_add", product_id=game.id).pack()
+        assert len(data.encode()) <= 64
+        await service.callback(10001, parse_callback_data(data))
+    await store.set_mode(10001, "selected", NOW)
+    await store.ingest(page(launcher()))
+    assert len(await store.pending(10001)) == 1
+    due = NOW + timedelta(hours=1)
+    jobs = await store.prepare(10001, due)
+    assert len(jobs) == 1 and "Лаунчер" in jobs[0].text and "15.0" in jobs[0].text
+    await store.select(10001, "bsg:eft", False, due)
+    assert len(await store.pending(10001)) == 1
+    await store.select(10001, "bsg:arena", False, due)
+    assert await store.pending(10001) == []
+    assert await store.prepare(10001, due) == []
+    await store.set_mode(10001, "all", NOW)
+    await store.ingest(page(launcher(2)))
+    assert not await store.pending(10001)
+    await store.set_mode(10001, "all_supported", NOW)
+    await store.ingest(page(launcher(3)))
+    assert len(await store.pending(10001)) == 1
+    await store.replace_feed(GameFeed(games=[], objects=[]), due)
+    assert await store.prepare(10001, due) == []
+
+
+def test_multiplatform_digest_fixture() -> None:
+    from drova_bot.game_updates.renderers import render_digest
+
+    expected = Path("specs/v2/fixtures/platforms/digest.html").read_text().rstrip("\n")
+    assert render_digest([launcher()], "UTC") == [expected]

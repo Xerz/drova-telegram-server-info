@@ -33,3 +33,8 @@
 - Не сохранять текущие англо-русские тексты как UX-контракт.
 - Не выполнять write live checks на production-станциях.
 - Не добавлять web admin panel в V2.
+
+## Multi-platform game updates
+
+See `platform-updates.md` for the API v2 extension, linked launcher subscriptions,
+provider registry and backwards-compatible migration/delivery requirements.

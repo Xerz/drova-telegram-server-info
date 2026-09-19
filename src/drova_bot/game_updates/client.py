@@ -43,13 +43,13 @@ class WatcherClient:
             raise WatcherUnavailable("watcher_unavailable") from exc
 
     async def games(self) -> GameFeed:
-        return await self._get("/v1/games", GameFeed)
+        return await self._get("/v2/games", GameFeed)
 
     async def events(self, cursor: str | None = None) -> EventPage:
         params: dict[str, str | int] = {"limit": 500}
         if cursor is not None:
             params["cursor"] = cursor
-        return await self._get("/v1/events", EventPage, params)
+        return await self._get("/v2/events", EventPage, params)
 
     async def close(self) -> None:
         await self.http.aclose()

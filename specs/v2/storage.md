@@ -92,3 +92,8 @@ Rules:
 Bot migrations add feed snapshot/cursor, subscriptions, imported events, pending deliveries
 and digest parts. The watcher has a separate Alembic history for app state and event journal.
 Do not share the bot database with the watcher. Atomicity and cleanup: `steam-updates.md`.
+
+## Multi-platform game updates
+
+See `platform-updates.md` for the API v2 extension, linked launcher subscriptions,
+provider registry and backwards-compatible migration/delivery requirements.

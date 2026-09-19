@@ -23,9 +23,14 @@ def main() -> None:
             for steam in (False, True):
                 result = subprocess.run(
                     [
-                        "docker", "compose", "-f", str(project / "compose.yml"),
+                        "docker",
+                        "compose",
+                        "-f",
+                        str(project / "compose.yml"),
                         *(["--profile", "steam"] if steam else []),
-                        "config", "--format", "json",
+                        "config",
+                        "--format",
+                        "json",
                     ],
                     cwd=project,
                     env={"PATH": os.environ["PATH"]},
@@ -42,6 +47,9 @@ def main() -> None:
                     assert not service.get("ports")
                 if steam:
                     watcher = services["steam-watcher"]
+                    assert watcher["environment"]["UPDATE_PROVIDERS"] == case["environment"].get(
+                        "UPDATE_PROVIDERS", "steam"
+                    )
                     assert "TELEGRAM_BOT_TOKEN" not in watcher["environment"]
                     assert "BOT_SECRET_KEY" not in watcher["environment"]
                     assert watcher["volumes"][0]["source"] == "steam-watcher-data"
