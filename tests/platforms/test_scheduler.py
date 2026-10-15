@@ -103,3 +103,24 @@ async def test_catalog_schedule_preserves_hourly_interval(monkeypatch: Any) -> N
     monkeypatch.setattr("drova_bot.steam_watcher.scheduler.asyncio.sleep", sleep)
     with pytest.raises(asyncio.CancelledError):
         await periodic(cycle, 3600)
+
+
+async def test_epic_missing_credentials_is_safe_status_and_preserves_state(tmp_path: Path) -> None:
+    store = WatcherStore(f"sqlite+aiosqlite:///{tmp_path / 'epic.db'}")
+    await store.initialize()
+    game = UpdateObject(
+        id="epic:fortnite", provider="epic", external_id="Fortnite", title="Fortnite"
+    )
+    await store.replace_objects([game], NOW)
+    await store.observe(game.id, "previous", NOW, version="1")
+    worker = ProviderLoop("epic", store)
+    try:
+        assert not await worker.cycle()
+        feed = await store.games()
+        assert feed.objects[0].buildid == "previous"
+        assert feed.objects[0].error_code == "epic_credentials_missing"
+        assert feed.providers["epic"].error_code == "epic_credentials_missing"
+        assert not (await store.events()).events
+    finally:
+        await worker.close()
+        await store.close()

@@ -5,6 +5,8 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class WatcherSettings(BaseSettings):
+    epic_client_id: SecretStr = Field(default=SecretStr(""), alias="EPIC_CLIENT_ID")
+    epic_client_secret: SecretStr = Field(default=SecretStr(""), alias="EPIC_CLIENT_SECRET")
     update_providers: str = Field(default="steam", alias="UPDATE_PROVIDERS")
 
     @field_validator("update_providers")

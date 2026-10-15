@@ -50,6 +50,8 @@ def main() -> None:
                     assert watcher["environment"]["UPDATE_PROVIDERS"] == case["environment"].get(
                         "UPDATE_PROVIDERS", "steam"
                     )
+                    for key in ("EPIC_CLIENT_ID", "EPIC_CLIENT_SECRET"):
+                        assert watcher["environment"][key] == case["environment"].get(key, "")
                     assert "TELEGRAM_BOT_TOKEN" not in watcher["environment"]
                     assert "BOT_SECRET_KEY" not in watcher["environment"]
                     assert watcher["volumes"][0]["source"] == "steam-watcher-data"

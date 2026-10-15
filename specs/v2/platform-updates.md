@@ -5,7 +5,7 @@ cursor guarantees remain unchanged.
 
 ## Coverage
 
-UPDATE_PROVIDERS defaults to steam; allowed entries: steam,hoyo,wuwa,endfield,battlenet,bsg.
+UPDATE_PROVIDERS defaults to steam; allowed entries: steam,hoyo,wuwa,endfield,battlenet,bsg,epic.
 One existing watcher container/database runs independent non-overlapping provider loops
 (300 seconds, bounded backoff to 1800 seconds), and an independent hourly public catalog
 refresh. HTTP metadata requests have a 20-second deadline, 2 MiB decoded response limit,
@@ -75,3 +75,38 @@ cancellation, modes, callbacks, split/retry/logout, independent provider schedul
 Opt-in metadata probes read twice and report coverage/errors/duration, never download games.
 CI publishes existing GHCR image names only after full tests/lint/types/Compose validation.
 Production deployment is a separate task; new providers remain disabled by default.
+
+## Iteration 2: Fortnite admission and deferred sources
+
+`epic` adds only Fortnite Windows/Live, exact Drova product
+`d5f88d94-87d5-11e7-bb31-000000003778`, account `Epic Games`, object `epic:fortnite`.
+Namespace fn, catalogItemId 4fe75bbc5a674f4f9b356b5c90567da5, appName Fortnite.
+Client-credentials OAuth uses operator-provided EPIC_CLIENT_ID/EPIC_CLIENT_SECRET;
+no user login, embedded credentials or runtime credential discovery. Tokens stay in memory,
+refresh 60 seconds before expiry, with one refresh/retry on metadata 401. Missing credentials,
+403, invalid schemas and preload preserve baseline and report safe coverage errors.
+Select exactly one Fortnite / Live-Windows element. Require boolean isPreloaded=false;
+missing/unknown publication status fails closed. Compare buildVersion + SHA1 hash, not signed
+manifest URLs; never fetch manifests. No Epic Launcher link. Default providers remain steam.
+Transport limits (including OAuth POST): 20 seconds, 2 MiB decoded, concurrency four,
+no redirects. Never log authorization headers, OAuth response bodies or application secrets.
+No DB migration or /v2 wire-shape change. All-Steam remains Steam-only; all_supported includes
+newly admitted games. Deploy bot before enabling new provider to accept its model discriminator.
+
+Wargaming/Lesta and NTE remain research-only until their admission evidence exists:
+- WOT.EU.PRODUCTION + WGC.EU.PRODUCTION and MK.RU.PRODUCTION need a verified preload
+  fixture/client capture distinguishing released installation chains; delay_preload=false
+  alone is insufficient. WGC also needs installed-client version/log corroboration.
+- NTE Global config.xml needs official-client capture confirming appId=3000001,
+  ResVersion/listHash semantics and preload separation. Resource-only evidence must not
+  become a game-client claim. Neither source is enabled or offered as supported yet.
+
+Acceptance: fixture-based OAuth request/expiry/401 tests, exact target and preload validation,
+hash-only changes and rollback, network/schema recovery, registry/UI/API/store regression,
+then two metadata-only reads from production before enabling epic. Reliability on a real
+update is a separate observation, not implied by two equal reads.
+
+Fortnite live admission (2026-10-15): two direct metadata reads from the production server
+returned the same buildVersion/hash and element-level `isPreloaded: false`. Only whitelisted
+fields were retained; manifest URLs and OAuth responses were not saved. This verifies the
+current published Live element, not a historical preload transition or future API stability.

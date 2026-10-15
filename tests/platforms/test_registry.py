@@ -41,3 +41,16 @@ def test_future_hi3_only_matches_official_global_channel() -> None:
         assert bool(objects) == expected
         if objects:
             assert objects[0].external_id == "5TIVvvcwtM"
+
+
+def test_epic_exact_mapping_no_launcher_or_title_matching() -> None:
+    products = [
+        product("d5f88d94-87d5-11e7-bb31-000000003778", "Fortnite", "Epic Games"),
+        product("other", "Fortnite", "Epic Games"),
+    ]
+    objects, unmapped = catalog_objects(products, {"epic"})
+    assert len(objects) == 1
+    assert objects[0].id == "epic:fortnite"
+    assert objects[0].linked_objects == []
+    assert unmapped == {"epic": 1}
+    assert catalog_objects(products, {"steam"})[0] == []

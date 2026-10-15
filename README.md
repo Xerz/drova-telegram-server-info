@@ -411,3 +411,37 @@ Workflow [CI](.github/workflows/ci.yml) запускает pytest, Ruff и mypy,
 Actions входит в GHCR через встроенный `GITHUB_TOKEN` с правом `packages: write`.
 В форке задайте `IMAGE_REPOSITORY=ghcr.io/<owner>/<repository>` в нижнем регистре.
 Видимость пакетов и права на скачивание настраиваются отдельно в GitHub Packages.
+
+
+### Fortnite (Epic Games)
+
+Провайдер `epic` отслеживает только опубликованную Windows/Live-сборку Fortnite.
+Добавьте `epic` к `UPDATE_PROVIDERS` и задайте `EPIC_CLIENT_ID`/`EPIC_CLIENT_SECRET`
+в защищённом `.env` (`chmod 600 .env`). Это реквизиты клиентского приложения OAuth,
+а не пользовательский логин; их действительность зависит от Epic. Они не встроены
+в образ и не загружаются автоматически из сторонних проектов. Access token живёт
+только в памяти. Не публикуйте вывод `docker compose config` с заполненным `.env`.
+
+Сравниваются версия и хеш сборки; предзагрузки и неизвестный статус публикации
+отклоняются. Манифесты/игры не скачиваются. Серверные изменения Fortnite,
+Epic Launcher self-update и остальные игры EGS этим не покрываются.
+Первое чтение не вызывает уведомления. Режим «Все Steam-игры» не расширяется;
+«Все поддерживаемые игры» включает Fortnite, а в выбранном режиме её нужно отметить.
+
+Перед включением выполните два чтения метаданных из сети сервера:
+
+```sh
+docker compose --profile steam run --rm --no-deps \
+  -v "$PWD/scripts/probe_updates.py:/probe_updates.py:ro" \
+  --entrypoint python steam-watcher /probe_updates.py --live --providers epic
+```
+
+Пробник ничего не записывает в БД и не запускает Telegram polling. При ошибках
+`epic_credentials_missing`, `epic_unauthorized`, `epic_forbidden` или
+`epic_publication_unconfirmed` сначала устраните причину; последняя сборка сохраняется.
+Обновляйте бот до включения нового провайдера в вотчере, чтобы он понимал новые записи API.
+
+Wargaming/Lesta и NTE пока не включены: условия допуска и найденные протоколы
+сохранены в [исследовательской записке](specs/v2/update-source-admission.md).
+Два успешных чтения подтверждают доступность источника, но не заменяют сверку
+с настоящим обновлением официального клиента.

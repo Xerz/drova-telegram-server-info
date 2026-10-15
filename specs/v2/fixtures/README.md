@@ -48,3 +48,7 @@ a pinned release and a custom GHCR repository. These cases contain no credential
 
 `platforms/metadata.json` contains minimal synthetic protocol fixtures for public
 update adapters; no complete upstream dumps, account credentials or download payloads.
+
+`platforms/epic.json` is a minimal synthetic Fortnite protocol fixture based on research;
+`isPreloaded=false` is a required admission assertion, confirmed by two live reads
+from the production network on 2026-10-15. Manifest URL is deliberately invalid; no OAuth credentials included.

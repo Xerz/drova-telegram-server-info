@@ -10,10 +10,11 @@ import time
 from typing import Any
 
 from drova_bot.drova.client import DrovaClient
+from drova_bot.steam_watcher.epic import SAFE_EPIC_ERRORS, EpicClient
 from drova_bot.steam_watcher.providers import MetadataClient, MetadataError, observe
 from drova_bot.steam_watcher.registry import catalog_objects
 
-HTTP_PROVIDERS = {"hoyo", "wuwa", "endfield", "battlenet", "bsg"}
+HTTP_PROVIDERS = {"hoyo", "wuwa", "endfield", "battlenet", "bsg", "epic"}
 
 
 async def probe(enabled: set[str]) -> dict:
@@ -36,7 +37,17 @@ async def probe(enabled: set[str]) -> dict:
             o.id: {"successful_reads": 0, "versions": []} for o in targets
         }
         durations = []
-        async with MetadataClient(proxy=proxy, limiter=limiter) as client:
+        metadata_client = (
+            EpicClient(
+                client_id=os.getenv("EPIC_CLIENT_ID", ""),
+                client_secret=os.getenv("EPIC_CLIENT_SECRET", ""),
+                proxy=proxy,
+                limiter=limiter,
+            )
+            if name == "epic"
+            else MetadataClient(proxy=proxy, limiter=limiter)
+        )
+        async with metadata_client as client:
             for _ in range(2):
                 client.clear()
                 started = time.monotonic()
@@ -45,8 +56,10 @@ async def probe(enabled: set[str]) -> dict:
                         observation = await observe(client, obj)
                         results[obj.id]["successful_reads"] += 1
                         results[obj.id]["versions"].append(observation.version)
-                    except MetadataError:
-                        results[obj.id]["error_code"] = "metadata_unavailable"
+                    except MetadataError as exc:
+                        results[obj.id]["error_code"] = (
+                            str(exc) if str(exc) in SAFE_EPIC_ERRORS else "metadata_unavailable"
+                        )
                 durations.append(round(time.monotonic() - started, 2))
         return name, {
             "objects": results,

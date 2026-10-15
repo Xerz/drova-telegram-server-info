@@ -53,6 +53,8 @@ async def run(settings: WatcherSettings) -> None:
                 steam=steam,
                 proxy=settings.https_proxy or settings.http_proxy or None,
                 limiter=limiter,
+                epic_client_id=settings.epic_client_id.get_secret_value(),
+                epic_client_secret=settings.epic_client_secret.get_secret_value(),
             )
             providers.append(provider)
             tasks.append(

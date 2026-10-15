@@ -31,7 +31,9 @@
   {
     "name": "all-providers",
     "environment": {
-      "UPDATE_PROVIDERS": "steam,hoyo,wuwa,endfield,battlenet,bsg"
+      "UPDATE_PROVIDERS": "steam,hoyo,wuwa,endfield,battlenet,bsg,epic",
+      "EPIC_CLIENT_ID": "synthetic-client",
+      "EPIC_CLIENT_SECRET": "synthetic-secret"
     },
     "images": {
       "drova-bot": "ghcr.io/xerz/drova-telegram-server-info:latest",

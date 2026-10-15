@@ -10,7 +10,7 @@ from pydantic import AwareDatetime, BaseModel, Field, field_validator, model_val
 
 from drova_bot.domain.models import CatalogProduct
 
-PROVIDERS = {"steam", "hoyo", "wuwa", "endfield", "battlenet", "bsg"}
+PROVIDERS = {"steam", "hoyo", "wuwa", "endfield", "battlenet", "bsg", "epic"}
 LABELS = {
     "steam": "Steam",
     "hoyo": "HoYoverse",
@@ -18,6 +18,7 @@ LABELS = {
     "endfield": "Endfield",
     "battlenet": "Battle.net",
     "bsg": "BSG",
+    "epic": "Epic Games",
 }
 
 
@@ -29,7 +30,7 @@ def object_id(value: str | int) -> str:
 class UpdateObject(BaseModel):
     id: str = Field(default="", max_length=40, pattern=r"^[a-z0-9:_-]*$")
     appid: int | None = Field(default=None, gt=0, le=4294967295)
-    provider: Literal["steam", "hoyo", "wuwa", "endfield", "battlenet", "bsg"] = "steam"
+    provider: Literal["steam", "hoyo", "wuwa", "endfield", "battlenet", "bsg", "epic"] = "steam"
     external_id: str = ""
     platform: Literal["windows"] = "windows"
     channel: str = "public"

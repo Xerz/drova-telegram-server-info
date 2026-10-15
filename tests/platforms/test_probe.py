@@ -23,3 +23,13 @@ def test_probe_requires_explicit_opt_in(monkeypatch: pytest.MonkeyPatch) -> None
     with pytest.raises(SystemExit) as exc:
         main()
     assert exc.value.code == 2
+
+
+@pytest.mark.live
+@pytest.mark.skipif(
+    os.getenv("EPIC_LIVE") != "1", reason="Epic metadata requires opt-in credentials"
+)
+async def test_live_epic_metadata() -> None:
+    result = (await probe({"epic"}))["epic"]
+    assert result["total"] == result["covered"] == 1
+    assert all(d < 300 for d in result["cycle_seconds"])

@@ -1,0 +1,10 @@
+{
+  "elements": [{
+    "appName": "Fortnite",
+    "labelName": "Live-Windows",
+    "buildVersion": "++Fortnite+Release-42.40-CL-59086525-Windows",
+    "hash": "a7fefb939953fdaf91f546655a33e1233705cb85",
+    "isPreloaded": false,
+    "manifests": [{"uri": "https://example.invalid/never-download", "queryParams": []}]
+  }]
+}

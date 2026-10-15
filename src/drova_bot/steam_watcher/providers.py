@@ -9,7 +9,7 @@ import re
 import zlib
 from dataclasses import dataclass
 from types import TracebackType
-from typing import Any
+from typing import Any, Self
 from urllib.parse import urlsplit
 
 import httpx
@@ -77,7 +77,7 @@ class MetadataClient:
         self.cache: dict[str, bytes] = {}
         self.semaphore = limiter if limiter is not None else asyncio.Semaphore(4)
 
-    async def __aenter__(self) -> MetadataClient:
+    async def __aenter__(self) -> Self:
         return self
 
     async def __aexit__(
@@ -141,6 +141,12 @@ async def endfield_game(client: MetadataClient) -> Any:
 
 async def observe(client: MetadataClient, obj: UpdateObject) -> Observation:
     try:
+        if obj.provider == "epic":
+            from drova_bot.steam_watcher.epic import EpicClient
+
+            if not isinstance(client, EpicClient) or obj.external_id != "Fortnite":
+                raise MetadataError("epic_client_required")
+            return await client.observation()
         if obj.provider == "hoyo":
             data = await client.json(HOYO_BRANCHES, {"launcher_id": "VYTpXlbWo8"})
             if data["retcode"] != 0:

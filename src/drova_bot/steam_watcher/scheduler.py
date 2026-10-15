@@ -11,6 +11,7 @@ import structlog
 
 from drova_bot.application.protocols import DrovaClientProtocol
 from drova_bot.game_updates.models import UpdateObject
+from drova_bot.steam_watcher.epic import SAFE_EPIC_ERRORS
 from drova_bot.steam_watcher.providers import MetadataClient, MetadataError, Observation, observe
 from drova_bot.steam_watcher.registry import catalog_objects
 from drova_bot.steam_watcher.steamcmd import SteamCmd, SteamMetadataError
@@ -60,10 +61,23 @@ class ProviderLoop:
         steam: SteamCmd | None = None,
         proxy: str | None = None,
         limiter: asyncio.Semaphore | None = None,
+        epic_client_id: str = "",
+        epic_client_secret: str = "",
         probe: Callable[[MetadataClient, UpdateObject], Awaitable[Observation]] = observe,
     ) -> None:
         self.provider, self.store, self.steam = provider, store, steam
-        self.client = MetadataClient(proxy=proxy, limiter=limiter)
+        from drova_bot.steam_watcher.epic import EpicClient
+
+        self.client = (
+            EpicClient(
+                client_id=epic_client_id,
+                client_secret=epic_client_secret,
+                proxy=proxy,
+                limiter=limiter,
+            )
+            if provider == "epic"
+            else MetadataClient(proxy=proxy, limiter=limiter)
+        )
         self.probe = probe
 
     async def close(self) -> None:
@@ -78,6 +92,7 @@ class ProviderLoop:
         ]
         self.client.clear()
         errors = 0
+        error_code = "metadata_unavailable"
         if self.provider == "steam" and objects:
             assert self.steam
             try:
@@ -106,11 +121,16 @@ class ProviderLoop:
                     break
                 errors += 1
                 await self.store.record_error(obj.id, "metadata_unavailable")
-            except (MetadataError, ValueError):
+            except (MetadataError, ValueError) as exc:
                 errors += 1
-                await self.store.record_error(obj.id, "metadata_unavailable")
+                error_code = (
+                    str(exc)
+                    if self.provider == "epic" and str(exc) in SAFE_EPIC_ERRORS
+                    else "metadata_unavailable"
+                )
+                await self.store.record_error(obj.id, error_code)
         await self.store.mark_checked(
-            datetime.now(UTC), self.provider, "metadata_unavailable" if errors else None
+            datetime.now(UTC), self.provider, error_code if errors else None
         )
         log.info(
             "update_cycle_complete",

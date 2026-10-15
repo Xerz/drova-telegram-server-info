@@ -43,6 +43,8 @@
   },
   "platforms": [
     "platforms/metadata.json",
-    "platforms/digest.html"
+    "platforms/digest.html",
+    "platforms/epic.json",
+    "platforms/epic-digest.html"
   ]
 }

@@ -1,6 +1,6 @@
 """Reviewed public Drova IDs; never infer a distribution channel from a title.
 
-Registry revision 1, checked 2026-09-19. Protocol references: specs/v2/platform-updates.md.
+Registry revision 2; Fortnite added 2026-10-15. Protocol references: specs/v2/platform-updates.md.
 Unverified Battle.net products remain unmapped instead of guessing NGDP product codes.
 """
 
@@ -9,16 +9,25 @@ from __future__ import annotations
 from drova_bot.domain.models import CatalogProduct
 from drova_bot.game_updates.models import UpdateObject, steam_games
 
-REGISTRY_VERSION = 1
+REGISTRY_VERSION = 2
 ACCOUNTS = {
     "hoyo": "hoYoverse",
     "wuwa": "KuroGames",
     "endfield": "Hypergryph",
     "battlenet": "Battle.net",
     "bsg": "Escape from Tarkov",
+    "epic": "Epic Games",
 }
 # product UUID, compact key, external delivery ID, official information page
 ENTRIES = {
+    "epic": [
+        (
+            "d5f88d94-87d5-11e7-bb31-000000003778",
+            "fortnite",
+            "Fortnite",
+            "https://www.fortnite.com/news",
+        )
+    ],
     "hoyo": [
         (
             "b05acb00-93ab-4b6d-ab6c-792f72e43665",
@@ -118,7 +127,13 @@ def catalog_objects(
                         provider=provider,
                         external_id=external,
                         title=product.title,
-                        channel="eu" if provider == "battlenet" else "global",
+                        channel=(
+                            "live"
+                            if provider == "epic"
+                            else "eu"
+                            if provider == "battlenet"
+                            else "global"
+                        ),
                         news_url=url,
                         coverage="launcher_only" if provider == "bsg" else "full",
                     )
