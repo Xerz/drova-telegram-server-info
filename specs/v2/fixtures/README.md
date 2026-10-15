@@ -26,6 +26,10 @@ Use them for:
 
 ## Raw Data Policy
 
+`api/feedback_sessions.json` is a synthetic projection of the observed session response
+contract, not a captured pilot response. `ui/feedback.json` uses the same synthetic
+identities and an injectable clock for midnight, partial-window and suffix-collision tests.
+
 V2 fixtures must be tracked only after sanitization. Raw API responses stay under `specs/v2/fixtures/api/raw/` or another ignored path.
 
 ## Next Iteration Sampling

@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Iterable, Mapping
 from datetime import UTC, datetime
 
-from sqlalchemy import delete, select
+from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from drova_bot.domain.formatters import normalize_session_limit
@@ -49,7 +49,10 @@ class ChatProfileRepository:
         drova_user_id: str,
         proxy_token: str,
     ) -> ChatProfile:
+        from drova_bot.feedback_notifications.storage import feedback_credentials_changed
+
         row = await self._get_or_create_row(telegram_chat_id)
+        await feedback_credentials_changed(self._session, telegram_chat_id, drova_user_id)
         row.drova_user_id = drova_user_id
         row.encrypted_proxy_token = self._encrypt(proxy_token)
         await self._session.flush()
@@ -59,6 +62,26 @@ class ChatProfileRepository:
         row = await self._get_or_create_row(telegram_chat_id)
         row.encrypted_proxy_token = self._encrypt(proxy_token)
         await self._session.flush()
+
+    async def update_token_if_current(
+        self,
+        telegram_chat_id: int,
+        account_id: str,
+        expected: bytes,
+        proxy_token: str,
+    ) -> bytes | None:
+        encrypted = self._encrypt(proxy_token)
+        result = await self._session.execute(
+            update(ChatProfileRow)
+            .where(
+                ChatProfileRow.telegram_chat_id == telegram_chat_id,
+                ChatProfileRow.drova_user_id == account_id,
+                ChatProfileRow.encrypted_proxy_token == expected,
+            )
+            .values(encrypted_proxy_token=encrypted)
+            .returning(ChatProfileRow.telegram_chat_id)
+        )
+        return encrypted if result.scalar_one_or_none() is not None else None
 
     async def set_selected_station(
         self,
@@ -77,8 +100,10 @@ class ChatProfileRepository:
         return self._to_domain(row)
 
     async def logout(self, telegram_chat_id: int) -> ChatProfile:
+        from drova_bot.feedback_notifications.storage import reset_feedback
         from drova_bot.game_updates.storage import reset_notifications
 
+        await reset_feedback(self._session, telegram_chat_id)
         await reset_notifications(self._session, telegram_chat_id)
         row = await self._get_or_create_row(telegram_chat_id)
         row.drova_user_id = None

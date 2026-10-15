@@ -1,0 +1,74 @@
+{
+  "sessions": [
+    {
+      "uuid": "review-1",
+      "server_id": "station-1",
+      "merchant_id": "owner-1",
+      "product_id": "game-1",
+      "client_id": "synthetic-client-123456",
+      "creator_ip": null,
+      "created_on": 1791910200000,
+      "finished_on": 1791920220000,
+      "billing_type": "subscription",
+      "status": "FINISHED",
+      "score": 3,
+      "score_text": "Всё хорошо <спасибо> & удачи."
+    },
+    {
+      "uuid": "active-1",
+      "server_id": "station-2",
+      "merchant_id": "owner-1",
+      "product_id": "game-1",
+      "client_id": "synthetic-client-123456",
+      "creator_ip": null,
+      "created_on": 1792044000000,
+      "finished_on": null,
+      "billing_type": "subscription",
+      "status": "ACTIVE",
+      "score": null,
+      "score_text": null
+    },
+    {
+      "uuid": "boundary-1",
+      "server_id": "station-2",
+      "merchant_id": "owner-1",
+      "product_id": "game-1",
+      "client_id": "synthetic-client-123456",
+      "creator_ip": null,
+      "created_on": 1789372800000,
+      "finished_on": 1789545600000,
+      "billing_type": "subscription",
+      "status": "FINISHED",
+      "score": null,
+      "score_text": null
+    },
+    {
+      "uuid": "collision-1",
+      "server_id": "station-1",
+      "merchant_id": "owner-1",
+      "product_id": "game-1",
+      "client_id": "another-client-123456",
+      "creator_ip": null,
+      "created_on": 1791799200000,
+      "finished_on": 1791802800000,
+      "billing_type": "subscription",
+      "status": "FINISHED",
+      "score": null,
+      "score_text": null
+    },
+    {
+      "uuid": "score-only",
+      "server_id": "station-2",
+      "merchant_id": "owner-1",
+      "product_id": "game-1",
+      "client_id": "other-client-654321",
+      "creator_ip": null,
+      "created_on": 1791705600000,
+      "finished_on": 1791706740000,
+      "billing_type": "subscription",
+      "status": "FINISHED",
+      "score": 5,
+      "score_text": null
+    }
+  ]
+}

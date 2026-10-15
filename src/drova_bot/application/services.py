@@ -23,6 +23,7 @@ from drova_bot.drova.errors import (
     ExportTooLarge,
 )
 from drova_bot.exports import ExportKind, ExportResult, ProductExportService, SessionExportService
+from drova_bot.feedback_notifications.service import FeedbackService
 from drova_bot.game_updates.service import GameUpdatesService
 from drova_bot.game_updates.storage import chat_lock
 from drova_bot.storage.uow import StorageUnitOfWork
@@ -115,9 +116,11 @@ class BotService:
         export_timeout_seconds: float = 120,
         session_geo_resolver: SessionGeoResolver | None = None,
         game_updates_service: GameUpdatesService | None = None,
+        feedback_service: FeedbackService | None = None,
     ) -> None:
         self._uow_factory = uow_factory
         self._game_updates_service = game_updates_service
+        self._feedback_service = feedback_service
         self._client_factory = client_factory
         self._clock = clock or (lambda: datetime.now(tz=UTC))
         self._session_export_service = session_export_service or SessionExportService()
@@ -160,7 +163,7 @@ class BotService:
         finally:
             await client.aclose()
 
-        async with self._uow_factory() as uow:
+        async with chat_lock(telegram_chat_id), self._uow_factory() as uow:
             profile = await uow.chat_profiles.connect_token(
                 telegram_chat_id,
                 drova_user_id=account.uuid,
@@ -183,6 +186,11 @@ class BotService:
             async with self._uow_factory() as uow:
                 await uow.chat_profiles.logout(telegram_chat_id)
         return RenderedMessage("Токен и настройки чата удалены.")
+
+    async def feedback_notifications(self, telegram_chat_id: int) -> RenderedMessage:
+        if self._feedback_service is None:
+            return RenderedMessage("Уведомления об отзывах недоступны.")
+        return await self._feedback_service.panel(telegram_chat_id)
 
     async def station_picker(self, telegram_chat_id: int, *, page: int = 0) -> RenderedMessage:
         loaded = await self._load_client(telegram_chat_id)
@@ -1487,6 +1495,12 @@ class BotService:
                 station_id=callback.station_id,
                 draft_id=callback.draft_id,
             )
+        if callback.action == "feedback_notifications_mode":
+            if self._feedback_service is None or callback.control not in {"on", "off"}:
+                return render_error("unknown_command")
+            return await self._feedback_service.set_enabled(
+                telegram_chat_id, callback.control == "on"
+            )
         if callback.action.startswith("game_updates"):
             if self._game_updates_service is not None:
                 return await self._game_updates_service.callback(telegram_chat_id, callback)
@@ -1656,9 +1670,21 @@ class BotService:
         if profile is None or not profile.drova_user_id or token is None:
             return None
 
+        assert profile.encrypted_proxy_token is not None
+        expected_token = profile.encrypted_proxy_token
+
         async def persist_token(new_token: str) -> None:
-            async with self._uow_factory() as token_uow:
-                await token_uow.chat_profiles.update_token(telegram_chat_id, new_token)
+            nonlocal expected_token
+            async with chat_lock(telegram_chat_id), self._uow_factory() as token_uow:
+                updated = await token_uow.chat_profiles.update_token_if_current(
+                    telegram_chat_id,
+                    profile.drova_user_id or "",
+                    expected_token,
+                    new_token,
+                )
+                if updated is None:
+                    raise DrovaUnauthorized("credentials_changed")
+                expected_token = updated
 
         return profile, self._client_factory.create(token, token_persister=persist_token)
 

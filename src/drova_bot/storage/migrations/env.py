@@ -9,6 +9,7 @@ from alembic import context
 from sqlalchemy import Connection, pool
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
+from drova_bot.feedback_notifications import tables as feedback_tables  # noqa: F401
 from drova_bot.game_updates import tables  # noqa: F401
 from drova_bot.storage.database import Base
 

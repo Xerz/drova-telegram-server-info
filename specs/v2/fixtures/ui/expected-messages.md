@@ -71,3 +71,32 @@ City G
 Внешние:
 198.51.100.45:48100
 ```
+
+## `/feedback_notifications`
+
+Synthetic intent from `feedback.json`: the panel starts off, contains a clearly marked
+demo before an account snapshot is available, and has one row `Включить | Выключить`.
+The same-account review example and standalone notification contain:
+
+```text
+Новый отзыв
+
+Станция <А>
+Desktop · клиент …123456
+13.10 21:50 → 14.10 00:37
+2 ч 47 мин · подписка · завершена
+
+⭐⭐⭐☆☆
+
+Комментарий:
+Всё хорошо <спасибо> & удачи.
+
+Этот клиент за последние 30 дней
+Все ваши станции: 28 ч 47 мин
+Эта станция: 2 ч 47 мин
+```
+
+Dynamic HTML characters are escaped in Telegram HTML. Missing comment is
+`Комментарий не оставлен`; missing score is `Оценка не указана`. A truncated
+30-day window prefixes both totals with `не менее`. A finished `ABORTED` session
+shows `прервана`. Long comments continue in separately valid messages without loss.

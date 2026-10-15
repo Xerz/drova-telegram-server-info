@@ -304,6 +304,39 @@ def make_service(
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("change", ["logout", "replace", "other_account"])
+async def test_inflight_command_renewal_cannot_overwrite_newer_credentials(
+    service_engine: AsyncEngine,
+    change: str,
+) -> None:
+    next_owner = "owner-new" if change == "other_account" else "user-1"
+    factory = FakeDrovaClientFactory(
+        FakeDrovaClient(),
+        FakeDrovaClient(),
+        FakeDrovaClient(account=Account(uuid=next_owner, name="Synthetic owner")),
+    )
+    service = make_service(service_engine, factory)
+    await service.connect_token(10001, "old-synthetic-token")
+    await service.sessions(10001)
+    persister = factory.token_persisters[1]
+    assert persister is not None
+    if change == "logout":
+        await service.logout(10001)
+    else:
+        await service.connect_token(10001, "new-synthetic-token")
+    session_factory = make_session_factory(service_engine)
+    async with session_factory() as session:
+        before = await ChatProfileRepository(session).get(10001)
+    with pytest.raises(DrovaUnauthorized):
+        await persister("stale-renewal")
+    async with session_factory() as session:
+        after = await ChatProfileRepository(session).get(10001)
+    assert before is not None and after is not None
+    assert after.encrypted_proxy_token == before.encrypted_proxy_token
+    assert after.drova_user_id == (None if change == "logout" else next_owner)
+
+
+@pytest.mark.asyncio
 async def test_token_valid_saves_profile_and_caches(
     service_engine: AsyncEngine,
     ui_stations: list[Station],
@@ -423,9 +456,7 @@ async def test_sessions_station_switcher_persists_selection_and_preserves_short_
 
     picker = await service.handle_callback(
         10001,
-        parse_callback_data(
-            CallbackSpec(action="sessions_station_picker", short_mode=True).pack()
-        ),
+        parse_callback_data(CallbackSpec(action="sessions_station_picker", short_mode=True).pack()),
     )
     selected = await service.handle_callback(
         10001,
@@ -944,8 +975,7 @@ async def test_sessions_page_refetches_and_keeps_short_mode(
             FakeDrovaClient(
                 stations=ui_stations,
                 products=[
-                    CatalogProduct(f"product-page-{index}", f"Game {index}")
-                    for index in range(7)
+                    CatalogProduct(f"product-page-{index}", f"Game {index}") for index in range(7)
                 ],
             ),
             first_page_client,
@@ -1070,8 +1100,7 @@ async def test_sessions_and_current_use_injected_geo_without_raw_ip_in_current(
     assert "IP: <code>203.0.113.20</code> · Example City · Example Network" in sessions.text
     assert (
         "Cyber Rally</b> · 💳 prepaid ✅ finished · 16:00 · 10 мин · "
-        "Example City · Example Network"
-        in current.text
+        "Example City · Example Network" in current.text
     )
     assert "203.0.113.20" not in current.text
 
@@ -1207,10 +1236,7 @@ async def test_game_commands_use_selected_station_without_callback_uuid_pairs(
     assert games.keyboard is not None
     assert games.keyboard.rows[0][0].text == "✅ Cyber Rally"
     assert games.keyboard.rows[-1][0].text == "К меню станции"
-    assert (
-        parse_callback_data(games.keyboard.rows[-1][0].callback_data).action
-        == "station_panel"
-    )
+    assert parse_callback_data(games.keyboard.rows[-1][0].callback_data).action == "station_panel"
     assert "Игры станции Alpha Station" in page.text
     assert "Путь: <code>C:\\Steam\\Steam.exe</code>" in detail.text
     assert "Статус: отключена · опубликована · доступна" in hidden.text

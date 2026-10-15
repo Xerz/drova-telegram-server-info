@@ -69,6 +69,9 @@ Never log token, raw IP, email, wallet or station description.
 
 ## Operations
 
+The feedback supervisor runs in the bot without an additional container or credentials.
+All chat subscriptions default off. Polling/delivery and shutdown: `feedback-notifications.md`.
+
 - Bot should survive transient Drova and Telegram failures.
 - Fatal startup misconfiguration fails fast.
 - Export jobs should not prevent graceful shutdown.

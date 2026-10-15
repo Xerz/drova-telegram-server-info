@@ -39,6 +39,7 @@ Session
   billing_type: str | None
   status: str | None
   score_text: str | None
+  score: int | None  # strictly 1..5; other API values normalize to None
 
 StationProduct
   product_id: str

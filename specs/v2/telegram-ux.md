@@ -234,6 +234,9 @@ Callback must include expected old state. If actual state changed before confirm
 
 ## Unknown Input
 
+`/feedback_notifications` opens the opt-in feedback panel with a same-account example,
+five-position star ratings and desired-state buttons. Full UX: `feedback-notifications.md`.
+
 - Unknown command: `Команда не найдена. Используйте /help.`
 - Non-command text: `Я понимаю только команды. Используйте /help.`
 

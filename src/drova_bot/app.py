@@ -14,6 +14,9 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 
 from drova_bot.application.services import BotService, DefaultDrovaClientFactory
 from drova_bot.config import Settings
+from drova_bot.feedback_notifications.service import FeedbackService
+from drova_bot.feedback_notifications.storage import FeedbackStore
+from drova_bot.feedback_notifications.worker import FeedbackWorker, TelegramFeedbackSender
 from drova_bot.game_updates.client import WatcherClient
 from drova_bot.game_updates.service import GameUpdatesService
 from drova_bot.game_updates.storage import NotificationStore
@@ -63,6 +66,7 @@ BOT_COMMANDS = [
     BotCommand(command="export_products", description="Матрица продуктов XLSX"),
     BotCommand(command="export_product_time", description="Время по продуктам XLSX"),
     BotCommand(command="game_updates", description="Обновления игр в Steam"),
+    BotCommand(command="feedback_notifications", description="Уведомления об отзывах"),
 ]
 
 
@@ -76,14 +80,26 @@ class Runtime:
     watcher_client: WatcherClient | None = None
     notification_worker: NotificationWorker | None = None
     notification_task: asyncio.Task[None] | None = None
+    feedback_worker: FeedbackWorker | None = None
+    feedback_task: asyncio.Task[None] | None = None
 
     def start_background(self) -> None:
+        if self.feedback_worker is not None:
+            self.feedback_task = asyncio.create_task(
+                self.feedback_worker.run(), name="feedback-notifications"
+            )
         if self.notification_worker is not None:
             self.notification_task = asyncio.create_task(
                 self.notification_worker.run(), name="steam-notifications"
             )
 
     async def close(self) -> None:
+        if self.feedback_task is not None:
+            self.feedback_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await self.feedback_task
+        if self.feedback_worker is not None:
+            await self.feedback_worker.close()
         if self.notification_task is not None:
             self.notification_task.cancel()
             with contextlib.suppress(asyncio.CancelledError):
@@ -109,10 +125,13 @@ def build_runtime(settings: Settings) -> Runtime:
     )
     notification_store = NotificationStore(session_factory)
     updates_service = GameUpdatesService(notification_store, enabled=settings.game_updates_enabled)
+    feedback_store = FeedbackStore(session_factory, encryptor)
+    client_factory = DefaultDrovaClientFactory(settings)
     service = BotService(
+        feedback_service=FeedbackService(feedback_store),
         game_updates_service=updates_service,
         uow_factory=uow_factory,
-        client_factory=DefaultDrovaClientFactory(settings),
+        client_factory=client_factory,
         export_row_limit=settings.export_row_limit,
         export_timeout_seconds=settings.export_timeout_seconds,
         session_geo_resolver=geo_resolver.lookup_session,
@@ -126,6 +145,9 @@ def build_runtime(settings: Settings) -> Runtime:
     dispatcher.include_router(build_router())
     dispatcher["bot_service"] = service
     runtime = Runtime(bot=bot, dispatcher=dispatcher, engine=engine, geo_resolver=geo_resolver)
+    runtime.feedback_worker = FeedbackWorker(
+        feedback_store, client_factory, TelegramFeedbackSender(bot)
+    )
     if settings.game_updates_enabled:
         assert settings.steam_watcher_token is not None
         runtime.watcher_client = WatcherClient(

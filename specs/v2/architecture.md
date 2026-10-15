@@ -77,6 +77,10 @@ Each error maps to a stable Russian user message and structured log event.
 
 ## Concurrency
 
+Feedback tasks and application credential changes share the per-chat storage lock.
+The in-process feedback supervisor and bounded independent chat loops are specified in
+`feedback-notifications.md`.
+
 - Drova API calls are async.
 - Export generation is offloaded so Telegram polling is not blocked.
 - Per-chat mutating operations use a lightweight lock to avoid racing token/station settings.

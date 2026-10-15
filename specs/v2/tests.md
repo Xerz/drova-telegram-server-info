@@ -29,6 +29,9 @@ No command handler is considered done without handler tests and renderer tests.
 
 ## Required Acceptance Gates
 
+- Feedback commands, callbacks, renderers, API parsing, storage and task lifecycle:
+  the complete acceptance matrix is in `feedback-notifications.md`.
+
 - `/token` valid and invalid flows.
 - `/logout` removes token and selected station.
 - `/station` paginated picker and all-stations selection.

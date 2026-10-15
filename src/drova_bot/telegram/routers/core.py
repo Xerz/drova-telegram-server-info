@@ -54,6 +54,7 @@ def build_router() -> Router:
     router.message.register(stations_command, Command("stations", "stationsInfo"))
     router.message.register(games_command, Command("games"))
     router.message.register(game_updates_command, Command("game_updates"))
+    router.message.register(feedback_notifications_command, Command("feedback_notifications"))
     router.message.register(game_command, Command("game"))
     router.message.register(game_hide_command, Command("game_hide"))
     router.message.register(game_show_command, Command("game_show"))
@@ -97,6 +98,10 @@ async def start_command(message: Message, bot_service: BotService) -> None:
 
 async def help_command(message: Message) -> None:
     await answer_rendered(message, render_help())
+
+
+async def feedback_notifications_command(message: Message, bot_service: BotService) -> None:
+    await answer_rendered(message, await bot_service.feedback_notifications(message.chat.id))
 
 
 async def token_command(message: Message, bot_service: BotService) -> None:
@@ -176,8 +181,9 @@ async def stations_command(message: Message, bot_service: BotService) -> None:
 
 
 async def game_updates_command(message: Message, bot_service: BotService) -> None:
-    await answer_rendered(message, await bot_service.game_updates(
-        message.chat.id, search=_command_args(message.text)))
+    await answer_rendered(
+        message, await bot_service.game_updates(message.chat.id, search=_command_args(message.text))
+    )
 
 
 async def games_command(message: Message, bot_service: BotService) -> None:

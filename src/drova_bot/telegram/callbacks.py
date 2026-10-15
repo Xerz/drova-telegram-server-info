@@ -10,6 +10,7 @@ class InvalidCallbackData(ValueError):
 
 
 ACTION_ALIASES = {
+    "feedback_notifications_mode": "fm",
     "game_updates": "un",
     "game_updates_page": "up",
     "game_updates_mode": "um",

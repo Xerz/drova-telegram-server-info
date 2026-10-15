@@ -61,6 +61,10 @@ week and month. Redacted income values are ignored.
 
 ## Token Renewal
 
+Feedback polling requests account sessions with explicit `limit=1000`. `score` is
+optional; only actual integer values 1..5 are retained. Invalid scores must not reject
+otherwise valid session pages. See `feedback-notifications.md` for coverage limits.
+
 - On HTTP 401 for an authenticated request, call `renew_token`.
 - If renewal returns a token, persist it before retrying.
 - Retry original request exactly once.

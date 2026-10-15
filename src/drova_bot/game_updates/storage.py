@@ -5,7 +5,6 @@ from __future__ import annotations
 import asyncio
 from datetime import datetime
 from uuid import uuid4
-from weakref import WeakValueDictionary
 
 from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
@@ -20,16 +19,7 @@ from drova_bot.game_updates.tables import (
     UpdateSubscriptionRow,
 )
 from drova_bot.storage.database import ChatProfileRow
-
-_CHAT_LOCKS: WeakValueDictionary[int, asyncio.Lock] = WeakValueDictionary()
-
-
-def chat_lock(chat_id: int) -> asyncio.Lock:
-    lock = _CHAT_LOCKS.get(chat_id)
-    if lock is None:
-        lock = asyncio.Lock()
-        _CHAT_LOCKS[chat_id] = lock
-    return lock
+from drova_bot.storage.locks import chat_lock as chat_lock
 
 
 async def reset_notifications(session: AsyncSession, chat_id: int) -> None:

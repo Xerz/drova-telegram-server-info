@@ -55,6 +55,7 @@ class Session:
     billing_type: str | None = None
     status: str | None = None
     score_text: str | None = None
+    score: int | None = None
 
 
 @dataclass(frozen=True, slots=True)

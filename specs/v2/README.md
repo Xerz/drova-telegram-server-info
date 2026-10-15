@@ -25,6 +25,7 @@
 - `runtime.md` - env, Docker, logging, observability, operations.
 - `next-iteration.md` - backlog/spec for the next V2 feature cycle.
 - `steam-updates.md` - Steam watcher, subscriptions, hourly digests and delivery contract.
+- `feedback-notifications.md` - opt-in session feedback, client usage and durable delivery.
 - `fixtures/` - API и UI fixtures для разработки и тестов.
 
 ## Non-goals

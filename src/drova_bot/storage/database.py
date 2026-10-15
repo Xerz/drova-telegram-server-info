@@ -124,6 +124,7 @@ def make_session_factory(engine: AsyncEngine) -> async_sessionmaker[AsyncSession
 
 
 async def create_schema(engine: AsyncEngine) -> None:
+    from drova_bot.feedback_notifications import tables as feedback_tables  # noqa: F401
     from drova_bot.game_updates import tables  # noqa: F401
 
     async with engine.begin() as connection:

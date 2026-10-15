@@ -59,6 +59,9 @@ Schema is managed by migrations.
 
 ## Token Security
 
+Feedback subscription, seen-session and delivery-part tables share the bot's migration
+history. Atomicity, credential guards and lifecycle cleanup: `feedback-notifications.md`.
+
 - Tokens are encrypted at rest.
 - Required env: `BOT_SECRET_KEY`.
 - Key format: implementation may use Fernet-compatible base64 key.

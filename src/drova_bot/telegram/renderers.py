@@ -111,6 +111,7 @@ def render_help() -> RenderedMessage:
         "/current - состояние станций",
         "/account_menu - меню аккаунта",
         "/game_updates [название] - часовые сводки обновлений Steam",
+        "/feedback_notifications - уведомления об отзывах после сессий",
         "/account - баланс минут и выплаты",
         "/usage - статистика использования",
         "/disabled - проблемные продукты",

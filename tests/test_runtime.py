@@ -93,6 +93,7 @@ async def test_register_bot_commands_uses_runtime_command_list() -> None:
         "export_products",
         "export_product_time",
         "game_updates",
+        "feedback_notifications",
     ]
     assert len(commands) == len(set(commands))
 

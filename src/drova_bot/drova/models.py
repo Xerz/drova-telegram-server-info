@@ -90,6 +90,12 @@ class SessionResponse(DrovaApiModel):
     billing_type: str | None = None
     status: str | None = None
     score_text: str | None = None
+    score: int | None = None
+
+    @field_validator("score", mode="before")
+    @classmethod
+    def normalize_score(cls, value: object) -> int | None:
+        return value if type(value) is int and 1 <= value <= 5 else None
 
     def to_domain(self) -> Session:
         return Session(
@@ -104,6 +110,7 @@ class SessionResponse(DrovaApiModel):
             billing_type=self.billing_type,
             status=self.status,
             score_text=self.score_text,
+            score=self.score,
         )
 
 
@@ -145,8 +152,10 @@ class CatalogProductResponse(DrovaApiModel):
 
     def to_domain(self) -> CatalogProduct:
         return CatalogProduct(
-            product_id=self.product_id, title=self.title,
-            in_shop_url=self.in_shop_url, required_account=self.required_account,
+            product_id=self.product_id,
+            title=self.title,
+            in_shop_url=self.in_shop_url,
+            required_account=self.required_account,
         )
 
 
