@@ -119,6 +119,7 @@ all three for observation. Panel and digest label these sources experimental.
 - NTE: Global resource configuration only. Selectable `nte:global` game has new coverage
   `resources_only` and linked `nte:resources` (kind resources). Only the linked object is
   polled/counts toward coverage; never claim game client or launcher detection.
+  The selectable title includes (NTE), so /game_updates NTE finds the game.
 
 Wargaming protocol: fixed HTTPS origin + metadata + patches_chain/; two known metadata
 layouts, exact production app_id, fixed client_type/lang/required parts. One bounded

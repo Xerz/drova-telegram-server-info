@@ -157,7 +157,13 @@ def catalog_objects(
                         id=f"{provider}:{key}",
                         provider=provider,
                         external_id=external,
-                        title="Мир кораблей" if provider == "lesta" else product.title,
+                        title=(
+                            "Мир кораблей"
+                            if provider == "lesta"
+                            else "Neverness to Everness (NTE)"
+                            if provider == "nte"
+                            else product.title
+                        ),
                         channel=CHANNELS.get(provider, "global"),
                         news_url=url,
                         coverage=(

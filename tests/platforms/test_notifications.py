@@ -118,6 +118,15 @@ async def test_nte_resources_subscription_cancel_and_panel(store: NotificationSt
         feed, Subscription(), page=0, fetched_at=NOW.timestamp(), now=NOW, timezone="UTC"
     )
     assert "Отслеживаются только ресурсы" in panel.text
+    searched = render_panel(
+        feed,
+        Subscription(search="NTE"),
+        page=0,
+        fetched_at=NOW.timestamp(),
+        now=NOW,
+        timezone="UTC",
+    )
+    assert "Игры не найдены." not in searched.text
     event = UpdateEvent(
         **resource.model_dump(exclude={"buildid", "version"}),
         stream_id="00000000-0000-0000-0000-000000000001",
