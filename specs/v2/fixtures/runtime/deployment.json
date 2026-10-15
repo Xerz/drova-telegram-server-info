@@ -31,7 +31,7 @@
   {
     "name": "all-providers",
     "environment": {
-      "UPDATE_PROVIDERS": "steam,hoyo,wuwa,endfield,battlenet,bsg,epic",
+      "UPDATE_PROVIDERS": "steam,hoyo,wuwa,endfield,battlenet,bsg,epic,wargaming,lesta,nte",
       "EPIC_CLIENT_ID": "synthetic-client",
       "EPIC_CLIENT_SECRET": "synthetic-secret"
     },

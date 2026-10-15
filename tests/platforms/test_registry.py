@@ -54,3 +54,24 @@ def test_epic_exact_mapping_no_launcher_or_title_matching() -> None:
     assert objects[0].linked_objects == []
     assert unmapped == {"epic": 1}
     assert catalog_objects(products, {"steam"})[0] == []
+
+
+def test_experimental_catalog_and_resource_only_links() -> None:
+    products = [
+        product("c1661a7c-4950-4346-a193-103fb385b6d6", "World of Tanks (EU)", "Wargaming"),
+        product("21d8c648-8d39-4b3f-8989-69d58fbe7dff", "World of Warships", "Lesta"),
+        product("3d02d4c9-0dfb-44fd-aeb2-2a00d288bf11", "Neverness to Everness", "NTE"),
+        product("unverified", "Мир танков", "Lesta"),
+    ]
+    objects, unmapped = catalog_objects(products, {"wargaming", "lesta", "nte"})
+    by_id = {o.id: o for o in objects}
+    assert len(objects) == 5
+    assert by_id["wargaming:wot-eu"].linked_objects == ["wargaming:launcher-eu"]
+    assert by_id["wargaming:launcher-eu"].related_games == ["wargaming:wot-eu"]
+    assert by_id["lesta:mk-ru"].title == "Мир кораблей"
+    assert by_id["lesta:mk-ru"].channel == "ru"
+    assert by_id["nte:global"].coverage == "resources_only"
+    assert by_id["nte:global"].linked_objects == ["nte:resources"]
+    assert by_id["nte:resources"].kind == "resources"
+    assert by_id["nte:resources"].related_games == ["nte:global"]
+    assert unmapped == {"wargaming": 0, "lesta": 1, "nte": 0}

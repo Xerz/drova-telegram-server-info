@@ -45,6 +45,14 @@
     "platforms/metadata.json",
     "platforms/digest.html",
     "platforms/epic.json",
-    "platforms/epic-digest.html"
+    "platforms/epic-digest.html",
+    "platforms/wot-meta.xml",
+    "platforms/wot-chain.xml",
+    "platforms/wgc-meta.xml",
+    "platforms/wgc-chain.xml",
+    "platforms/mk-meta.xml",
+    "platforms/mk-chain.xml",
+    "platforms/nte.xml",
+    "platforms/nte-digest.html"
   ]
 }

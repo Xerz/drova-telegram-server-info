@@ -223,7 +223,7 @@ class WatcherStore:
             }
             for obj in objects:
                 status = statuses.setdefault(obj.provider, ProviderStatus())
-                if obj.coverage != "launcher_only":
+                if obj.coverage == "full":
                     status.total += 1
                     status.covered += int(obj.buildid is not None and obj.error_code is None)
             return GameFeed(

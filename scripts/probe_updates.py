@@ -1,4 +1,4 @@
-"""Opt-in, two-pass public metadata probe; no database, credentials or game downloads."""
+"""Opt-in, two-pass public metadata probe; no database writes, user login or game downloads."""
 
 from __future__ import annotations
 
@@ -14,7 +14,17 @@ from drova_bot.steam_watcher.epic import SAFE_EPIC_ERRORS, EpicClient
 from drova_bot.steam_watcher.providers import MetadataClient, MetadataError, observe
 from drova_bot.steam_watcher.registry import catalog_objects
 
-HTTP_PROVIDERS = {"hoyo", "wuwa", "endfield", "battlenet", "bsg", "epic"}
+HTTP_PROVIDERS = {
+    "hoyo",
+    "wuwa",
+    "endfield",
+    "battlenet",
+    "bsg",
+    "epic",
+    "wargaming",
+    "lesta",
+    "nte",
+}
 
 
 async def probe(enabled: set[str]) -> dict:
@@ -32,7 +42,7 @@ async def probe(enabled: set[str]) -> dict:
     limiter = asyncio.Semaphore(4)
 
     async def provider(name: str) -> tuple[str, dict]:
-        targets = [o for o in objects if o.provider == name and o.coverage != "launcher_only"]
+        targets = [o for o in objects if o.provider == name and o.coverage == "full"]
         results: dict[str, dict[str, Any]] = {
             o.id: {"successful_reads": 0, "versions": []} for o in targets
         }

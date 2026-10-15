@@ -5,7 +5,7 @@ cursor guarantees remain unchanged.
 
 ## Coverage
 
-UPDATE_PROVIDERS defaults to steam; allowed entries: steam,hoyo,wuwa,endfield,battlenet,bsg,epic.
+UPDATE_PROVIDERS defaults to steam; allowed entries: steam,hoyo,wuwa,endfield,battlenet,bsg,epic,wargaming,lesta,nte.
 One existing watcher container/database runs independent non-overlapping provider loops
 (300 seconds, bounded backoff to 1800 seconds), and an independent hourly public catalog
 refresh. HTTP metadata requests have a 20-second deadline, 2 MiB decoded response limit,
@@ -26,8 +26,9 @@ unmapped; a removed/reintroduced object establishes a new silent baseline.
 - BSG: public GetLauncherDistrib zlib/JSON Version+hash; EFT/Arena rows clearly say
   "Отслеживается только BSG Launcher". Do not query authenticated game update endpoints.
 
-No game downloads, binary manifest parsing, preloads, beta builds, HoYoPlay installer
-notifications, or promise of server-side/all in-game hotfix coverage.
+No game downloads, binary manifest parsing, beta builds, HoYoPlay installer
+notifications, or promise of server-side/all in-game hotfix coverage. Explicit preloads
+are excluded; experimental XML source publication semantics remain unverified.
 
 ## Models and compatibility
 
@@ -93,13 +94,9 @@ no redirects. Never log authorization headers, OAuth response bodies or applicat
 No DB migration or /v2 wire-shape change. All-Steam remains Steam-only; all_supported includes
 newly admitted games. Deploy bot before enabling new provider to accept its model discriminator.
 
-Wargaming/Lesta and NTE remain research-only until their admission evidence exists:
-- WOT.EU.PRODUCTION + WGC.EU.PRODUCTION and MK.RU.PRODUCTION need a verified preload
-  fixture/client capture distinguishing released installation chains; delay_preload=false
-  alone is insufficient. WGC also needs installed-client version/log corroboration.
-- NTE Global config.xml needs official-client capture confirming appId=3000001,
-  ResVersion/listHash semantics and preload separation. Resource-only evidence must not
-  become a game-client claim. Neither source is enabled or offered as supported yet.
+Wargaming/Lesta and NTE are admitted experimentally by explicit operator decision on
+2026-10-15. Real-client/preload corroboration remains a reliability limitation, not a
+release gate. Unknown/malformed schemas still preserve baseline without an event.
 
 Acceptance: fixture-based OAuth request/expiry/401 tests, exact target and preload validation,
 hash-only changes and rollback, network/schema recovery, registry/UI/API/store regression,
@@ -110,3 +107,37 @@ Fortnite live admission (2026-10-15): two direct metadata reads from the product
 returned the same buildVersion/hash and element-level `isPreloaded: false`. Only whitelisted
 fields were retained; manifest URLs and OAuth responses were not saved. This verifies the
 current published Live element, not a historical preload transition or future API stability.
+
+
+## Experimental XML adapters (operator opt-in)
+
+Providers wargaming, lesta and nte remain disabled by default; production operator enables
+all three for observation. Panel and digest label these sources experimental.
+- Wargaming: WoT EU (WOT.EU.PRODUCTION), related WGC EU launcher (WGC.EU.PRODUCTION).
+- Lesta: Мир кораблей RU (MK.RU.PRODUCTION); display this official title despite legacy
+  catalog title World of Warships. Мир танков and LGC remain uncovered.
+- NTE: Global resource configuration only. Selectable `nte:global` game has new coverage
+  `resources_only` and linked `nte:resources` (kind resources). Only the linked object is
+  polled/counts toward coverage; never claim game client or launcher detection.
+
+Wargaming protocol: fixed HTTPS origin + metadata + patches_chain/; two known metadata
+layouts, exact production app_id, fixed client_type/lang/required parts. One bounded
+metadata refresh/retry on meta_need_update. Only one install chain; explicit preload
+chains ignored, unknown or ambiguous chains rejected. delay_preload is not proof of release.
+For each required part follow the unique complete chain from version 0 (missing version_from
+means 0), reject gaps/branches/duplicates. Compare SHA256 of sorted terminal
+(part, version_to, torrent SHA256) tuples; display version_name or primary part version.
+Changing distribution hashes can notify without a client version change. No torrent downloads
+or arbitrary application/URL redirects. This may still observe a build before its release.
+
+NTE reads fixed Global config.xml, appId=3000001 from base64 JSON ResConfig, Tag=baseTag;
+compares ResVersion + Extra/listHash. Display ResVersion. Ignore UpdateResVersion, optional
+chunks, Devices, CDN and rollout configuration. A nonzero UpdateResVersion alone does not
+notify. Use mirror only after transport/HTTP failure, never invalid metadata or newest-version
+selection. Resource publication versus preload is not independently verified.
+
+UTF-8 XML only, DTD/entities rejected before parsing, bounded size and existing HTTP limits.
+Errors produce safe coverage codes; baseline, append-only journal, cursor and delivery
+invariants unchanged. No DB migrations. Bot must be upgraded before watcher because
+provider enums and resources_only extend the v2 contract. Production rollback restores
+both coordinated databases, not just old images.

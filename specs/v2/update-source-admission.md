@@ -13,7 +13,7 @@ There is no official SLA for this launcher API. A real update transition remains
 Metadata endpoint:
 https://launcher-public-service-prod06.ol.epicgames.com/launcher/api/public/assets/v2/platform/Windows/namespace/fn/catalogItem/4fe75bbc5a674f4f9b356b5c90567da5/app/Fortnite/label/Live
 
-## Wargaming/Lesta: hold, no supported provider yet
+## Wargaming/Lesta: experimental admission
 
 Two-step anonymous XML candidates, repeat reads succeeded during research:
 
@@ -38,12 +38,13 @@ never follow arbitrary upstream redirect URLs.
 
 Missing evidence: actual preload fixture/client capture distinguishing published install
 chains, and corroboration of WGC win32 self-update with an installed client's version/log.
-Current delay_preload=False is insufficient. No guessed XML adapter is shipped as supported.
-Once admitted: safe XML (no DTD/entities), accept only known chains/components, canonical
+Current delay_preload=False is insufficient to prove release. The operator explicitly
+authorized experimental production observation on 2026-10-15 without waiting for capture.
+Implementation: safe XML (no DTD/entities), accept only known chains/components, canonical
 fingerprint of sorted part/terminal version_to/torrent SHA256. Hash-only changes mean
 redistributed packages, not necessarily modified gameplay. Ignore URLs/config metadata version.
 
-## NTE Global: hold, no supported provider yet
+## NTE Global: experimental resource admission
 
 GET https://ntecdn2.perfectworld.com/clientRes/publish_PC/Version/Windows/config.xml
 Mirror ntecdn1.perfectworld.com. Both read twice during research, same ResVersion/listHash.
@@ -62,4 +63,5 @@ method, hostname/path, query/header names and sanitized metadata response, displ
 channel and whether preload is offered. Do not retain authorization/cookies/device IDs,
 private paths or signed URLs. Include a known preload/release transition for WG/NTE and a
 launcher version/log match for WGC. Verify metadata-only replay without user credentials.
-If unavailable, leave the source unsupported; release Fortnite independently.
+These captures are follow-up evidence for reliability; the operator explicitly waived them
+as release gates for the experimental adapters on 2026-10-15. Keep NTE resource-only.

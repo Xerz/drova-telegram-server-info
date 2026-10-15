@@ -52,3 +52,9 @@ update adapters; no complete upstream dumps, account credentials or download pay
 `platforms/epic.json` is a minimal synthetic Fortnite protocol fixture based on research;
 `isPreloaded=false` is a required admission assertion, confirmed by two live reads
 from the production network on 2026-10-15. Manifest URL is deliberately invalid; no OAuth credentials included.
+
+`platforms/{wot,wgc,mk}-{meta,chain}.xml` and `platforms/nte.xml` are whitelisted
+projections of public metadata read on 2026-10-15. Versions, hashes and channel identities
+are preserved; CDN/torrent URLs, localization, rollout/device lists and unrelated fields
+are removed. Synthetic mutations in tests cover failure/preload branches; they are not
+claimed as captured real-world preload responses.

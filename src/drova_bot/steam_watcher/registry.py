@@ -1,6 +1,7 @@
 """Reviewed public Drova IDs; never infer a distribution channel from a title.
 
-Registry revision 2; Fortnite added 2026-10-15. Protocol references: specs/v2/platform-updates.md.
+Registry revision 3; experimental XML providers added 2026-10-15.
+Protocol references: specs/v2/platform-updates.md.
 Unverified Battle.net products remain unmapped instead of guessing NGDP product codes.
 """
 
@@ -9,7 +10,7 @@ from __future__ import annotations
 from drova_bot.domain.models import CatalogProduct
 from drova_bot.game_updates.models import UpdateObject, steam_games
 
-REGISTRY_VERSION = 2
+REGISTRY_VERSION = 3
 ACCOUNTS = {
     "hoyo": "hoYoverse",
     "wuwa": "KuroGames",
@@ -17,9 +18,37 @@ ACCOUNTS = {
     "battlenet": "Battle.net",
     "bsg": "Escape from Tarkov",
     "epic": "Epic Games",
+    "wargaming": "Wargaming",
+    "lesta": "Lesta",
+    "nte": "NTE",
 }
 # product UUID, compact key, external delivery ID, official information page
+CHANNELS = {"epic": "live", "battlenet": "eu", "wargaming": "eu", "lesta": "ru"}
 ENTRIES = {
+    "wargaming": [
+        (
+            "c1661a7c-4950-4346-a193-103fb385b6d6",
+            "wot-eu",
+            "WOT.EU.PRODUCTION",
+            "https://worldoftanks.eu/",
+        )
+    ],
+    "lesta": [
+        (
+            "21d8c648-8d39-4b3f-8989-69d58fbe7dff",
+            "mk-ru",
+            "MK.RU.PRODUCTION",
+            "https://lesta.ru/ru/games/mk",
+        )
+    ],
+    "nte": [
+        (
+            "3d02d4c9-0dfb-44fd-aeb2-2a00d288bf11",
+            "global",
+            "3000001",
+            "https://nte.perfectworld.com/ru/",
+        )
+    ],
     "epic": [
         (
             "d5f88d94-87d5-11e7-bb31-000000003778",
@@ -94,6 +123,8 @@ ENTRIES = {
     ],
 }
 LINKS = {
+    "wargaming": [("launcher-eu", "WGC.EU.PRODUCTION", "Wargaming Game Center", "launcher")],
+    "nte": [("resources", "3000001", "NTE · ресурсы", "resources")],
     "wuwa": [("launcher", "launcher", "Лаунчер WuWa", "launcher")],
     "endfield": [
         ("launcher", "Official", "GRYPHLINK", "launcher"),
@@ -126,16 +157,16 @@ def catalog_objects(
                         id=f"{provider}:{key}",
                         provider=provider,
                         external_id=external,
-                        title=product.title,
-                        channel=(
-                            "live"
-                            if provider == "epic"
-                            else "eu"
-                            if provider == "battlenet"
-                            else "global"
-                        ),
+                        title="Мир кораблей" if provider == "lesta" else product.title,
+                        channel=CHANNELS.get(provider, "global"),
                         news_url=url,
-                        coverage="launcher_only" if provider == "bsg" else "full",
+                        coverage=(
+                            "launcher_only"
+                            if provider == "bsg"
+                            else "resources_only"
+                            if provider == "nte"
+                            else "full"
+                        ),
                     )
                 )
             )
@@ -180,13 +211,15 @@ def catalog_objects(
                     external_id=external,
                     title=title,
                     kind=kind,
-                    channel="eu" if provider == "battlenet" else "global",
+                    channel=CHANNELS.get(provider, "global"),
                     related_games=[g.id for g in games],
                     news_url=games[0].news_url,
                 )
             )
             if provider == "battlenet":
                 linked.news_url = "https://news.blizzard.com/"
+            if provider == "wargaming":
+                linked.news_url = "https://eu.wargaming.net/en/wgc"
             for game in games:
                 game.linked_objects.append(linked.id)
             objects.append(linked)

@@ -141,6 +141,14 @@ async def endfield_game(client: MetadataClient) -> Any:
 
 async def observe(client: MetadataClient, obj: UpdateObject) -> Observation:
     try:
+        if obj.provider in {"wargaming", "lesta", "nte"}:
+            from drova_bot.steam_watcher.xml_adapters import nte, wargaming
+
+            if obj.provider == "nte":
+                if obj.external_id != "3000001" or obj.kind != "resources":
+                    raise MetadataError("unsupported_app")
+                return await nte(client)
+            return await wargaming(client, obj.external_id)
         if obj.provider == "epic":
             from drova_bot.steam_watcher.epic import EpicClient
 

@@ -124,3 +124,82 @@ async def test_epic_missing_credentials_is_safe_status_and_preserves_state(tmp_p
     finally:
         await worker.close()
         await store.close()
+
+
+async def test_xml_providers_baseline_error_recovery_and_restart(tmp_path: Path) -> None:
+    import httpx
+
+    from drova_bot.steam_watcher.registry import catalog_objects
+    from tests.platforms.test_registry import product
+
+    url = f"sqlite+aiosqlite:///{tmp_path / 'xml.db'}"
+    store = WatcherStore(url)
+    await store.initialize()
+    objects, unmapped = catalog_objects(
+        [
+            product("c1661a7c-4950-4346-a193-103fb385b6d6", "WoT", "Wargaming"),
+            product("21d8c648-8d39-4b3f-8989-69d58fbe7dff", "Ships", "Lesta"),
+            product("3d02d4c9-0dfb-44fd-aeb2-2a00d288bf11", "NTE", "NTE"),
+        ],
+        {"wargaming", "lesta", "nte"},
+    )
+    await store.replace_objects(objects, NOW, unmapped=unmapped)
+    state = "original"
+    fixtures = Path("specs/v2/fixtures/platforms")
+
+    def handler(req: httpx.Request) -> httpx.Response:
+        if state == "error":
+            return httpx.Response(200, content=b"<broken/>")
+        if "perfectworld" in req.url.host:
+            body = (fixtures / "nte.xml").read_bytes()
+            if state == "changed":
+                body = body.replace(b"1.3.10", b"1.3.11")
+        else:
+            name = (
+                "wgc" if "wguswgc" in req.url.host else "wot" if "woteu" in req.url.host else "mk"
+            )
+            kind = "meta" if "metadata" in req.url.path else "chain"
+            body = (fixtures / f"{name}-{kind}.xml").read_bytes()
+            if state == "changed" and kind == "chain":
+                body = body.replace(b"<version_to>", b"<version_to>9.")
+        return httpx.Response(200, content=body)
+
+    workers = [ProviderLoop(p, store) for p in ["wargaming", "lesta", "nte"]]
+    try:
+        for worker in workers:
+            await worker.client.http.aclose()
+            worker.client.http = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+        for _ in range(2):
+            for worker in workers:
+                assert await worker.cycle()
+        feed = await store.games()
+        assert feed.providers["nte"].total == feed.providers["nte"].covered == 1
+        assert feed.providers["wargaming"].total == feed.providers["wargaming"].covered == 2
+        assert feed.providers["lesta"].covered == 1
+        assert not (await store.events()).events
+        state = "error"
+        for worker in workers:
+            assert not await worker.cycle()
+        assert not (await store.events()).events
+        state = "changed"
+        for worker in workers:
+            assert await worker.cycle()
+        assert len((await store.events()).events) == 4
+        state = "original"
+        for worker in workers:
+            assert await worker.cycle()
+        page = await store.events()
+        assert len(page.events) == 8
+        assert all(e.id != "nte:global" for e in page.events)
+        cursor = page.next_cursor
+    finally:
+        for worker in workers:
+            await worker.close()
+        await store.close()
+    reopened = WatcherStore(url)
+    try:
+        await reopened.initialize()
+        assert (await reopened.events()).next_cursor == cursor
+        assert (await reopened.games()).providers["nte"].covered == 1
+    finally:
+        await reopened.close()

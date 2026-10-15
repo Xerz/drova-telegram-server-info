@@ -33,3 +33,12 @@ async def test_live_epic_metadata() -> None:
     result = (await probe({"epic"}))["epic"]
     assert result["total"] == result["covered"] == 1
     assert all(d < 300 for d in result["cycle_seconds"])
+
+
+@pytest.mark.live
+@pytest.mark.skipif(os.getenv("XML_UPDATES_LIVE") != "1", reason="Experimental metadata opt-in")
+async def test_live_xml_metadata() -> None:
+    results = await probe({"wargaming", "lesta", "nte"})
+    for provider, value in results.items():
+        assert value["total"] == value["covered"] == (2 if provider == "wargaming" else 1)
+        assert all(d < 300 for d in value["cycle_seconds"])

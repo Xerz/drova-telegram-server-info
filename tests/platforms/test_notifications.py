@@ -99,3 +99,40 @@ async def test_epic_search_selection_modes_queue_and_digest(store: NotificationS
     assert len(await store.pending(10001)) == 1
     await store.set_mode(10001, "off", NOW)
     assert not await store.pending(10001)
+
+
+async def test_nte_resources_subscription_cancel_and_panel(store: NotificationStore) -> None:  # noqa: F811
+    from drova_bot.game_updates.models import Subscription, UpdateEvent
+    from drova_bot.game_updates.renderers import render_digest, render_panel
+    from drova_bot.steam_watcher.registry import catalog_objects
+    from tests.platforms.test_registry import product
+
+    objects, _ = catalog_objects(
+        [product("3d02d4c9-0dfb-44fd-aeb2-2a00d288bf11", "Neverness to Everness", "NTE")], {"nte"}
+    )
+    games = [o for o in objects if o.kind == "game"]
+    resource = next(o for o in objects if o.kind == "resources")
+    feed = GameFeed(games=games, objects=objects)
+    await store.replace_feed(feed, NOW)
+    panel = render_panel(
+        feed, Subscription(), page=0, fetched_at=NOW.timestamp(), now=NOW, timezone="UTC"
+    )
+    assert "Отслеживаются только ресурсы" in panel.text
+    event = UpdateEvent(
+        **resource.model_dump(exclude={"buildid", "version"}),
+        stream_id="00000000-0000-0000-0000-000000000001",
+        seq=1,
+        previous_buildid="old",
+        buildid="new",
+        version="1.3.10",
+        observed_at=NOW + timedelta(minutes=10),
+    )
+    assert render_digest([event], "UTC") == [
+        Path("specs/v2/fixtures/platforms/nte-digest.html").read_text().rstrip("\n")
+    ]
+    await store.set_mode(10001, "selected", NOW)
+    await store.select(10001, "nte:global", True, NOW)
+    await store.ingest(page(event))
+    assert len(await store.pending(10001)) == 1
+    await store.select(10001, "nte:global", False, NOW)
+    assert not await store.pending(10001)

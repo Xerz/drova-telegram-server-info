@@ -1,0 +1,7 @@
+<protocol name="app_metadata" version="4.1">
+  <version>20180424095120</version>
+  <protocol>
+    <app_id>WGC.EU.PRODUCTION</app_id>
+    <chain_id>s1</chain_id>
+  </protocol>
+</protocol>

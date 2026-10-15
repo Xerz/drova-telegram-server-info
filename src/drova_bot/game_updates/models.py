@@ -10,7 +10,19 @@ from pydantic import AwareDatetime, BaseModel, Field, field_validator, model_val
 
 from drova_bot.domain.models import CatalogProduct
 
-PROVIDERS = {"steam", "hoyo", "wuwa", "endfield", "battlenet", "bsg", "epic"}
+PROVIDERS = {
+    "steam",
+    "hoyo",
+    "wuwa",
+    "endfield",
+    "battlenet",
+    "bsg",
+    "epic",
+    "wargaming",
+    "lesta",
+    "nte",
+}
+EXPERIMENTAL_PROVIDERS = {"wargaming", "lesta", "nte"}
 LABELS = {
     "steam": "Steam",
     "hoyo": "HoYoverse",
@@ -19,6 +31,9 @@ LABELS = {
     "battlenet": "Battle.net",
     "bsg": "BSG",
     "epic": "Epic Games",
+    "wargaming": "Wargaming",
+    "lesta": "Lesta",
+    "nte": "NTE",
 }
 
 
@@ -30,7 +45,9 @@ def object_id(value: str | int) -> str:
 class UpdateObject(BaseModel):
     id: str = Field(default="", max_length=40, pattern=r"^[a-z0-9:_-]*$")
     appid: int | None = Field(default=None, gt=0, le=4294967295)
-    provider: Literal["steam", "hoyo", "wuwa", "endfield", "battlenet", "bsg", "epic"] = "steam"
+    provider: Literal[
+        "steam", "hoyo", "wuwa", "endfield", "battlenet", "bsg", "epic", "wargaming", "lesta", "nte"
+    ] = "steam"
     external_id: str = ""
     platform: Literal["windows"] = "windows"
     channel: str = "public"
@@ -38,7 +55,7 @@ class UpdateObject(BaseModel):
     title: str = Field(min_length=1, max_length=1000)
     related_games: list[str] = Field(default_factory=list)
     linked_objects: list[str] = Field(default_factory=list)
-    coverage: Literal["full", "launcher_only"] = "full"
+    coverage: Literal["full", "launcher_only", "resources_only"] = "full"
     news_url: str = Field(default="", max_length=500)
     version: str | None = Field(default=None, max_length=100)
     buildid: str | None = Field(default=None, max_length=256)

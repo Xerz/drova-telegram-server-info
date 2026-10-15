@@ -1,0 +1,7 @@
+<protocol name="app_metadata" version="7.2" wgc_publisher_id="wargaming,steam">
+  <version>20260310101200</version>
+  <predefined_section>
+    <app_id>WOT.EU.PRODUCTION</app_id>
+    <chain_id>sd3_hd3</chain_id>
+  </predefined_section>
+</protocol>

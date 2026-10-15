@@ -1,0 +1,31 @@
+<protocol name="patches_chain" version="1.11" wgc_publisher_id="wargaming,steam">
+  <patches_chain type="install">
+    <patch>
+      <torrent>
+        <hash>b94651e5d3cf80ce59977ad5e0f30527a66c383f67f63d7801cbc55e027029d8</hash>
+      </torrent>
+      <part>locale</part>
+      <version_from>0</version_from>
+      <version_to>2.4.1.2634003</version_to>
+    </patch>
+    <patch>
+      <torrent>
+        <hash>b1bf869aab02f0bfa442031d3819bd9cf957ef0fcb968391af4dba3335486e6d</hash>
+      </torrent>
+      <part>client</part>
+      <version_from>0</version_from>
+      <version_to>2.4.1.24080</version_to>
+    </patch>
+    <patch>
+      <torrent>
+        <hash>b1bf869aab02f0bfa442031d3819bd9cf957ef0fcb968391af4dba3335486e6d</hash>
+      </torrent>
+      <part>sdcontent</part>
+      <version_from>0</version_from>
+      <version_to>2.4.1.24080</version_to>
+    </patch>
+  </patches_chain>
+  <delay_preload>False</delay_preload>
+  <meta_need_update>False</meta_need_update>
+  <version_name>2.4.1.5488</version_name>
+</protocol>

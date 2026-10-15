@@ -7,7 +7,13 @@ from datetime import datetime
 from html import escape
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from drova_bot.game_updates.models import LABELS, GameFeed, SteamEvent, Subscription
+from drova_bot.game_updates.models import (
+    EXPERIMENTAL_PROVIDERS,
+    LABELS,
+    GameFeed,
+    SteamEvent,
+    Subscription,
+)
 from drova_bot.telegram.callbacks import CallbackSpec
 from drova_bot.telegram.keyboards import ButtonSpec, KeyboardSpec
 from drova_bot.telegram.renderers import RenderedMessage
@@ -60,10 +66,14 @@ def digest_groups(events: list[SteamEvent], timezone: str) -> list[tuple[str, se
         )
         if latest.provider != "steam":
             kind = {"game": "Игра", "resources": "Ресурсы", "launcher": "Лаунчер"}[latest.kind]
+            if latest.provider in {"wargaming", "lesta"} and latest.kind == "game":
+                kind = "Дистрибутив"
             line += (
                 f" · {LABELS[latest.provider]} · {kind}"
                 f" · {escape(latest.version or 'версия недоступна')}"
             )
+        if latest.provider in EXPERIMENTAL_PROVIDERS:
+            line += " · экспериментально"
         if len(updates) > 1:
             line += f" · обновлений: {len(updates)}"
         if len((text + line + "\n").encode("utf-16-le")) // 2 > 3900 and appids:
@@ -150,7 +160,12 @@ def render_panel(
         selected = game.id in subscription.selected
         label = ("✓ " if selected else "＋ ") + game.title[:60]
         label += f" · {LABELS[game.provider]}"
-        if game.coverage == "launcher_only":
+        if game.provider in EXPERIMENTAL_PROVIDERS:
+            label += " · экспериментально"
+        if game.coverage == "resources_only":
+            label += " · только ресурсы"
+            lines.append(f"{escape(game.title)}: Отслеживаются только ресурсы")
+        elif game.coverage == "launcher_only":
             label += " · только BSG Launcher"
             lines.append(f"{escape(game.title)}: Отслеживается только BSG Launcher")
         elif game.buildid is None or game.error_code:

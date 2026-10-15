@@ -88,7 +88,7 @@ class ProviderLoop:
         objects = [
             o
             for o in (await self.store.games()).objects
-            if o.provider == self.provider and o.coverage != "launcher_only"
+            if o.provider == self.provider and o.coverage == "full"
         ]
         self.client.clear()
         errors = 0

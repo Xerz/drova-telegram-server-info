@@ -1,0 +1,15 @@
+<protocol name="patches_chain" version="1.11">
+  <patches_chain type="install">
+    <patch>
+      <torrent>
+        <hash>6dd13c2caedcad72f695a9ec3aaa9837b2d145ab52773e5e037e22d67b059b75</hash>
+      </torrent>
+      <part>win32</part>
+      <version_from>0</version_from>
+      <version_to>26.5.1.3645</version_to>
+    </patch>
+  </patches_chain>
+  <delay_preload>False</delay_preload>
+  <meta_need_update>False</meta_need_update>
+  <version_name>26.05.01.3645</version_name>
+</protocol>

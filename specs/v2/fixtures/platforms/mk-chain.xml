@@ -1,0 +1,35 @@
+<protocol name="patches_chain" version="1.11" wgc_publisher_id="lesta">
+  <patches_chain type="install">
+    <patch>
+      <torrent>
+        <hash>ba9ffe8b32ac820cf6240ea22d6602556e403df407a186408b6f2892d28abc98</hash>
+      </torrent>
+      <part>client</part>
+      <version_to>26.10.0.0.8867689</version_to>
+    </patch>
+    <patch>
+      <torrent>
+        <hash>ba9ffe8b32ac820cf6240ea22d6602556e403df407a186408b6f2892d28abc98</hash>
+      </torrent>
+      <part>locale</part>
+      <version_to>26.10.0.0.8867689</version_to>
+    </patch>
+    <patch>
+      <torrent>
+        <hash>ba9ffe8b32ac820cf6240ea22d6602556e403df407a186408b6f2892d28abc98</hash>
+      </torrent>
+      <part>sdcontent</part>
+      <version_to>26.10.0.0.8867689</version_to>
+    </patch>
+    <patch>
+      <torrent>
+        <hash>ba9ffe8b32ac820cf6240ea22d6602556e403df407a186408b6f2892d28abc98</hash>
+      </torrent>
+      <part>hotfix</part>
+      <version_to>26.10.0.0.8867689</version_to>
+    </patch>
+  </patches_chain>
+  <delay_preload>False</delay_preload>
+  <meta_need_update>False</meta_need_update>
+  <version_name />
+</protocol>
